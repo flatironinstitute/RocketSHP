@@ -1,0 +1,22 @@
+name: rocketshp
+channels:
+  - conda-forge
+dependencies:
+  - python=3.11
+  - black
+  - flake8
+  - isort
+  - pip
+  - typer
+  - loguru
+  - tqdm
+  - ipython
+  - jupyterlab
+  - matplotlib
+  - notebook
+  - numpy
+  - pandas
+  - scikit-learn
+  - pip:
+    - python-dotenv
+    - -e .
