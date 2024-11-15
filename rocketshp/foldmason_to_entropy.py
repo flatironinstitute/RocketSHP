@@ -1,15 +1,17 @@
 import sys
-import numpy as np
+from pathlib import Path
+
 import matplotlib.pyplot as plt
-from scipy.stats import entropy
+import numpy as np
 from Bio import AlignIO
 from Bio.Align import AlignInfo
-from pathlib import Path
+from scipy.stats import entropy
 
 try:
     align_3di = sys.argv[1]
 except ValueError:
-    print('usage: python foldmason_to_entropy.py [foldmason 3di file]')
+    print("usage: python foldmason_to_entropy.py [foldmason 3di file]")
+
 
 def pssm_to_numpy(pssm):
     npm = []
@@ -17,6 +19,7 @@ def pssm_to_numpy(pssm):
         npm.append(list(r.values()))
 
     return np.array(npm).T
+
 
 align = AlignIO.read(align_3di, "fasta")
 info = AlignInfo.SummaryInfo(align)

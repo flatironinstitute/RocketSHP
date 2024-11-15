@@ -2,8 +2,10 @@ from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
+from dataclasses import dataclass
+from omegaconf import OmegaConf
 
-# Load environment variables from .env file if it exists
+# # Load environment variables from .env file if it exists
 load_dotenv()
 
 # Paths
@@ -20,6 +22,24 @@ MODELS_DIR = PROJ_ROOT / "models"
 
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
+
+@dataclass
+class PARAMETER_STRUCT:
+    num_parameters: int = -1
+    batch_size: int = 8
+    lr: float = 0.001
+    max_epochs: int = 20
+    num_data_workers: int = 31
+    shuffle: bool = True
+    precision: str = "highest"
+    embedding_dim: int = 1536
+    output_dim: int = 1
+    d_model: int = 512
+    n_heads: int = 8
+    n_layers: int = 4
+    rmsf_loss: str = "rmse"
+
+DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
 
 # If tqdm is installed, configure loguru with tqdm.write
 # https://github.com/Delgan/loguru/issues/135

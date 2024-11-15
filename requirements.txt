@@ -1,0 +1,7 @@
+torch
+torch_geometric
+mdtraj
+torchmd-net
+typer
+python-dotenv
+loguru
