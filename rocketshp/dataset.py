@@ -1,6 +1,8 @@
 from pathlib import Path
 
+import pandas as pd
 import numpy as np
+import glob
 import h5py
 import torch
 import typer
@@ -13,8 +15,13 @@ from rocketshp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
 
 app = typer.Typer()
 
+FOLDSEEK_CLUSTERS_FILE = PROCESSED_DATA_DIR / "atlas/foldseek_atlas_0.2_cluster.tsv"
 ATLAS_PROCESSED_H5 = PROCESSED_DATA_DIR / "atlas/atlas_processed.h5"
 ATLAS_N_REPS = 3
+
+MDCATH_PROCESSED_H5 = PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5"
+MDCATH_TEMPS = [320, 348, 379, 413, 450]
+MDCATH_REPS = [0, 1, 2, 3, 4]
 
 def _stack_variable_length_tensors(
     sequences: list[torch.Tensor],
@@ -58,28 +65,39 @@ def _unstack_variable_length_tensors(stacked, lengths) -> list[torch.Tensor]:
 def _get_seq_lengths(sequences: list[torch.Tensor]) -> torch.Tensor:
     return torch.tensor([len(seq) for seq in sequences], dtype=torch.long)
 
-def _collate_fn_single(batch):
+def _dict_collate_fn(batch):
+    """
+    Custom collate function for batching variable length sequences.
+    
+    Args:
+        batch: List of tuples (features_dict, labels_dict) from the dataset
+        
+    Returns:
+        features_dict: Dictionary of padded feature tensors
+        labels_dict: Dictionary of label tensors
+        lengths: Tensor of sequence lengths
+    """
+    # Separate features and labels
     features, labels = zip(*batch)
-    features = list(zip(*features))
-    lengths = _get_seq_lengths(features[0])
-    return _stack_variable_length_tensors(features[0]), lengths, _stack_variable_length_tensors(labels)
-
-
-def _collate_fn_multi(batch):
-    features, labels = zip(*batch)
-    features = list(zip(*features))
-    lengths = _get_seq_lengths(features[0])
-    features = [_stack_variable_length_tensors(f) for f in features]
-    return features, lengths, _stack_variable_length_tensors(labels)
-
-
-def _collate_fn(batch):
-    f0, _ = batch[0]
-    if len(f0) == 1:
-        return _collate_fn_single(batch)
-    else:
-        return _collate_fn_multi(batch)
-
+    
+    # Get sequence lengths (assuming all features have same length)
+    lengths = torch.tensor([next(iter(feat.values())).shape[0] for feat in features])
+    
+    # Initialize output dictionaries
+    padded_features = {}
+    padded_labels = {}
+    
+    # Pad and stack features
+    for key in features[0].keys():
+        sequences = [feat[key] for feat in features]
+        padded_features[key] = _stack_variable_length_tensors(sequences)
+    
+    # Stack labels (assuming they don't need padding)
+    for key in labels[0].keys():
+        label_tensors = [label[key] for label in labels]
+        padded_labels[key] = _stack_variable_length_tensors(label_tensors)
+    
+    return padded_features, padded_labels, lengths
 
 class ATLASDataset(Dataset):
     def __init__(
@@ -107,17 +125,19 @@ class ATLASDataset(Dataset):
         rep_key = self.samples[idx]
         pdb_code, rep = rep_key.split("/")
 
-        features = []
+        features = {}
         if self._use_seq:
             seq_features = self._handle[f"{pdb_code}/embedding"][:]
-            features.append(torch.from_numpy(seq_features))
+            features["seq_feats"] = torch.from_numpy(seq_features)
         if self._use_struct:
             struct_features = self._handle[f"{pdb_code}/struct_tokens"][:]
-            features.append(torch.from_numpy(struct_features))
+            features["struct_feats"] = torch.from_numpy(struct_features)
 
-        label = torch.from_numpy(self._handle[f"{pdb_code}/{rep}/{self._target}"][:])
+        labels = {}
+        labels["rmsf"] = torch.from_numpy(self._handle[f"{pdb_code}/{rep}/{self._target}"][:])
+        labels["ca_dist"] = torch.from_numpy(self._handle[f"{pdb_code}/{rep}/ca_distances"][:]).squeeze()
 
-        return features, label
+        return features, labels
 
     def __del__(self):
         if hasattr(self, "_handle") and isinstance(self._handle, h5py.File):
@@ -136,6 +156,7 @@ class ATLASDataModule(LightningDataModule):
         num_workers: int = 0,
         train_pct: float = 0.8,
         val_pct: float = 0.1,
+        clusters_file: Path = FOLDSEEK_CLUSTERS_FILE,
         random_seed: int = 42,
     ):
         super().__init__()
@@ -150,6 +171,8 @@ class ATLASDataModule(LightningDataModule):
         self.num_workers = num_workers
         self.train_pct = train_pct
         self.val_pct = val_pct
+        self.clusters = pd.read_csv(clusters_file,sep="\t",header=None)
+
         self.random_seed = random_seed
 
     def prepare_data(self):
@@ -164,21 +187,32 @@ class ATLASDataModule(LightningDataModule):
             struct_features=self._struct_features,
         )
 
-        pdb_codes = list(set([s.split("/")[0] for s in self.dataset.samples]))
-        n_pdbs = len(pdb_codes)
-
-        train_size = int(self.train_pct * n_pdbs)
-        val_size = int(self.val_pct * n_pdbs)
-
+        all_clusters = self.clusters[0].unique()
         rng = np.random.default_rng(self.random_seed)
-        pdb_shuffled = rng.permutation(pdb_codes)
-        train_pdb_codes = pdb_shuffled[:train_size]
-        val_pdb_codes = pdb_shuffled[train_size : train_size + val_size]
-        test_pdb_codes = pdb_shuffled[train_size + val_size :]
+        shuffled_entities = rng.permutation(all_clusters)
+        n_entities = len(shuffled_entities)
 
-        train_sample_idx = [i for i, s in enumerate(self.dataset.samples) if s.split("/")[0] in train_pdb_codes]
-        val_sample_idx = [i for i, s in enumerate(self.dataset.samples) if s.split("/")[0] in val_pdb_codes]
-        test_sample_idx = [i for i, s in enumerate(self.dataset.samples) if s.split("/")[0] in test_pdb_codes]
+        train_size = int(self.train_pct * n_entities)
+        val_size = int(self.val_pct * n_entities)
+        self.train_subset = shuffled_entities[:train_size]
+        self.val_subset = shuffled_entities[train_size : train_size + val_size]
+        self.test_subset = shuffled_entities[train_size + val_size :]
+
+        train_subset_pdb = self.clusters[self.clusters[0].isin(self.train_subset)][1].unique()
+        val_subset_pdb = self.clusters[self.clusters[0].isin(self.val_subset)][1].unique()
+        test_subset_pdb = self.clusters[self.clusters[0].isin(self.test_subset)][1].unique()
+
+        train_sample_idx, val_sample_idx, test_sample_idx = [], [], []
+        for i, s in enumerate(self.dataset.samples):
+            pdb_code, _ = s.split("/")
+            if pdb_code in train_subset_pdb:
+                train_sample_idx.append(i)
+            elif pdb_code in val_subset_pdb:
+                val_sample_idx.append(i)
+            elif pdb_code in test_subset_pdb:
+                test_sample_idx.append(i)
+            else:
+                raise ValueError(f"Sample {s} not found in any subset.")
 
         self.train_data = Subset(self.dataset, train_sample_idx)
         self.val_data = Subset(self.dataset, val_sample_idx)
@@ -191,7 +225,7 @@ class ATLASDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=self.shuffle,
             num_workers=self.num_workers,
-            collate_fn=_collate_fn,
+            collate_fn=_dict_collate_fn,
         )
 
     def val_dataloader(self):
@@ -200,7 +234,7 @@ class ATLASDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=_collate_fn,
+            collate_fn=_dict_collate_fn,
         )
 
     def test_dataloader(self):
@@ -209,8 +243,53 @@ class ATLASDataModule(LightningDataModule):
             batch_size=self.batch_size,
             shuffle=False,
             num_workers=self.num_workers,
-            collate_fn=_collate_fn,
+            collate_fn=_dict_collate_fn,
         )
+
+class MDCathDataset(Dataset):
+    def __init__(
+        self,
+        processed_h5: Path = MDCATH_PROCESSED_H5,
+        target: str = "rmsf",
+        seq_features: bool = True,
+        struct_features: bool = True,
+    ):
+        super().__init__()
+        self._path = processed_h5
+        self._handle = h5py.File(self._path, "r")
+        self._target = target
+
+        self._use_seq = seq_features
+        self._use_struct = struct_features
+
+        self.keys = list(self._handle.keys())
+        self.samples = [f"{k}/T{t}/R{r+1}" for k in self.keys for r in MDCATH_REPS for t in MDCATH_TEMPS]
+
+    def __len__(self):
+        return len(self.samples)
+
+    def __getitem__(self, idx):
+        rep_key = self.samples[idx]
+        pdb_code, temp, rep = rep_key.split("/")
+
+        features = {}
+        if self._use_seq:
+            seq_features = self._handle[f"{pdb_code}/embedding"][:]
+            features["seq_feats"] = torch.from_numpy(seq_features)
+        if self._use_struct:
+            struct_features = self._handle[f"{pdb_code}/struct_tokens"][:]
+            features["struct_feats"] = torch.from_numpy(struct_features)
+        features["temp"] = int(temp.lstrip("T"))
+
+        labels = {}
+        labels["rmsf"] = torch.from_numpy(self._handle[f"{pdb_code}/{temp}/{rep}/{self._target}"][:])
+        labels["ca_dist"] = torch.from_numpy(self._handle[f"{pdb_code}/{temp}/{rep}/ca_distances"][:]).squeeze()
+
+        return features, labels
+
+    def __del__(self):
+        if hasattr(self, "_handle") and isinstance(self._handle, h5py.File):
+            self._handle.close()
 
 
 @app.command()

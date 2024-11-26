@@ -8,16 +8,16 @@ import h5py
 import numpy as np
 import typer
 from loguru import logger
-from torchmdnet.datasets import MDCATH
+# from torchmdnet.datasets import MDCATH
 
 from rocketshp.config import INTERIM_DATA_DIR, RAW_DATA_DIR
 
 app = typer.Typer()
 
 
-def download(target_directory=f"{RAW_DATA_DIR}/mdcath"):
-    mdc = MDCATH(target_directory)
-    mdc.download()
+# def download(target_directory=f"{RAW_DATA_DIR}/mdcath"):
+#     mdc = MDCATH(target_directory)
+#     mdc.download()
 
 
 def _open_h5_file(h5):
@@ -139,14 +139,14 @@ def convert_to_files(
     with open(pdbpath, "wb") as pdbfile:
         pdb = h5[code]["pdbProteinAtoms"][()]
         pdbfile.write(pdb)
-        logger.info(f"Wrote {pdbpath}")
+        # logger.info(f"Wrote {pdbpath}")
 
     for temp in temp_list:
         for replica in replica_list:
             xtcpath = f"{basename}_{temp}_{replica}.xtc"
             trj = convert_to_mdtraj(h5, temp, replica)
             trj.save_xtc(xtcpath)
-            logger.info(f"Wrote {xtcpath}")
+            # logger.info(f"Wrote {xtcpath}")
 
     return pdbpath, xtcpath
 

@@ -83,6 +83,9 @@ def main(
         batch_size=PARAMS.batch_size,
         num_workers=PARAMS.num_data_workers,
         shuffle=PARAMS.shuffle,
+        random_seed=PARAMS.random_seed,
+        train_pct=PARAMS.train_pct,
+        val_pct=PARAMS.val_pct,
     )
 
     # Set up ModelCheckpoint to monitor val_loss

@@ -31,6 +31,9 @@ class PARAMETER_STRUCT:
     max_epochs: int = 20
     num_data_workers: int = 31
     shuffle: bool = True
+    random_seed: int = 0
+    train_pct: float = 0.8
+    val_pct: float = 0.1
     precision: str = "highest"
     embedding_dim: int = 1536
     output_dim: int = 1
@@ -38,6 +41,8 @@ class PARAMETER_STRUCT:
     n_heads: int = 8
     n_layers: int = 4
     rmsf_loss: str = "rmse"
+    rmsf_alpha: float = 0.0
+    ca_alpha: float = 1.0
 
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
 

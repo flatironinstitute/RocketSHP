@@ -1,6 +1,9 @@
 name: rocketshp
 channels:
   - conda-forge
+  - pytorch
+  - nvidia
+  - bioconda
 dependencies:
   - python=3.11
   - black
@@ -13,10 +16,24 @@ dependencies:
   - ipython
   - jupyterlab
   - matplotlib
+  - seaborn
   - notebook
   - numpy
   - pandas
   - scikit-learn
+  - scipy
+  - pytorch
+  - pytorch-cuda=12.4
+  - biopython
+  - transformers
+  - h5py
+  - torchmd-net
+  - rdkit
+  - wandb
+  - foldseek
   - pip:
     - python-dotenv
     - -e .
+    - nglview
+    - ipymolstar
+    - mdtraj

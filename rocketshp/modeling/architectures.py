@@ -65,6 +65,7 @@ class FlexibilityModel(nn.Module):
         d_model: int,
         n_heads: int,
         n_layers: int,
+        k_size: int = 1,
     ):
         super().__init__()
 
@@ -72,7 +73,28 @@ class FlexibilityModel(nn.Module):
         self.transformer = TransformerStack(
             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
         )
+        self.squareformer = nn.Sequential(
+            nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
+            nn.GELU(),
+            # nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
+            # nn.GELU(),
+        )
         self.output = RegressionHead(d_model, output_dim)
+
+    def _transform(self, x):
+        x = self.encoder(x)
+        x, _ = self.transformer(x)
+        return x
+    
+    def squareform(self, x):
+        x = self._transform(x)
+        # sqform = torch.matmul(x, x.transpose(1, 2)).unsqueeze(1)
+        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+        return self.squareformer(sqform).squeeze(1)
+    
+    def rmsf(self, x):
+        x = self._transform(x)
+        return self.output(x)
 
     def forward(self, x):
         """
@@ -80,11 +102,27 @@ class FlexibilityModel(nn.Module):
         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
         """
-        x = self.encoder(x)
-        x, _ = self.transformer(x)
-        return self.output(x)
+        rmsf_pred = self.rmsf(x)
+        sqform_pred = self.squareform(x)
+        return {
+            "rmsf": rmsf_pred,
+            "ca_dist": sqform_pred,
+        }
     
     def _num_parameters(self, requires_grad: bool = True):
         return sum(
             p.numel() for p in self.parameters() if p.requires_grad == requires_grad
         )
+    
+    @classmethod
+    def load_from_checkpoint(cls, checkpoint_path: str, strict: bool = True):
+        chk = torch.load(checkpoint_path)
+        hp = chk["hyper_parameters"]
+        state_dict = {}
+        fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"])
+        for k,v in chk["state_dict"].items():
+            new_k = k.replace("child_model.","")
+            state_dict[new_k] = v
+        fm.load_state_dict(state_dict, strict=strict)
+        fm.eval()
+        return fm

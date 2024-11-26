@@ -15,9 +15,11 @@ PYTHON_INTERPRETER = python
 .PHONY: requirements
 requirements:
 	conda env update --name $(PROJECT_NAME) --file environment.yml --prune
-	
 
-
+## Install project locally
+.PHONY: install
+install:
+	pip install -e .
 
 ## Delete all compiled Python files
 .PHONY: clean
@@ -25,17 +27,16 @@ clean:
 	find . -type f -name "*.py[co]" -delete
 	find . -type d -name "__pycache__" -delete
 
-## Lint using flake8 and black (use `make format` to do formatting)
+## Lint using ruff (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	flake8 rocketshp
-	isort --check --diff --profile black rocketshp
-	black --check --config pyproject.toml rocketshp
+	ruff check rocketshp scripts
+	ruff format rocketshp scripts
 
 ## Format source code with black
 .PHONY: format
 format:
-	black --config pyproject.toml rocketshp
+	ruff format rocketshp scripts
 
 
 

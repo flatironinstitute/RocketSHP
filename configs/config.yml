@@ -1,2 +1,15 @@
-batch_size: 8
+batch_size: 1
 lr: 0.001
+max_epochs: 20
+num_data_workers: 31
+shuffle: True
+random_seed: 0
+train_pct: 0.8
+val_pct: 0.1
+precision: "highest"
+embedding_dim: 1536
+output_dim: 1
+d_model: 256
+n_heads: 8
+n_layers: 4
+rmsf_loss: "rmse"

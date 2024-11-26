@@ -15,4 +15,4 @@ module load nccl/2.20.3-1
 source ~/venvs/torch/bin/activate
 
 cd $HOME/Projects/rocketshp
-python rocketshp/modeling/train.py --run-id $RSHP_NAME --config $RSHP_CONFIG
+python rocketshp/modeling/train.py $RSHP_NAME --config $RSHP_CONFIG
