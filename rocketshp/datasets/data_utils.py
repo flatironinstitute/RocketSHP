@@ -40,16 +40,9 @@ def _unstack_variable_length_tensors(stacked, lengths) -> list[torch.Tensor]:
     """
     return [stacked[i, :lengths[i]] for i in range(len(lengths))]
 
-def _unstack_variable_size_squareforms(sqforms, seq_lens):
-    
-    sqforms = sqforms.squeeze()
-    seq_lens = seq_lens.squeeze()
-    n = sqforms.shape[0]
-    unstacked = []
-    for i in range(n):
-        sl = seq_lens[i]
-        unstacked.append(sqforms[i, :sl, :sl])
-    return unstacked
+def _unstack_variable_size_squareforms(stacked, lengths):
+        
+    return [stacked[i, :sl, :sl] for i, sl in enumerate(lengths)]
 
 def _get_seq_lengths(sequences: list[torch.Tensor]) -> torch.Tensor:
     return torch.tensor([len(seq) for seq in sequences], dtype=torch.long)
