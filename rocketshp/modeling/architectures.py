@@ -74,10 +74,10 @@ class FlexibilityModel(nn.Module):
             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
         )
         self.squareformer = nn.Sequential(
+            nn.Conv2d(d_model, d_model, kernel_size=k_size, stride=1),
+            nn.GELU(),
             nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
             nn.GELU(),
-            # nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
-            # nn.GELU(),
         )
         self.output = RegressionHead(d_model, output_dim)
 
@@ -86,9 +86,12 @@ class FlexibilityModel(nn.Module):
         x, _ = self.transformer(x)
         return x
     
+    def _cross_transform(self, x):
+        x = self._transform(x)
+        return x @ x.transpose(1,2)
+    
     def squareform(self, x):
         x = self._transform(x)
-        # sqform = torch.matmul(x, x.transpose(1, 2)).unsqueeze(1)
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
         return self.squareformer(sqform).squeeze(1)
     
@@ -102,8 +105,11 @@ class FlexibilityModel(nn.Module):
         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
         """
-        rmsf_pred = self.rmsf(x)
-        sqform_pred = self.squareform(x)
+        x = self._transform(x)
+        rmsf_pred = self.output(x)
+
+        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+        sqform_pred = self.squareformer(sqform).squeeze(1)
         return {
             "rmsf": rmsf_pred,
             "ca_dist": sqform_pred,

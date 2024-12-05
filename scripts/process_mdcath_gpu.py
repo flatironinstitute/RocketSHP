@@ -10,7 +10,7 @@ from tqdm import tqdm
 from io import StringIO
 
 from rocketshp import config
-from rocketshp.mdcath import convert_to_mdtraj, convert_to_files
+from rocketshp.datasets.mdcath import convert_to_mdtraj, convert_to_files
 
 from rocketshp.esm3 import (
     _get_esm3_model,
@@ -47,7 +47,7 @@ def frame_to_chain(F):
     return esmc
 
 with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file:
-    for mdc_f in tqdm(mdcath_files[:10], total=len(mdcath_files)):
+    for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
         pdb_code = mdc_f.stem.split("_")[-1]
 
         h5file.require_group(pdb_code)

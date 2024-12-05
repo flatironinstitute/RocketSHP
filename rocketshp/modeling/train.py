@@ -13,7 +13,8 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 
 from rocketshp.config import PROCESSED_DATA_DIR, DEFAULT_PARAMETERS
-from rocketshp.dataset import ATLASDataModule, ATLASDataset
+from rocketshp.datasets.atlas import ATLASDataModule
+from rocketshp.datasets.mdcath import MDCathDataModule
 from rocketshp.modeling.architectures import FlexibilityModel
 from rocketshp.modeling.pt_lightning import LightningWrapper
 

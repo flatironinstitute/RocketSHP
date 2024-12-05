@@ -39,9 +39,9 @@ class PARAMETER_STRUCT:
     output_dim: int = 1
     d_model: int = 512
     n_heads: int = 8
-    n_layers: int = 4
+    n_layers: int = 8
     rmsf_loss: str = "rmse"
-    rmsf_alpha: float = 0.0
+    rmsf_alpha: float = 1.0
     ca_alpha: float = 1.0
 
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
