@@ -46,6 +46,11 @@ def frame_to_chain(F):
             esmc = ProteinChain.from_pdb(sio)
     return esmc
 
+def update_h5_dataset(f, dataset_name, data):
+    if dataset_name in f:
+        del f[dataset_name]  
+    f.create_dataset(dataset_name, data=data)
+
 with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file:
     for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
         pdb_code = mdc_f.stem.split("_")[-1]
@@ -64,9 +69,9 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
                 try:
                     if k == "sequence":
                         sequence = v
-                    h5file[f"{pdb_code}/{k}"] = v
+                    update_h5_dataset(h5file, f"{pdb_code}/{k}", v)
                 except OSError:
-                    continue
+                    print(f"Error with {k}")
 
         # Tokenize structure
         with torch.inference_mode():
@@ -76,9 +81,9 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
                 structure_tokenizer=struct_tokenizer,
                 reference_sequence=sequence,
             )
-            h5file[f"{pdb_code}/plddt"] = plddt.cpu()
-            h5file[f"{pdb_code}/struct_tokens"] = struct_tokens[1:-1].cpu()
+            update_h5_dataset(h5file, f"{pdb_code}/plddt", plddt.cpu())
+            update_h5_dataset(h5file, f"{pdb_code}/struct_tokens", struct_tokens[1:-1].cpu())
 
             embeddings = esm3_embed([sequence], model, tokenizers, device=device)
-            h5file[f"{pdb_code}/embedding"] = embeddings.squeeze()[1:-1].cpu()
+            update_h5_dataset(h5file, f"{pdb_code}/embedding", embeddings.squeeze()[1:-1].cpu())
             logger.info(f"Processed {pdb_code}")

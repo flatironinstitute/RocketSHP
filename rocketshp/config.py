@@ -29,6 +29,7 @@ class PARAMETER_STRUCT:
     batch_size: int = 8
     lr: float = 0.001
     max_epochs: int = 20
+    epoch_scale: int = 20000
     num_data_workers: int = 31
     shuffle: bool = True
     random_seed: int = 0
@@ -40,9 +41,13 @@ class PARAMETER_STRUCT:
     d_model: int = 512
     n_heads: int = 8
     n_layers: int = 8
-    rmsf_loss: str = "rmse"
+    square_loss: bool = False
+    variance_norm: bool = False
     rmsf_alpha: float = 1.0
     ca_alpha: float = 1.0
+    dyn_corr_alpha: float = 1.0
+    seq_features: bool = True
+    struct_features: bool = True
 
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
 

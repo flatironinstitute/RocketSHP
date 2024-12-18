@@ -5,6 +5,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from rocketshp import config
+from rocketshp.datasets.data_utils import update_h5_dataset
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"
@@ -30,23 +31,23 @@ with h5py.File(ATLAS_PROCESSED_DATA_DIR / "atlas_processed.h5", "a") as h5file:
                 # continue
 
             traj = md.load_pdb(pdb_f)
-            # traj = md.load(str(xtc_f), top=pdb_f)
-            # traj.superpose(traj, 0)
-            # traj.center_coordinates()
+            traj = md.load(str(xtc_f), top=pdb_f)
+            traj.superpose(traj, 0)
+            traj.center_coordinates()
 
-            # h5file[f"{pdb_code}/R{rep}/xyz"] = torch.from_numpy(traj.xyz)
-            # h5file[f"{pdb_code}/R{rep}/time"] = torch.from_numpy(traj.time)
-            # h5file[f"{pdb_code}/R{rep}/rmsf"] = md.rmsf(
+            update_h5_dataset(f"{pdb_code}/R{rep}/xyz", torch.from_numpy(traj.xyz))
+            update_h5_dataset(f"{pdb_code}/R{rep}/time", torch.from_numpy(traj.time))
+            update_h5_dataset(f"{pdb_code}/R{rep}/rmsf", md.rmsf(
+                traj, traj, 0, atom_indices=traj.top.select("name CA")
+            ))
+            # update_h5_dataset(f"{pdb_code}/R{rep}/rmsd", md.rmsd(
                 # traj, traj, 0, atom_indices=traj.top.select("name CA")
-            # )
-            # h5file[f"{pdb_code}/R{rep}/rmsd"] = md.rmsd(
-                # traj, traj, 0, atom_indices=traj.top.select("name CA")
-            # )
-            # h5file[f"{pdb_code}/R{rep}/rg"] = md.compute_rg(traj)
-            # h5file[f"{pdb_code}/R{rep}/gyration"] = md.compute_gyration_tensor(traj)
-            # h5file[f"{pdb_code}/R{rep}/principal_moments"] = md.principal_moments(traj)
-            h5file[f"{pdb_code}/R{rep}/ca_distances"] = md.geometry.squareform(
+            # ))
+            update_h5_dataset(f"{pdb_code}/R{rep}/rg", md.compute_rg(traj))
+            update_h5_dataset(f"{pdb_code}/R{rep}/gyration", md.compute_gyration_tensor(traj))
+            # update_h5_dataset(f"{pdb_code}/R{rep}/principal_moments", md.principal_moments(traj))
+            update_h5_dataset(f"{pdb_code}/R{rep}/ca_distances", md.geometry.squareform(
                 *md.compute_contacts(traj[0], scheme="ca", ignore_nonprotein=True)
-            )
+            ))
 
             logger.info(f"Processed {pdb_code}:{rep}")

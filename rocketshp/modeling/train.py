@@ -15,7 +15,7 @@ from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 from rocketshp.config import PROCESSED_DATA_DIR, DEFAULT_PARAMETERS
 from rocketshp.datasets.atlas import ATLASDataModule
 from rocketshp.datasets.mdcath import MDCathDataModule
-from rocketshp.modeling.architectures import FlexibilityModel
+from rocketshp.modeling.architectures import FlexibilityModelWithTemperature, DynCorrModelWithTemperature
 from rocketshp.modeling.pt_lightning import LightningWrapper
 
 
@@ -33,7 +33,7 @@ neptune.internal.operation_processors.async_operation_processor.logger.addFilter
     _FilterCallback()
 )
 
-app = typer.Typer()
+app = typer.Typer()#pretty_exceptions_enable=False)
 
 
 @app.command()
@@ -51,7 +51,16 @@ def main(
     stdout_logger.info(PARAMS)
 
     loggers = []
-    if not debug:
+    if debug:
+        os.environ["LOGURU_LEVEL"] = "DEBUG"
+        def simple_repr(self):
+            return f"Tensor(size={list(self.size())})"
+
+        torch.Tensor.__repr__ = simple_repr
+        torch.Tensor.__str__ = simple_repr
+
+        PARAMS.epoch_scale = 100
+    else:
         neptune_logger = NeptuneLogger(
             project="samsl-flatiron/RocketSHP",
             name=run_id,
@@ -59,14 +68,18 @@ def main(
             log_model_checkpoints=True,
         )
         loggers.append(neptune_logger)
+        os.environ["LOGURU_LEVEL"] = "INFO"
+
     loggers.append(CSVLogger("logs", name=run_id))
 
-    model = FlexibilityModel(
+    # model = FlexibilityModelWithTemperature(
+    model = DynCorrModelWithTemperature(
         embedding_dim = PARAMS.embedding_dim,
         output_dim = PARAMS.output_dim,
         d_model = PARAMS.d_model,
         n_heads = PARAMS.n_heads,
         n_layers = PARAMS.n_layers,
+        seq_only = not PARAMS.struct_features,
     )
     PARAMS.num_parameters = model._num_parameters()
 
@@ -76,11 +89,12 @@ def main(
     if not debug: neptune_logger.log_hyperparams(params=PARAMS.__dict__)
     torch.set_float32_matmul_precision(PARAMS.precision)
 
-    adl = ATLASDataModule(
+    datamod = ATLASDataModule(
         processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
-        target="rmsf",
-        seq_features=True,
-        struct_features=True,
+    # datamod = MDCathDataModule(
+        # processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
+        seq_features=PARAMS.seq_features,
+        struct_features=PARAMS.struct_features,
         batch_size=PARAMS.batch_size,
         num_workers=PARAMS.num_data_workers,
         shuffle=PARAMS.shuffle,
@@ -91,7 +105,7 @@ def main(
 
     # Set up ModelCheckpoint to monitor val_loss
     checkpoint_callback = ModelCheckpoint(
-        dirpath="checkpoints",
+        dirpath="models",
         filename=run_id
         + "/model-{epoch:02d}-{train_loss:.2f}.pt",  # Using exact metric name
         monitor="val_loss",  # Matches the exact metric name used in log_metrics
@@ -104,11 +118,12 @@ def main(
     trainer = Trainer(
         logger=loggers,
         max_epochs=PARAMS.max_epochs,
+        max_steps=PARAMS.epoch_scale,
         callbacks=[checkpoint_callback],
         log_every_n_steps=5
     )
-    trainer.fit(lightning_model, datamodule=adl)
-    trainer.test(lightning_model, datamodule=adl)
+    trainer.fit(lightning_model, datamodule=datamod)
+    trainer.test(lightning_model, datamodule=datamod)
 
 if __name__ == "__main__":
     app()

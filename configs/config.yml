@@ -12,4 +12,4 @@ output_dim: 1
 d_model: 256
 n_heads: 8
 n_layers: 4
-rmsf_loss: "rmse"
+square_loss: false

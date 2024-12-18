@@ -3,9 +3,9 @@
 #SBATCH --gpus-per-task=1
 #SBATCH --cpus-per-task=32
 #SBATCH --ntasks=1
-#SBATCH --mem=64G
-#SBATCH --constraint=h100  # if you want a particular type of GPU
-#SBATCH --time=0-1
+#SBATCH --mem=128G
+#SBATCH --constraint=a100-80gb  # if you want a particular type of GPU
+#SBATCH --time=0-12:00:00
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
 

@@ -2,30 +2,32 @@ from dataclasses import dataclass
 
 import numpy as np
 import torch
-from lightning import LightningModule
+import lightning as L
 from sklearn.metrics import accuracy_score
 from torch import nn
 from torch.nn import functional as F
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 from functools import partial
+from loguru import logger
 
 from rocketshp.datasets.data_utils import _unstack_variable_length_tensors, _unstack_variable_size_squareforms
 
 def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
-   # Create sequence mask based on lengths 
-   mask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
-   mask = mask.unsqueeze(-1)  # Add feature dimension
-   
-   # Use built-in MSELoss with reduction='none' to get per-element loss
-   mse_loss = nn.MSELoss(reduction='none')
-   loss = mse_loss(outputs, labels)
-   
-   # Apply mask and compute mean over valid elements
-   masked_loss = loss * mask
-   mse = masked_loss.sum() / mask.sum().clamp(min=1)
-   
-   return torch.sqrt(mse) if rmse else mse
+
+    # Create sequence mask based on lengths 
+    mask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
+    mask = mask.unsqueeze(-1)  # Add feature dimension
+
+    # Use built-in MSELoss with reduction='none' to get per-element loss
+    mse_loss = nn.MSELoss(reduction='none')
+    loss = mse_loss(outputs, labels)
+
+    # Apply mask and compute mean over valid elements
+    masked_loss = loss * mask
+    mse = masked_loss.sum() / mask.sum().clamp(min=1)
+
+    return torch.sqrt(mse) if rmse else mse
 
 def compute_square_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
     linmask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
@@ -37,18 +39,12 @@ def compute_square_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_val
 
     # Apply mask and compute mean over valid elements
     masked_loss = loss * squaremask
-    mse = masked_loss.sum() / squaremask.sum().clamp(min=1)
+    # mse = masked_loss.sum() / squaremask.sum().clamp(min=1)
+    mse = (masked_loss.sum(axis=(1,2)) / squaremask.sum(axis=(1,2))).mean()
 
     return torch.sqrt(mse) if rmse else mse
 
-class RMSELoss(nn.Module):
-    def __init__(self):
-        super().__init__()
-
-    def forward(self, y_hat, y):
-        return torch.sqrt(F.mse_loss(y_hat, y))
-
-class LightningWrapper(LightningModule):
+class LightningWrapper(L.LightningModule):
     def __init__(self, model: nn.Module, params: OmegaConf):
         super().__init__()
         self.child_model = model
@@ -56,111 +52,78 @@ class LightningWrapper(LightningModule):
         self.training_step_outputs = []
         self.validation_step_outputs = []
 
-        if params.rmsf_loss == "mse":
-            self.rmsf_loss_fn = nn.MSELoss()
-            self.ca_loss_fn = nn.MSELoss()
-            # self.rmsf_loss_fn = partial(compute_masked_mse_loss, rmse=False)
-            # self.ca_loss_fn = partial(compute_square_masked_mse_loss, rmse=False)
-        elif params.rmsf_loss == "rmse":
-            self.rmsf_loss_fn = RMSELoss()
-            self.ca_loss_fn = RMSELoss()
-            # self.rmsf_loss_fn = partial(compute_masked_mse_loss, rmse=True)
-            # self.ca_loss_fn = partial(compute_square_masked_mse_loss, rmse=True)
+        if params.square_loss:
+            self.rmsf_loss_fn = partial(compute_masked_mse_loss, rmse=False)
+            self.ca_loss_fn = partial(compute_square_masked_mse_loss, rmse=False)
+            self.dyn_corr_loss_fn = partial(compute_square_masked_mse_loss, rmse=False)
+        else:
+            self.rmsf_loss_fn = partial(compute_masked_mse_loss, rmse=True)
+            self.ca_loss_fn = partial(compute_square_masked_mse_loss, rmse=True)
+            self.dyn_corr_loss_fn = partial(compute_square_masked_mse_loss, rmse=True)
 
         self.rmsf_alpha = params.rmsf_alpha
         self.ca_alpha = params.ca_alpha
+        self.dyn_corr_alpha = params.dyn_corr_alpha
+        self.variance_norm = params.variance_norm
 
     def forward(self, x):
         return self.child_model(x)
 
-    def training_step(self, batch, batch_idx):
+    def _get_loss(self, batch, batch_idx):
         x, y, mask = batch
-        y_hat = self((x["seq_feats"], x["struct_feats"]))
+        y_hat = self(x)
 
-        rmsf_pred_unstacked = _unstack_variable_length_tensors(y_hat["rmsf"], mask)
-        rmsf_true_unstacked = _unstack_variable_length_tensors(y["rmsf"], mask)
-        ca_dist_pred_unstacked = _unstack_variable_size_squareforms(y_hat["ca_dist"], mask)
-        ca_dist_true_unstacked = _unstack_variable_size_squareforms(y["ca_dist"], mask)
+        return_dict = {}
 
-        rmsf_loss = 0
-        for pred, true in zip(rmsf_pred_unstacked, rmsf_true_unstacked):
-            rmsf_loss += self.rmsf_loss_fn(pred.squeeze(), true)
-        ca_dist_loss = 0
-        for pred, true in zip(ca_dist_pred_unstacked, ca_dist_true_unstacked):
-            ca_dist_loss += self.ca_loss_fn(pred, true)
+        loss = 0
+        if "rmsf" in y_hat:
+            rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
+            loss += self.rmsf_alpha * rmsf_loss
+            return_dict["rmsf_loss"] = rmsf_loss
+        if "ca_dist" in y_hat:
+            ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
+            loss += self.ca_alpha * ca_dist_loss
+            return_dict["ca_loss"] = ca_dist_loss
+        if "dyn_corr" in y_hat:
+            dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
+            loss += self.dyn_corr_alpha * dyn_corr_loss
+            return_dict["corr_loss"] = dyn_corr_loss
 
-        # rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
-        # ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-        loss = (self.rmsf_alpha * rmsf_loss) + (self.ca_alpha * ca_dist_loss)
+        return_dict["batch_loss"] = loss
 
-        self.log_dict({"batch_loss": loss, "rmsf_loss": rmsf_loss, "ca_loss": ca_dist_loss}, on_step=True, on_epoch=False)
-        self.log_dict({"train_loss": loss}, on_step=False, on_epoch=True)
+        return return_dict
+    
+    def training_step(self, batch, batch_idx):
+        loss_dict = self._get_loss(batch, batch_idx)
 
-        return {"loss": loss}
+        self.log_dict(loss_dict, on_step=True, on_epoch=False)
+        self.log_dict({"train_loss": loss_dict["batch_loss"]}, on_step=False, on_epoch=True
+)
+        return {"loss": loss_dict["batch_loss"]}
 
     def on_train_epoch_end(self):
         pass
 
     def validation_step(self, batch, batch_idx):
-        x, y, mask = batch
-        y_hat = self((x["seq_feats"], x["struct_feats"]))
-
-        rmsf_pred_unstacked = _unstack_variable_length_tensors(y_hat["rmsf"], mask)
-        rmsf_true_unstacked = _unstack_variable_length_tensors(y["rmsf"], mask)
-        ca_dist_pred_unstacked = _unstack_variable_size_squareforms(y_hat["ca_dist"], mask)
-        ca_dist_true_unstacked = _unstack_variable_size_squareforms(y["ca_dist"], mask)
-
-        rmsf_loss = 0
-        for pred, true in zip(rmsf_pred_unstacked, rmsf_true_unstacked):
-            rmsf_loss += self.rmsf_loss_fn(pred.squeeze(), true)
-        ca_dist_loss = 0
-        for pred, true in zip(ca_dist_pred_unstacked, ca_dist_true_unstacked):
-            ca_dist_loss += self.ca_loss_fn(pred, true)
-
-        # rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
-        # ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-        loss = (self.rmsf_alpha * rmsf_loss) + (self.ca_alpha * ca_dist_loss)
+        loss_dict = self._get_loss(batch, batch_idx)
 
         self.log_dict(
-            {"val_loss": loss}, on_epoch=True, on_step=False
+            {"val_loss": loss_dict["batch_loss"]}, on_epoch=True, on_step=False
         )
 
-        return {"loss": loss}
+        return {"loss": loss_dict["batch_loss"]}
 
     def on_validation_epoch_end(self):
         pass
 
     def test_step(self, batch, batch_idx):
-        x, y, mask = batch
-        y_hat = self((x["seq_feats"], x["struct_feats"]))
-
-        rmsf_pred_unstacked = _unstack_variable_length_tensors(y_hat["rmsf"], mask)
-        rmsf_true_unstacked = _unstack_variable_length_tensors(y["rmsf"], mask)
-        ca_dist_pred_unstacked = _unstack_variable_size_squareforms(y_hat["ca_dist"], mask)
-        ca_dist_true_unstacked = _unstack_variable_size_squareforms(y["ca_dist"], mask)
-
-        rmsf_loss = 0
-        for pred, true in zip(rmsf_pred_unstacked, rmsf_true_unstacked):
-            rmsf_loss += self.rmsf_loss_fn(pred.squeeze(), true)
-        ca_dist_loss = 0
-        for pred, true in zip(ca_dist_pred_unstacked, ca_dist_true_unstacked):
-            ca_dist_loss += self.ca_loss_fn(pred, true)
-
-        # rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
-        # ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-        loss = (self.rmsf_alpha * rmsf_loss) + (self.ca_alpha * ca_dist_loss)
+        loss_dict = self._get_loss(batch, batch_idx)
 
         self.log_dict(
-            {"test_loss": loss}, on_epoch=True, on_step=False
+            {"test_loss": loss_dict["batch_loss"]}, on_epoch=True, on_step=False
         )
 
-        # y_true = y.cpu().detach().numpy()
-        # y_pred = y_hat.argmax(axis=1).cpu().detach().numpy()
-
-        # rdict = {"loss": loss, "y_true": y_true, "y_pred": y_pred}
-        # self.validation_step_outputs.append(rdict)
-
-        return {"loss": loss}
+        return {"loss": loss_dict["batch_loss"]}
 
     def on_test_epoch_end(self):
         pass
