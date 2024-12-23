@@ -30,6 +30,13 @@ for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
 
     for temp in TEMPS:
         for rep in REPS:
+            
+            # if gen correlation exists, continue
+            local_suff = "local_" if DO_LOCAL_ALIGN else ""
+            corr_matrix_filename = str(MDCATH_PROCESSED_DATA_DIR / f"{pdb_code}_{rep}_{local_suff}_corr_matrix.pt")
+            if os.path.exists(corr_matrix_filename):
+                logger.info(f"Skipping {pdb_code} temp {temp} rep {rep}")
+                continue
 
             traj = convert_to_mdtraj(mdc_f, temp, rep)
             # traj = md.load(str(xtc_f), top=mdc_f)
@@ -130,8 +137,6 @@ for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
                     locally_aligned_nodes[i, 2*num_frames:3*num_frames] = positions[:,2]
 
                 graph.nodeCoordinates().fromNumpy2D(locally_aligned_nodes.astype(np.float32))
-
-            local_suff = "local_" if DO_LOCAL_ALIGN else ""
             
             # Compute generalized correlation and output to proteinG_R
             logger.info("Performing generalized correlation computation "\
@@ -152,7 +157,6 @@ for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
             logger.info("Saving results")
             R_np = R.toNumpy2D().reshape(num_nodes, num_nodes)
             # corr_matrix_filename = str(MDCATH_DATA_DIR / pdb_code[:2] / f"{pdb_code}_{rep}_{local_suff}_corr_matrix.txt")
-            corr_matrix_filename = str(MDCATH_PROCESSED_DATA_DIR / f"{pdb_code}_{rep}_{local_suff}_corr_matrix.pt")
             logger.info(f"Saving matrix to: {corr_matrix_filename}")
             # np.savetxt(corr_matrix_filename, R_np)
             torch.save(torch.tensor(R_np), corr_matrix_filename)

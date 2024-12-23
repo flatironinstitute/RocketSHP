@@ -4,6 +4,7 @@ from esm.layers.transformer_stack import TransformerStack
 from torch import nn
 
 from esm.utils.constants import esm3 as ESM_CONSTANTS
+from loguru import logger
 
 class StructEncoder(nn.Module):
     def __init__(self, d_model: int, n_tokens: int = ESM_CONSTANTS.VQVAE_CODEBOOK_SIZE):
@@ -51,16 +52,116 @@ class JointStructAndSequenceEncoder(nn.Module):
         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
         """
-
-        seq_embeddings, struct_tokens = x
-        seq_embeddings = self.seq_emb(seq_embeddings)
         
         if self.seq_only:
+            seq_embeddings = self.seq_emb(x[0])
             return seq_embeddings
+        else:
+            seq_embeddings, struct_tokens = x
+            seq_embeddings = self.seq_emb(seq_embeddings)
+            struct_tokens = self.struct_emb(struct_tokens)
+            return seq_embeddings + struct_tokens
 
-        struct_tokens = self.struct_emb(struct_tokens)
-        return seq_embeddings + struct_tokens
+class GradNorm(nn.Module):
+    def __init__(self, model, num_tasks, alpha=0.12, grad_lr = 1e-5):
+        super().__init__()
+        self.alpha = alpha
+        self.grad_lr = grad_lr
+        self.num_tasks = num_tasks
+        
+        # Task weights - initialized to 1
+        self.task_weights = nn.Parameter(torch.ones(num_tasks))
+        
+        # Get shared parameters that gradient norm will be computed over
+        # Usually the last shared layer
+        self.shared_parameters = []
+        for param in self._get_shared_parameters(model):
+            if param.requires_grad:
+                self.shared_parameters.append(param)
+        
+        # Initialize tracking variables
+        self.initial_losses = None
+        self.initial_L = None
+    
+    def _get_shared_parameters(self, model):
+        return model.transformer.blocks[-1].parameters()
 
+    def forward(self, losses):
+        if not isinstance(losses, list):
+            losses = list(losses)
+            for l in losses:
+                l.requires_grad = True
+        
+        # Initialize initial losses and L
+        if self.initial_losses is None:
+            self.initial_losses = torch.tensor([l.item() for l in losses])
+            self.initial_L = torch.sum(self.initial_losses)
+        
+        # Compute unweighted loss ratios
+        loss_ratios = torch.stack([loss / init_loss 
+                                for loss, init_loss in zip(losses, self.initial_losses)])
+
+        # Compute gradient norms while maintaining graph connection
+        grad_norms = []
+        for i, (weight, loss) in enumerate(zip(self.task_weights, losses)):
+            weighted_loss = weight * loss
+            with torch.no_grad():
+                grads = torch.autograd.grad(
+                    weighted_loss, 
+                    self.shared_parameters,
+                    retain_graph=True
+                )
+                grad_norm = torch.sqrt(sum((g ** 2).sum() for g in grads))
+            
+            grad_norms.append(grad_norm * weight / weight.detach())  # Detach gradient norms
+        grad_norms = torch.stack(grad_norms)
+        mean_norm = torch.mean(grad_norms)
+
+        # Compute relative inverse training rate r_i
+        rel_inv_rates = loss_ratios / torch.sum(loss_ratios)
+        
+        # Calculate target gradient norms
+        target_norms = mean_norm * (rel_inv_rates ** self.alpha)
+        
+        # Compute gradient norm loss
+        grad_norm_loss = torch.nn.functional.l1_loss(grad_norms, target_norms)
+        
+        # Update task weights
+        task_weight_grad = torch.autograd.grad(
+            grad_norm_loss, self.task_weights, retain_graph=True
+        )
+        # grad_norm_loss.backward(retain_graph=True)
+    
+        with torch.no_grad():
+            # logger.debug(f"Task weights grad: {task_weight_grad[0]}")
+            # logger.debug(f"Task weights: {self.task_weights.detach().cpu().numpy()}")
+
+            self.task_weights.data -= self.grad_lr * task_weight_grad[0]
+            # logger.debug(f"Task weights updated: {self.task_weights.detach().cpu().numpy()}")
+            # self.task_weights.grad.zero_()
+            
+            # Normalize weights to sum to num_tasks
+            self.task_weights.data = torch.nn.functional.softmax(self.task_weights, dim=0) * self.num_tasks
+            # normalize_coeff = self.num_tasks / self.task_weights.sum()
+            # self.task_weights.data *= normalize_coeff
+
+        # Compute weighted loss without detaching
+        weighted_losses = torch.stack([w * l for w, l in zip(self.task_weights, losses)])
+        total_loss = torch.sum(weighted_losses)
+
+        # logger.debug("----")
+                
+        # logger.debug(f"Losses: {torch.stack(losses)}")
+        # logger.debug(f"Grad norms: {grad_norms}")
+        # logger.debug(f"Loss ratios: {loss_ratios}")
+        # logger.debug(f"Rel inv rates: {rel_inv_rates}")
+        # logger.debug(f"Mean grad norm: {mean_norm:.3f}")
+        # logger.debug(f"Target norms: {target_norms}")
+        
+        # logger.debug(f"Weighted losses: {weighted_losses}")
+        # logger.debug("#####")
+
+        return total_loss, weighted_losses, grad_norm_loss.detach()
 
 class FlexibilityModel(nn.Module):
     def __init__(
@@ -249,6 +350,9 @@ class DynCorrModelWithTemperature(nn.Module):
             nn.Sigmoid(),
         )
 
+        self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
+        # self.grad_norm.task_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
+
     def _transform(self, x):
         x = self.encoder(x)
         x, _ = self.transformer(x)
@@ -278,8 +382,11 @@ class DynCorrModelWithTemperature(nn.Module):
         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
         """
-        temperature = x["temp"]
-        x = self._transform((x["seq_feats"], x["struct_feats"]))
+        if "temp" in x:
+            temperature = x["temp"]
+            x = tuple(v for k,v in x.items() if k != "temp")
+
+        x = self._transform(x)
         rmsf_pred = self.rmsf_head(torch.cat([x, temperature.unsqueeze(-1)], dim=-1))
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
         

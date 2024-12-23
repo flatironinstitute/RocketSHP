@@ -128,15 +128,22 @@ class MDDataset(Dataset):
         if self._use_seq:
             seq_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/embedding"][:]
             features["seq_feats"] = torch.from_numpy(seq_features)
+            features["temp"] = torch.ones(features["seq_feats"].shape[0]) * temp
         if self._use_struct:
             struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_tokens"][:]
             features["struct_feats"] = torch.from_numpy(struct_features)
-        features["temp"] = torch.ones_like(features["struct_feats"]) * temp
+            features["temp"] = torch.ones(features["struct_feats"]) * temp
 
         labels = {}
         labels["rmsf"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/rmsf"][:])
-        labels["ca_dist"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/ca_distances"][:]).squeeze()
-        labels["dyn_corr"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/dyn_corr"][:])
+        try:
+            labels["ca_dist"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/ca_distances"][:]).squeeze()
+        except KeyError:
+            pass
+        try:
+            labels["dyn_corr"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/dyn_corr"][:])
+        except KeyError:
+            pass
 
         return features, labels
 

@@ -8,6 +8,7 @@ import typer
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 
+import lightning as L
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
@@ -52,14 +53,20 @@ def main(
 
     loggers = []
     if debug:
-        os.environ["LOGURU_LEVEL"] = "DEBUG"
         def simple_repr(self):
-            return f"Tensor(size={list(self.size())})"
+            if isinstance(self, torch.Tensor):
+                return f"Tensor(size={list(self.size())},{self.device},grad={self.requires_grad})"
+            elif isinstance(self, torch.nn.Module):
+                return f"{self.__class__.__name__} with {sum(p.numel() for p in self.parameters())} parameters"
+            else:
+                return f"{self.__class__.__name__}(...) with {sum(p.numel() for p in self.parameters())} parameters"
 
-        torch.Tensor.__repr__ = simple_repr
-        torch.Tensor.__str__ = simple_repr
+        # torch.Tensor.__repr__ = simple_repr
+        torch.nn.Module.__repr__ = simple_repr
+        L.LightningModule.__repr__ = simple_repr
 
-        PARAMS.epoch_scale = 100
+        PARAMS.epoch_scale = 3100
+        os.environ["LOGURU_LEVEL"] = "DEBUG"
     else:
         neptune_logger = NeptuneLogger(
             project="samsl-flatiron/RocketSHP",
@@ -68,7 +75,11 @@ def main(
             log_model_checkpoints=True,
         )
         loggers.append(neptune_logger)
+
+        import sys
         os.environ["LOGURU_LEVEL"] = "INFO"
+        stdout_logger.remove()
+        stdout_logger.add(sys.stderr, level="INFO")
 
     loggers.append(CSVLogger("logs", name=run_id))
 

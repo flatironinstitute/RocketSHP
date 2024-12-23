@@ -1,0 +1,12 @@
+TITLE     Predicted structure from distance matrix
+ATOM      1  CA  ALA A   1       0.115   0.127  -0.017  1.00  0.00           C  
+ATOM      2  CA  ALA A   2      -0.184   0.036   0.035  1.00  0.00           C  
+ATOM      3  CA  ALA A   3       0.133  -0.163  -0.038  1.00  0.00           C  
+ATOM      4  CA  ALA A   4      -0.064   0.020  -0.197  1.00  0.00           C  
+ATOM      5  CA  ALA A   5      -0.104  -0.127   0.138  1.00  0.00           C  
+ATOM      6  CA  ALA A   6       0.098   0.090   0.160  1.00  0.00           C  
+ATOM      7  CA  ALA A   7      -0.079   0.132  -0.143  1.00  0.00           C  
+ATOM      8  CA  ALA A   8       0.133  -0.099   0.025  1.00  0.00           C  
+ATOM      9  CA  ALA A   9      -0.081   0.142   0.063  1.00  0.00           C  
+ATOM     10  CA  ALA A  10       0.115   0.088  -0.102  1.00  0.00           C  
+END
