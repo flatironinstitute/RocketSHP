@@ -54,10 +54,10 @@ class JointStructAndSequenceEncoder(nn.Module):
         """
         
         if self.seq_only:
-            seq_embeddings = self.seq_emb(x[0])
+            seq_embeddings = self.seq_emb(x["seq_feats"])
             return seq_embeddings
         else:
-            seq_embeddings, struct_tokens = x
+            seq_embeddings, struct_tokens = x["seq_feats"], x["struct_feats"]
             seq_embeddings = self.seq_emb(seq_embeddings)
             struct_tokens = self.struct_emb(struct_tokens)
             return seq_embeddings + struct_tokens
@@ -211,7 +211,6 @@ class FlexibilityModel(nn.Module):
         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
         """
-        x = (x["seq_feats"], x["struct_feats"])
         x = self._transform(x)
         rmsf_pred = self.output(x)
 
@@ -290,7 +289,7 @@ class FlexibilityModelWithTemperature(nn.Module):
         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
         """
         temperature = x["temp"]
-        x = self._transform((x["seq_feats"], x["struct_feats"]))
+        x = self._transform(x)
         rmsf_pred = self.output(torch.cat([x, temperature.unsqueeze(-1)], dim=-1))
 
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
@@ -384,7 +383,6 @@ class DynCorrModelWithTemperature(nn.Module):
         """
         if "temp" in x:
             temperature = x["temp"]
-            x = tuple(v for k,v in x.items() if k != "temp")
 
         x = self._transform(x)
         rmsf_pred = self.rmsf_head(torch.cat([x, temperature.unsqueeze(-1)], dim=-1))

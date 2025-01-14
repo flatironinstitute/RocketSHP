@@ -13,3 +13,5 @@ d_model: 256
 n_heads: 8
 n_layers: 4
 square_loss: false
+seq_features: true
+struct_features: false

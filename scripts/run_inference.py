@@ -14,9 +14,9 @@ from esm.utils.structure.protein_chain import ProteinChain
 from rocketshp import config
 from rocketshp.plot import display_trajectory
 from rocketshp.esm3 import (
-    _get_esm3_model,
-    _get_esm3_structure_vae,
-    _get_esm3_tokenizers,
+    _get_model,
+    _get_structure_vae,
+    _get_tokenizers,
     esm3_embed,
 )
 from rocketshp.modeling.architectures import DynCorrModelWithTemperature
@@ -32,15 +32,15 @@ SEQUENCE = "MEDGHSKTVEQSLNFFGTDPERGLTLDQIKANQKKYGPNELPTEEGKSIWQLVLEQFDDLLVKILLLA
 CHECKPOINT = "/mnt/home/ssledzieski/Projects/rocketshp/models/grad_norm_alpha0.12_lr1e-5/model-epoch=19-train_loss=0.55.pt.ckpt"
 
 logger.info("Loading structure model")
-struct_encoder, _ = _get_esm3_structure_vae()
+struct_encoder, _ = _get_structure_vae()
 struct_encoder.eval().to(device)
 
 logger.info("Loading sequence model")
-esm_model = _get_esm3_model("esm3-open")
+esm_model = _get_model("esm3-open")
 esm_model.eval().to(device)
 
 logger.info("Loading tokenizers")
-tokenizers = _get_esm3_tokenizers("esm3-open")
+tokenizers = _get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
 logger.info("Loading RSHP Model")

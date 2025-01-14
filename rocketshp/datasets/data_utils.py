@@ -105,8 +105,11 @@ class MDDataset(Dataset):
 
         self._use_seq = seq_features
         self._use_struct = struct_features
-        self.keys = list(self._handle.keys())
+        self.keys = self._get_keys()
         self.samples = self._get_samples()
+
+    def _get_keys(self):
+        raise NotImplementedError
 
     def _get_samples(self):
         raise NotImplementedError
@@ -132,7 +135,7 @@ class MDDataset(Dataset):
         if self._use_struct:
             struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_tokens"][:]
             features["struct_feats"] = torch.from_numpy(struct_features)
-            features["temp"] = torch.ones(features["struct_feats"]) * temp
+            features["temp"] = torch.ones_like(features["struct_feats"]) * temp
 
         labels = {}
         labels["rmsf"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/rmsf"][:])
@@ -148,7 +151,7 @@ class MDDataset(Dataset):
         return features, labels
 
     def __del__(self):
-        if hasattr(self, "_handle") and isinstance(self._handle, h5py.File):
+        if hasattr(self, "_handle") and self._handle is not None:# and isinstance(self._handle, h5py._hl.files.File):
             self._handle.close()
 
 class MDDataModule(L.LightningDataModule):

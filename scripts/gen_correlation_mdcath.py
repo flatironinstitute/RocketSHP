@@ -33,7 +33,7 @@ for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
             
             # if gen correlation exists, continue
             local_suff = "local_" if DO_LOCAL_ALIGN else ""
-            corr_matrix_filename = str(MDCATH_PROCESSED_DATA_DIR / f"{pdb_code}_{rep}_{local_suff}_corr_matrix.pt")
+            corr_matrix_filename = str(MDCATH_PROCESSED_DATA_DIR / pdb_code / f"{pdb_code}_{temp}_{rep}_{local_suff}_corr_matrix.pt")
             if os.path.exists(corr_matrix_filename):
                 logger.info(f"Skipping {pdb_code} temp {temp} rep {rep}")
                 continue

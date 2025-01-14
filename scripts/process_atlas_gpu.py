@@ -10,10 +10,10 @@ from tqdm import tqdm
 
 from rocketshp import config
 from rocketshp.esm3 import (
-    _get_esm3_model,
-    _get_esm3_structure_vae,
-    _get_esm3_tokenizers,
-    esm3_embed,
+    _get_model,
+    _get_structure_vae,
+    _get_tokenizers,
+    embed,
 )
 from rocketshp.datasets.data_utils import update_h5_dataset
 
@@ -26,25 +26,14 @@ N_REPS = 3
 
 device = torch.device("cuda:0")
 
-struct_encoder, _ = _get_esm3_structure_vae()
+struct_encoder, _ = _get_structure_vae()
 struct_encoder.eval().to(device)
 
-model = _get_esm3_model("esm3-open")
+model = _get_model("esm3-open")
 model.eval().to(device)
 
-tokenizers = _get_esm3_tokenizers("esm3-open")
+tokenizers = _get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
-
-
-def frame_to_chain(F):
-    with tempfile.NamedTemporaryFile(suffix=".pdb") as tmp:
-        F.save_pdb(tmp.name)
-        tmp.seek(0)
-        pdb_content = tmp.read()
-        with StringIO(pdb_content.decode()) as sio:
-            esmc = ProteinChain.from_pdb(sio)
-    return esmc
-
 
 with h5py.File(ATLAS_PROCESSED_DATA_DIR / "atlas_processed.h5", "a") as h5file:
     for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
@@ -81,6 +70,6 @@ with h5py.File(ATLAS_PROCESSED_DATA_DIR / "atlas_processed.h5", "a") as h5file:
             update_h5_dataset(h5file, f"{pdb_code}/plddt", plddt.cpu())
             update_h5_dataset(h5file, f"{pdb_code}/struct_tokens", struct_tokens[1:-1].cpu())
 
-            embeddings = esm3_embed([sequence], model, tokenizers, device=device)
+            embeddings = embed([sequence], model, tokenizers, device=device)
             update_h5_dataset(h5file, f"{pdb_code}/embedding", embeddings.squeeze()[1:-1].cpu())
             logger.info(f"Processed {pdb_code}")

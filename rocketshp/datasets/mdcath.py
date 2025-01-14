@@ -11,6 +11,9 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from lightning import LightningDataModule
 # from torchmdnet.datasets import MDCATH
 
+import biotite.structure as struc
+import biotite.structure.io.pdb as pdb
+
 from rocketshp.config import PROCESSED_DATA_DIR
 from rocketshp.datasets.data_utils import MDDataset, MDDataModule
 
@@ -23,6 +26,52 @@ MDCATH_FOLDSEEK_CLUSTERS_FILE = PROCESSED_DATA_DIR / "mdcath/foldseek_mdcath_0.2
 #     mdc = MDCATH(target_directory)
 #     mdc.download()
 
+def _renumber_pdb(filename):
+    # First read all lines into memory
+    with open(filename, 'r') as f:
+        lines = f.readlines()
+    
+    # Process the lines
+    new_lines = []
+    current_chain = None
+    current_resid = None  # Will store "resnum+insertion" as identifier
+    new_number = None
+    
+    for line in lines:
+        if line.startswith(('ATOM', 'HETATM')):
+            chain = line[21]
+            resnum = line[22:26].strip()  # Current residue number
+            ins_code = line[26]           # Insertion code
+            current_full_resid = resnum + ins_code  # Combine for unique identifier
+            
+            # If we hit a new chain, reset our counters
+            if chain != current_chain:
+                current_chain = chain
+                current_resid = None
+                new_number = None
+            
+            # If we hit a new residue (checking full residue identifier)
+            if current_full_resid != current_resid:
+                if new_number is None:
+                    # First residue in chain - start with its number
+                    new_number = 0
+                else:
+                    # Increment for new residue
+                    new_number += 1
+                current_resid = current_full_resid
+            
+            # Create new line with updated residue number and no insertion code
+            new_line = (line[:22] + 
+                      f"{new_number:>4}" +
+                      " " +    # Replace insertion code with space
+                      line[27:])
+            new_lines.append(new_line)
+        else:
+            new_lines.append(line)
+    
+    # Write back to the same file
+    with open(filename, 'w') as f:
+        f.writelines(new_lines)
 
 def _open_h5_file(h5):
     if isinstance(h5, str) or isinstance(h5, Path):
@@ -51,9 +100,17 @@ def _extract_structure_and_coordinates(h5, code, temp, replica):
     """
     with tempfile.NamedTemporaryFile(suffix=".pdb", delete=False) as pdbfile:
         pdb = h5[code]["pdbProteinAtoms"][()]
+        ### REPLACE HSD, HSP, HSE with HIS
+        pdb = pdb.replace(b"HSD", b"HIS")
+        pdb = pdb.replace(b"HSP", b"HIS")
+        pdb = pdb.replace(b"HSE", b"HIS")
+        ###
         pdbfile.write(pdb)
         pdbfile.flush()
         coords = h5[code][f"{temp}"][f"{replica}"]["coords"][:]
+
+        _renumber_pdb(pdbfile.name)
+
     coords = coords / 10.0
     return pdbfile.name, coords
 
@@ -101,6 +158,7 @@ def convert_to_mdtraj(h5, temp, replica):
     os.unlink(pdb_file_name)
     trj.xyz = coords.copy()
     trj.time = np.arange(1, coords.shape[0] + 1)
+    h5.close()
     return trj
 
 
@@ -171,6 +229,9 @@ class MDCathDataset(MDDataset):
             seq_features=seq_features,
             struct_features=struct_features,
         )
+
+    def _get_keys(self):
+        return list(self._handle.keys())
         
     def _get_samples(self):
         return [f"{k}/T{t}/R{r}" for k in self.keys for r in MDCATH_REPS for t in MDCATH_TEMPS]

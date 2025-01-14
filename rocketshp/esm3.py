@@ -1,11 +1,16 @@
 import torch
+import tempfile
+import numpy as np
+from io import StringIO
 from esm.models.esm3 import ESM3
 from esm.pretrained import ESM3_structure_decoder_v0, ESM3_structure_encoder_v0
 from esm.sdk.api import ESM3InferenceClient, ESMProtein, LogitsConfig
 from esm.tokenization import get_model_tokenizers
 from esm.utils.constants import models as M
 from esm.utils.generation import _stack_protein_tensors
-
+from esm.utils.encoding import tokenize_structure
+from esm.utils.structure.protein_chain import ProteinChain
+from esm.utils import residue_constants as RC
 
 def _auth_huggingface(token):
     import os
@@ -13,7 +18,7 @@ def _auth_huggingface(token):
     os.environ["HF_TOKEN"] = token
 
 
-def _get_esm3_model(
+def _get_model(
     model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0"
 ) -> ESM3InferenceClient:
     """
@@ -28,7 +33,7 @@ def _get_esm3_model(
     return model
 
 
-def _get_esm3_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
+def _get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     """
     Get the ESM-3 tokenizers.
 
@@ -39,7 +44,7 @@ def _get_esm3_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     return get_model_tokenizers(model)
 
 
-def _get_esm3_structure_vae() -> tuple:
+def _get_structure_vae() -> tuple:
     """
     Get the ESM-3 structure encoder.
 
@@ -52,8 +57,20 @@ def _get_esm3_structure_vae() -> tuple:
 
     return encoder, decoder
 
+def _tokenize_chain(esmc) -> torch.Tensor:
+    struct_encoder = _get_structure_vae()[0]
+    struct_tokenizer = _get_tokenizers().structure
 
-def esm3_embed(
+    _, _, struct_tokens = tokenize_structure(
+        torch.from_numpy(esmc.atom37_positions),
+        structure_encoder = struct_encoder,
+        structure_tokenizer = struct_tokenizer,
+        reference_sequence = esmc.sequence,
+    )
+    return struct_tokens[1:-1].cpu()
+
+
+def embed(
     seqs: list[str],
     model: ESM3InferenceClient,
     tokenizers: tuple,
@@ -94,3 +111,74 @@ def esm3_embed(
     )
     logits = model.logits(batch, cfg)
     return logits.embeddings
+
+def frame_to_chain(F):
+    with tempfile.NamedTemporaryFile(suffix=".pdb") as tmp:
+        F.save_pdb(tmp.name)
+        tmp.seek(0)
+        pdb_content = tmp.read()
+        with StringIO(pdb_content.decode()) as sio:
+            esmc = ProteinChain.from_pdb(sio)
+    return esmc
+
+def frame_to_struct_encoder_inputs(F):
+
+    num_res = F.n_residues
+
+    atom_positions = np.full(
+        [num_res, RC.atom_type_num, 3], np.nan, dtype=np.float32
+    )
+    residue_index = np.full([num_res], -1, dtype=np.int64)
+
+    for i, res in enumerate(F.top.residues):
+
+        residue_index[i] = res.index + 1
+
+        for j, atom in enumerate(res.atoms):
+            if atom.name == "SE" and res.name == "MSE":
+                atom.name = "SD"
+
+            if atom.name in RC.atom_order:
+                atom_positions[i, RC.atom_order[atom.name]] = 10 * np.round(F.xyz[0, atom.index], 4)
+
+    return atom_positions, residue_index
+        
+def struct_tokenize_frame(F, encoder=None, tokenizer=None, device=None):
+    """
+    Tokenize a trajectory frame using the ESM-3 structure tokenizer.
+    """
+
+    if device is None:
+        device = torch.device("cuda:0")
+    if encoder is None:
+        encoder = _get_structure_vae()[0]
+    if tokenizer is None:
+        tokenizer = _get_tokenizers().structure
+    encoder = encoder.to(device)
+
+    atom37_positions, residue_index = frame_to_struct_encoder_inputs(F)
+    coordinates = torch.from_numpy(atom37_positions).unsqueeze(0).to(device)
+    residue_index = torch.from_numpy(residue_index).unsqueeze(0).to(device)
+    
+    _, structure_tokens = encoder.encode(coordinates, residue_index=residue_index)
+    return torch.squeeze(structure_tokens, dim=0)
+
+def struct_tokenize_chain(esmc, encoder=None, tokenizer=None, device=None):
+    """
+    Tokenize a trajectory frame using the ESM-3 structure tokenizer.
+    """
+
+    if device is None:
+        device = torch.device("cuda:0")
+    if encoder is None:
+        encoder = _get_structure_vae()[0]
+    if tokenizer is None:
+        tokenizer = _get_tokenizers().structure
+    encoder = encoder.to(device)
+
+    esmc = esmc.normalize_coordinates()
+    coordinates = torch.from_numpy(esmc.atom37_positions).unsqueeze(0).to(device)
+    residue_index = torch.from_numpy(esmc.residue_index).unsqueeze(0).to(device)
+    
+    _, structure_tokens = encoder.encode(coordinates, residue_index=residue_index)
+    return torch.squeeze(structure_tokens, dim=0)

@@ -13,10 +13,10 @@ from rocketshp import config
 from rocketshp.datasets.mdcath import convert_to_mdtraj, convert_to_files
 
 from rocketshp.esm3 import (
-    _get_esm3_model,
-    _get_esm3_structure_vae,
-    _get_esm3_tokenizers,
-    esm3_embed,
+    _get_model,
+    _get_structure_vae,
+    _get_tokenizers,
+    embed,
 )
 
 MDCATH_DATA_DIR = config.RAW_DATA_DIR / "mdcath"
@@ -28,13 +28,13 @@ REPS = [0, 1, 2, 3, 4]
 
 device = torch.device("cuda:0")
 
-struct_encoder, _ = _get_esm3_structure_vae()
+struct_encoder, _ = _get_structure_vae()
 struct_encoder.eval().to(device)
 
-model = _get_esm3_model("esm3-open")
+model = _get_model("esm3-open")
 model.eval().to(device)
 
-tokenizers = _get_esm3_tokenizers("esm3-open")
+tokenizers = _get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
 def frame_to_chain(F):
@@ -84,6 +84,6 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
             update_h5_dataset(h5file, f"{pdb_code}/plddt", plddt.cpu())
             update_h5_dataset(h5file, f"{pdb_code}/struct_tokens", struct_tokens[1:-1].cpu())
 
-            embeddings = esm3_embed([sequence], model, tokenizers, device=device)
+            embeddings = embed([sequence], model, tokenizers, device=device)
             update_h5_dataset(h5file, f"{pdb_code}/embedding", embeddings.squeeze()[1:-1].cpu())
             logger.info(f"Processed {pdb_code}")

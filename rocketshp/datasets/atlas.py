@@ -27,6 +27,13 @@ class ATLASDataset(MDDataset):
             struct_features=struct_features,
         )
         
+    def _get_keys(self):
+        keys = []
+        with open(ATLAS_FOLDSEEK_CLUSTERS_FILE, "r") as f:
+            for line in f:
+                keys.append(line.strip().split("\t")[1])
+        return sorted(keys)
+    
     def _get_samples(self):
         return [f"{k}/R{i}" for k in self.keys for i in ATLAS_REPS]
 
