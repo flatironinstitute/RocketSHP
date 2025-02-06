@@ -7,7 +7,7 @@ from torch.utils.data import DataLoader, Dataset, Subset
 from lightning import LightningDataModule
 
 from rocketshp.config import PROCESSED_DATA_DIR
-from rocketshp.datasets.data_utils import MDDataset, MDDataModule
+from rocketshp.datasets.utils import MDDataset, MDDataModule
 
 ATLAS_FOLDSEEK_CLUSTERS_FILE = PROCESSED_DATA_DIR / "atlas/foldseek_atlas_0.2_cluster.tsv"
 ATLAS_PROCESSED_H5 = PROCESSED_DATA_DIR / "atlas/atlas_processed.h5"

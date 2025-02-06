@@ -266,7 +266,8 @@ class FlexibilityModelWithTemperature(nn.Module):
 
     def _transform(self, x):
         x = self.encoder(x)
-        x, _ = self.transformer(x)
+        tout = self.transformer(x)
+        x = tout[0]
         return x
     
     def _cross_transform(self, x):
@@ -354,7 +355,8 @@ class DynCorrModelWithTemperature(nn.Module):
 
     def _transform(self, x):
         x = self.encoder(x)
-        x, _ = self.transformer(x)
+        tout = self.transformer(x)
+        x = tout[0]
         return x
     
     def _cross_transform(self, x):
@@ -377,7 +379,7 @@ class DynCorrModelWithTemperature(nn.Module):
 
     def forward(self, x):
         """
-        x = (seq_embeddings, struct_tokens)
+        x = {"seq_feats", "struct_feats", "temp"}
         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
         """
@@ -407,10 +409,12 @@ class DynCorrModelWithTemperature(nn.Module):
         chk = torch.load(checkpoint_path)
         hp = chk["hyper_parameters"]
         state_dict = {}
-        fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"])
+        fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"], seq_only=not hp["struct_features"])
         for k,v in chk["state_dict"].items():
             new_k = k.replace("child_model.","")
             state_dict[new_k] = v
+        if not "grad_norm.task_weights" in chk["state_dict"]:
+            state_dict["grad_norm.task_weights"] = torch.tensor([1.0, 1.0, 1.0])
         fm.load_state_dict(state_dict, strict=strict)
         fm.eval()
         return fm

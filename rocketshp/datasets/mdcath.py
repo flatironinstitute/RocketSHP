@@ -15,7 +15,7 @@ import biotite.structure as struc
 import biotite.structure.io.pdb as pdb
 
 from rocketshp.config import PROCESSED_DATA_DIR
-from rocketshp.datasets.data_utils import MDDataset, MDDataModule
+from rocketshp.datasets.utils import MDDataset, MDDataModule
 
 MDCATH_PROCESSED_H5 = PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5"
 MDCATH_TEMPS = [320, 348, 379, 413, 450]

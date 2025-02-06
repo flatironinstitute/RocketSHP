@@ -6,7 +6,7 @@ from tqdm import tqdm
 
 from rocketshp import config
 from rocketshp.datasets.mdcath import convert_to_mdtraj
-from rocketshp.datasets.data_utils import update_h5_dataset
+from rocketshp.datasets.utils import update_h5_dataset
 
 MDCATH_DATA_DIR = config.RAW_DATA_DIR / "mdcath"
 MDCATH_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "mdcath"

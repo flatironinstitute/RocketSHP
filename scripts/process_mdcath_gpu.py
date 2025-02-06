@@ -16,7 +16,7 @@ from rocketshp.esm3 import (
     _get_model,
     _get_structure_vae,
     _get_tokenizers,
-    embed,
+    sequence_encode,
 )
 
 MDCATH_DATA_DIR = config.RAW_DATA_DIR / "mdcath"
@@ -84,6 +84,6 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
             update_h5_dataset(h5file, f"{pdb_code}/plddt", plddt.cpu())
             update_h5_dataset(h5file, f"{pdb_code}/struct_tokens", struct_tokens[1:-1].cpu())
 
-            embeddings = embed([sequence], model, tokenizers, device=device)
+            embeddings = sequence_encode([sequence], model, tokenizers, device=device)
             update_h5_dataset(h5file, f"{pdb_code}/embedding", embeddings.squeeze()[1:-1].cpu())
             logger.info(f"Processed {pdb_code}")

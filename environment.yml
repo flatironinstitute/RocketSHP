@@ -24,10 +24,15 @@ dependencies:
   - scipy
   - pytorch
   - pytorch-cuda=12.4
+  - lightning
+  - torchmetrics
+  - biotite
   - biopython
   - transformers
+  - datasets
   - h5py
   - torchmd-net
+  - omegaconf
   - rdkit
   - wandb
   - foldseek
@@ -35,5 +40,5 @@ dependencies:
     - python-dotenv
     - -e .
     - nglview
-    - ipymolstar
     - mdtraj
+    - esm

@@ -29,3 +29,6 @@ ignore = ["E501", "C"]
 [tool.ruff.format]
 quote-style = "double"
 indent-style = "space"
+
+[project.scripts]
+rocketshp_train = "rocketshp.modeling.train:__app__"

@@ -17,7 +17,7 @@ from rocketshp.esm3 import (
     _get_model,
     _get_structure_vae,
     _get_tokenizers,
-    embed,
+    sequence_encode,
 )
 
 from esm.utils.structure.protein_chain import ProteinChain
@@ -72,7 +72,7 @@ for pdb_id in tqdm(all_pdb_chains):
         struct_tokens = struct_tokens[1:-1]
 
         # Embed sequence
-        embeddings = embed([esm_chain.sequence], esm_model, tokenizers, device=device).squeeze()
+        embeddings = sequence_encode([esm_chain.sequence], esm_model, tokenizers, device=device).squeeze()
         embeddings = embeddings[1:-1]
 
         tmp_feats = {
@@ -114,7 +114,7 @@ for pdb_id in tqdm(all_pdb_chains):
         struct_tokens = struct_tokens[1:-1]
 
         # Embed sequence
-        embeddings = embed([esm_chain.sequence], esm_model, tokenizers, device=device).squeeze()
+        embeddings = sequence_encode([esm_chain.sequence], esm_model, tokenizers, device=device).squeeze()
         embeddings = embeddings[1:-1]
 
         tmp_feats = {

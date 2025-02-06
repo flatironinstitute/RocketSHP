@@ -1,16 +1,19 @@
+import os, sys
 from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
 from dataclasses import dataclass
 from omegaconf import OmegaConf
+from rocketshp.utils import configure_logger
 
 # # Load environment variables from .env file if it exists
 load_dotenv()
+configure_logger(os.getenv("LOGURU_LEVEL", "INFO"))
 
 # Paths
 PROJ_ROOT = Path(__file__).resolve().parents[1]
-logger.info(f"PROJ_ROOT path is: {PROJ_ROOT}")
+logger.debug(f"PROJ_ROOT path is: {PROJ_ROOT}")
 
 DATA_DIR = PROJ_ROOT / "data"
 RAW_DATA_DIR = DATA_DIR / "raw"
@@ -51,13 +54,3 @@ class PARAMETER_STRUCT:
     struct_features: bool = False
 
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
-
-# If tqdm is installed, configure loguru with tqdm.write
-# https://github.com/Delgan/loguru/issues/135
-try:
-    from tqdm import tqdm
-
-    logger.remove(0)
-    logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
-except ModuleNotFoundError:
-    pass

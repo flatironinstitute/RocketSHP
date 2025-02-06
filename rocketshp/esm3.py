@@ -11,6 +11,8 @@ from esm.utils.generation import _stack_protein_tensors
 from esm.utils.encoding import tokenize_structure
 from esm.utils.structure.protein_chain import ProteinChain
 from esm.utils import residue_constants as RC
+from esm.utils.structure.affine3d import build_affine3d_from_coordinates
+from esm.utils.structure.normalize_coordinates import normalize_coordinates
 
 def _auth_huggingface(token):
     import os
@@ -70,7 +72,7 @@ def _tokenize_chain(esmc) -> torch.Tensor:
     return struct_tokens[1:-1].cpu()
 
 
-def embed(
+def sequence_encode(
     seqs: list[str],
     model: ESM3InferenceClient,
     tokenizers: tuple,
@@ -182,3 +184,35 @@ def struct_tokenize_chain(esmc, encoder=None, tokenizer=None, device=None):
     
     _, structure_tokens = encoder.encode(coordinates, residue_index=residue_index)
     return torch.squeeze(structure_tokens, dim=0)
+
+def structure_encode(chain: ProteinChain, encoder, stage = "encoded"):
+    """
+    "stage" can be one of "encoded", "pre-quantized", or "quantized"
+    """
+    assert stage in ["encoded", "pre-quantized", "quantized"], "Invalid stage"
+
+    coords = normalize_coordinates(torch.tensor(chain.atom37_positions, dtype=torch.float32)).unsqueeze(0)
+    coords = coords.to("cuda")
+    coords = coords[..., :3, :]
+    affine, affine_mask = build_affine3d_from_coordinates(coords=coords)
+
+    attention_mask = torch.ones_like(affine_mask, dtype=torch.bool)
+    attention_mask = attention_mask.bool()
+    sequence_id = torch.zeros_like(affine_mask, dtype=torch.int64)
+
+    z = encoder.encode_local_structure(
+        coords=coords,
+        affine=affine,
+        attention_mask=attention_mask,
+        affine_mask=affine_mask,
+        sequence_id=sequence_id,
+    )
+
+    if stage in ["pre-quantized", "quantized"]:
+        z = z.masked_fill(~affine_mask.unsqueeze(2), 0)
+        z = encoder.pre_vq_proj(z)
+
+    if stage == "quantized":
+        _, z, _ = encoder.codebook(z)
+
+    return z

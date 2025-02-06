@@ -15,7 +15,7 @@ from rocketshp.esm3 import (
     _get_tokenizers,
     struct_tokenize_frame
 )
-from rocketshp.datasets.data_utils import update_h5_dataset
+from rocketshp.datasets.utils import update_h5_dataset
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"

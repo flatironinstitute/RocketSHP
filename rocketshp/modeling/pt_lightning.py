@@ -12,7 +12,7 @@ from omegaconf import OmegaConf
 from functools import partial
 from loguru import logger
 
-from rocketshp.datasets.data_utils import _unstack_variable_length_tensors, _unstack_variable_size_squareforms
+from rocketshp.datasets.utils import _unstack_variable_length_tensors, _unstack_variable_size_squareforms
 
 def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
 

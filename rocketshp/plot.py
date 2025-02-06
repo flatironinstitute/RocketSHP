@@ -41,26 +41,26 @@ def display_trajectory(traj, coloring="residueindex", bfactor=None, normalize=Tr
         if not isinstance(bfactor, np.ndarray):
             bfactor = np.array(bfactor)
         if normalize:
-            bfactor = (bfactor.clip(0, RMAX) - bfactor.clip(0, RMAX).min()) / (
-                bfactor.clip(0, RMAX).max() - bfactor.clip(0, RMAX).min()
-            )
+            RMAX = max(0.3, bfactor.min())
+            denom = bfactor.clip(0, RMAX).max() - bfactor.clip(0, bfactor.max()).min()
+            if not denom:
+                denom = 1
+            bfactor_new = (bfactor.clip(0, RMAX) - bfactor.clip(0, RMAX).min()) / (denom)
+        else:
+            bfactor_new = bfactor
 
-        from nglview.color import ColormakerRegistry
+        view.add_representation("cartoon", colorScheme=coloring)
+        def _set_color_by_residue(self, colors, component_index=0, repr_index=0):
+            self._remote_call('setColorByResidue',
+                                target='Widget',
+                                args=[colors, component_index, repr_index])
+            
+        scheme = [value_to_hex(x).upper().replace("#", "0x") for x in bfactor_new]
+        _set_color_by_residue(view, scheme)
 
-        cm = ColormakerRegistry
-
-        scheme = []
-        for i, value in enumerate(bfactor):
-            scheme.append([value_to_hex(value), f"{i+1}"])
-
-        cm.add_selection_scheme("_bfact", scheme)
-        # cm.add_selection_scheme('_bfact', [["#b30000", '1-10'], ['yellow', '222-484']])
-
-        view.add_representation("cartoon", color="_bfact")
-
-        return view
+        return view #, scheme, bfactor_new
     else:
-        raise ValueError(f"Coloring scheme {coloring} not supported")
+        raise ValueError(f"Coloring scheme {coloring} not supported: valid options {nv.color.COLOR_SCHEMES}")
 
 
 @app.command()

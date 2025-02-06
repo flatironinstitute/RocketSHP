@@ -14,6 +14,7 @@ from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 
 from rocketshp.config import PROCESSED_DATA_DIR, DEFAULT_PARAMETERS
+from rocketshp.utils import seed_everything, configure_logger
 from rocketshp.datasets.atlas import ATLASDataModule
 from rocketshp.datasets.mdcath import MDCathDataModule
 from rocketshp.modeling.architectures import FlexibilityModelWithTemperature, DynCorrModelWithTemperature
@@ -52,6 +53,9 @@ def main(
     stdout_logger.info(PARAMS)
 
     loggers = []
+
+    seed_everything(PARAMS.random_seed)
+
     if debug:
         def simple_repr(self):
             if isinstance(self, torch.Tensor):
@@ -61,12 +65,14 @@ def main(
             else:
                 return f"{self.__class__.__name__}(...) with {sum(p.numel() for p in self.parameters())} parameters"
 
-        # torch.Tensor.__repr__ = simple_repr
+        torch.Tensor.__repr__ = simple_repr
         torch.nn.Module.__repr__ = simple_repr
         L.LightningModule.__repr__ = simple_repr
 
         PARAMS.epoch_scale = 3100
         os.environ["LOGURU_LEVEL"] = "DEBUG"
+        configure_logger("DEBUG")
+        stdout_logger.debug("Running in debug mode")
     else:
         neptune_logger = NeptuneLogger(
             project="samsl-flatiron/RocketSHP",
@@ -76,10 +82,7 @@ def main(
         )
         loggers.append(neptune_logger)
 
-        import sys
-        os.environ["LOGURU_LEVEL"] = "INFO"
-        stdout_logger.remove()
-        stdout_logger.add(sys.stderr, level="INFO")
+        configure_logger("INFO")
 
     loggers.append(CSVLogger("logs", name=run_id))
 
@@ -135,6 +138,9 @@ def main(
     )
     trainer.fit(lightning_model, datamodule=datamod)
     trainer.test(lightning_model, datamodule=datamod)
+
+def __app__():
+    app()
 
 if __name__ == "__main__":
     app()
