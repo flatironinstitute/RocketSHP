@@ -13,7 +13,7 @@ from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 
 from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
-from rocketshp.datasets.atlas import ATLASDataModule
+from rocketshp.data.atlas import ATLASDataModule
 from rocketshp.modeling.architectures import (
     DynCorrModelWithTemperature,
 )
@@ -124,7 +124,7 @@ def main(
     checkpoint_callback = ModelCheckpoint(
         dirpath="models",
         filename=run_id
-        + "/model-{epoch:02d}-{train_loss:.2f}.pt",  # Using exact metric name
+        + "/model-{epoch:02d}-{val_loss:.2f}.pt",  # Using exact metric name
         monitor="val_loss",  # Matches the exact metric name used in log_metrics
         mode="min",
         save_top_k=3,

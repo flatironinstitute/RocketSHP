@@ -6,7 +6,7 @@ from loguru import logger
 from tqdm import tqdm
 
 from rocketshp import config
-from rocketshp.datasets.utils import update_h5_dataset
+from rocketshp.data.utils import update_h5_dataset
 from rocketshp.esm3 import _get_structure_vae, _get_tokenizers, struct_tokenize_frame
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
