@@ -1,5 +1,3 @@
-import tempfile
-from io import StringIO
 
 import h5py
 import torch
@@ -9,13 +7,13 @@ from loguru import logger
 from tqdm import tqdm
 
 from rocketshp import config
+from rocketshp.datasets.utils import update_h5_dataset
 from rocketshp.esm3 import (
     _get_model,
     _get_structure_vae,
     _get_tokenizers,
     sequence_encode,
 )
-from rocketshp.datasets.utils import update_h5_dataset
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"

@@ -1,22 +1,16 @@
-from dataclasses import dataclass
 
-import numpy as np
-import torch
-import lightning as L
-from lightning.pytorch.utilities import grad_norm
-from sklearn.metrics import accuracy_score
-from torch import nn
-from torch.nn import functional as F
-from loguru import logger as stdout_logger
-from omegaconf import OmegaConf
 from functools import partial
-from loguru import logger
 
-from rocketshp.datasets.utils import _unstack_variable_length_tensors, _unstack_variable_size_squareforms
+import lightning as L
+import torch
+from loguru import logger
+from omegaconf import OmegaConf
+from torch import nn
+
 
 def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
 
-    # Create sequence mask based on lengths 
+    # Create sequence mask based on lengths
     mask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
     mask = mask.unsqueeze(-1)  # Add feature dimension
 
@@ -33,7 +27,7 @@ def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0)
 def compute_square_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
     linmask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
     squaremask = (linmask.unsqueeze(2) & linmask.unsqueeze(1))
-    
+
     # Use built-in MSELoss with reduction='none' to get per-element loss
     mse_loss = nn.MSELoss(reduction='none')
     loss = mse_loss(outputs, labels)
@@ -115,7 +109,7 @@ class LightningWrapper(L.LightningModule):
             return_dict["batch_loss"] = loss
 
         return return_dict
-    
+
     def training_step(self, batch, batch_idx):
         loss_dict = self._get_loss(batch, batch_idx, "train")
         # if "grad_loss" in loss_dict:
@@ -124,7 +118,7 @@ class LightningWrapper(L.LightningModule):
         #     total_loss = loss_dict["batch_loss"]
         total_loss = loss_dict["batch_loss"]
 
-        self.log_dict(loss_dict, on_step=True, on_epoch=False)           
+        self.log_dict(loss_dict, on_step=True, on_epoch=False)
         self.log_dict({"task_weights/rmsf": self.child_model.grad_norm.task_weights[0]}, on_step=True, on_epoch=False)
         self.log_dict({"task_weights/ca_dist": self.child_model.grad_norm.task_weights[1]}, on_step=True, on_epoch=False)
         self.log_dict({"task_weights/dyn_corr": self.child_model.grad_norm.task_weights[2]}, on_step=True, on_epoch=False)

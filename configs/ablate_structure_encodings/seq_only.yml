@@ -1,0 +1,32 @@
+random_seed: 0
+
+# Data definitions
+num_data_workers: 31
+shuffle: True
+train_pct: 0.8
+val_pct: 0.1
+
+# Model definitions
+embedding_dim: 1536
+output_dim: 1
+d_model: 256
+n_heads: 8
+n_layers: 4
+seq_features: true
+struct_features: false
+struct_stage: "encoded"
+struct_dim: 1024
+
+# Training definitions
+batch_size: 1
+lr: 0.001
+max_epochs: 20
+epoch_scale: -1
+precision: "highest"
+square_loss: false
+variance_norm: false
+grad_norm: false
+rmsf_alpha: 1.0
+ca_alpha: 1.0
+dyn_corr_alpha: 1.0
+

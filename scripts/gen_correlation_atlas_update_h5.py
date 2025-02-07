@@ -1,5 +1,4 @@
 import h5py
-import mdtraj as md
 import torch
 from loguru import logger
 from tqdm import tqdm
@@ -12,7 +11,7 @@ ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"
 
 xtc_files = list(ATLAS_DATA_DIR.glob("*/*.xtc"))
 pdb_files = list(ATLAS_DATA_DIR.glob("*/*.pdb"))
-pdb_files = [i for i in pdb_files if not ".ca" in i.stem]
+pdb_files = [i for i in pdb_files if ".ca" not in i.stem]
 N_REPS = 3
 
 STEP = 10

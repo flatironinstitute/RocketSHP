@@ -14,6 +14,8 @@ n_heads: 8
 n_layers: 4
 seq_features: true
 struct_features: true
+struct_stage: "pre-quantized"
+struct_dim: 128
 
 # Training definitions
 batch_size: 1

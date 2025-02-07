@@ -1,28 +1,20 @@
-import tempfile
-from io import StringIO
 
 import h5py
 import mdtraj as md
 import torch
-from esm.utils.encoding import tokenize_structure
-from esm.utils.structure.protein_chain import ProteinChain
 from loguru import logger
 from tqdm import tqdm
 
 from rocketshp import config
-from rocketshp.esm3 import (
-    _get_structure_vae,
-    _get_tokenizers,
-    struct_tokenize_frame
-)
 from rocketshp.datasets.utils import update_h5_dataset
+from rocketshp.esm3 import _get_structure_vae, _get_tokenizers, struct_tokenize_frame
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"
 
 xtc_files = list(ATLAS_DATA_DIR.glob("*/*.xtc"))
 pdb_files = list(ATLAS_DATA_DIR.glob("*/*.pdb"))
-pdb_files = [f for f in pdb_files if not "ca" in f.stem]
+pdb_files = [f for f in pdb_files if "ca" not in f.stem]
 N_REPS = 3
 STRIDE = 100
 

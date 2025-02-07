@@ -1,7 +1,13 @@
+import tempfile
+from io import StringIO
+from itertools import combinations
+
 import mdtraj as md
 import numpy as np
-from itertools import combinations
 from statsmodels.tsa.stattools import acf
+
+from rocketshp.structure.protein_chain import ProteinChain
+
 
 def load_trajectory(filename: str):
     return md.load(filename)
@@ -48,8 +54,11 @@ def compute_autocorrelation(traj: md.Trajectory, lag: int = 1, atom_indices: lis
         correlations[c_j, c_i] = corrs_[lag]
     return correlations
 
-def compute_pairwise_distance_autocorrelation(traj: md.Trajectory, lag: int = 1, atom_indices: list = None):
-    return md.compute_pairwise_correlation(traj, lag=lag, atom_indices=atom_indices)
-
-def compute_contacts_autocorrelation(traj: md.Trajectory, lag: int = 1, scheme: str = "ca", ignore_nonprotein: bool = True):
-    return md.compute_contacts_autocorr(traj, lag=lag, scheme=scheme, ignore_nonprotein=ignore_nonprotein)
+def frame_to_chain(F):
+    with tempfile.NamedTemporaryFile(suffix=".pdb") as tmp:
+        F.save_pdb(tmp.name)
+        tmp.seek(0)
+        pdb_content = tmp.read()
+        with StringIO(pdb_content.decode()) as sio:
+            esmc = ProteinChain.from_pdb(sio)
+    return esmc

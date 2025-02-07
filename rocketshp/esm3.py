@@ -1,28 +1,236 @@
+import os
+from dataclasses import dataclass
+from functools import cache
+from pathlib import Path
+
 import torch
-import tempfile
-import numpy as np
-from io import StringIO
 from esm.models.esm3 import ESM3
-from esm.pretrained import ESM3_structure_decoder_v0, ESM3_structure_encoder_v0
-from esm.sdk.api import ESM3InferenceClient, ESMProtein, LogitsConfig
-from esm.tokenization import get_model_tokenizers
+from esm.pretrained import ESM3_structure_encoder_v0
 from esm.utils.constants import models as M
-from esm.utils.generation import _stack_protein_tensors
-from esm.utils.encoding import tokenize_structure
-from esm.utils.structure.protein_chain import ProteinChain
-from esm.utils import residue_constants as RC
-from esm.utils.structure.affine3d import build_affine3d_from_coordinates
-from esm.utils.structure.normalize_coordinates import normalize_coordinates
+from huggingface_hub import snapshot_download
+from tokenizers import Tokenizer
+from tokenizers.models import BPE
+from tokenizers.processors import TemplateProcessing
+from transformers import PreTrainedTokenizerFast
+
 
 def _auth_huggingface(token):
     import os
 
     os.environ["HF_TOKEN"] = token
 
+@dataclass
+class ESM_CONSTANT_CLASS:
+    SEQUENCE_BOS_TOKEN = 0
+    SEQUENCE_PAD_TOKEN = 1
+    SEQUENCE_EOS_TOKEN = 2
+    SEQUENCE_CHAINBREAK_TOKEN = 31
+    SEQUENCE_MASK_TOKEN = 32
 
-def _get_model(
+    VQVAE_CODEBOOK_SIZE = 4096
+    VQVAE_SPECIAL_TOKENS = {
+        "MASK": VQVAE_CODEBOOK_SIZE,
+        "EOS": VQVAE_CODEBOOK_SIZE + 1,
+        "BOS": VQVAE_CODEBOOK_SIZE + 2,
+        "PAD": VQVAE_CODEBOOK_SIZE + 3,
+        "CHAINBREAK": VQVAE_CODEBOOK_SIZE + 4,
+    }
+    VQVAE_DIRECTION_LOSS_BINS = 16
+    VQVAE_PAE_BINS = 64
+    VQVAE_MAX_PAE_BIN = 31.0
+    VQVAE_PLDDT_BINS = 50
+
+    STRUCTURE_MASK_TOKEN = VQVAE_SPECIAL_TOKENS["MASK"]
+    STRUCTURE_BOS_TOKEN = VQVAE_SPECIAL_TOKENS["BOS"]
+    STRUCTURE_EOS_TOKEN = VQVAE_SPECIAL_TOKENS["EOS"]
+    STRUCTURE_PAD_TOKEN = VQVAE_SPECIAL_TOKENS["PAD"]
+    STRUCTURE_CHAINBREAK_TOKEN = VQVAE_SPECIAL_TOKENS["CHAINBREAK"]
+    STRUCTURE_UNDEFINED_TOKEN = 955
+
+    SASA_PAD_TOKEN = 0
+
+    SS8_PAD_TOKEN = 0
+
+    INTERPRO_PAD_TOKEN = 0
+
+    RESIDUE_PAD_TOKEN = 0
+
+    CHAIN_BREAK_STR = "|"
+
+    SEQUENCE_BOS_STR = "<cls>"
+    SEQUENCE_EOS_STR = "<eos>"
+
+    MASK_STR_SHORT = "_"
+    SEQUENCE_MASK_STR = "<mask>"
+    SASA_MASK_STR = "<unk>"
+    SS8_MASK_STR = "<unk>"
+
+    # fmt: off
+    SEQUENCE_VOCAB = [
+        "<cls>", "<pad>", "<eos>", "<unk>",
+        "L", "A", "G", "V", "S", "E", "R", "T", "I", "D", "P", "K",
+        "Q", "N", "F", "Y", "M", "H", "W", "C", "X", "B", "U", "Z",
+        "O", ".", "-", "|",
+        "<mask>",
+    ]
+    # fmt: on
+
+    SSE_8CLASS_VOCAB = "GHITEBSC"
+    SSE_3CLASS_VOCAB = "HEC"
+    SSE_8CLASS_TO_3CLASS_MAP = {
+        "G": "H",
+        "H": "H",
+        "I": "H",
+        "T": "C",
+        "E": "E",
+        "B": "E",
+        "S": "C",
+        "C": "C",
+    }
+
+    SASA_DISCRETIZATION_BOUNDARIES = [
+        0.8,
+        4.0,
+        9.6,
+        16.4,
+        24.5,
+        32.9,
+        42.0,
+        51.5,
+        61.2,
+        70.9,
+        81.6,
+        93.3,
+        107.2,
+        125.4,
+        151.4,
+    ]
+
+    MAX_RESIDUE_ANNOTATIONS = 16
+
+
+    TFIDF_VECTOR_SIZE = 58641
+
+
+    @staticmethod
+    @cache
+    def data_root():
+        if "INFRA_PROVIDER" in os.environ:
+            return Path("")
+        # Try to download from hugginface if it doesn't exist
+        path = Path(snapshot_download(repo_id="EvolutionaryScale/esm3-sm-open-v1"))
+        return path
+
+
+    IN_REPO_DATA_FOLDER = Path(__file__).parents[2] / "data"
+
+    INTERPRO_ENTRY = IN_REPO_DATA_FOLDER / "entry_list_safety_29026.list"
+    INTERPRO_HIERARCHY = IN_REPO_DATA_FOLDER / "ParentChildTreeFile.txt"
+    INTERPRO2GO = IN_REPO_DATA_FOLDER / "ParentChildTreeFile.txt"
+    INTERPRO_2ID = "data/tag_dict_4_safety_filtered.json"
+
+    LSH_TABLE_PATHS = {
+        "8bit": "data/hyperplanes_8bit_58641.npz",
+    }
+
+    KEYWORDS_VOCABULARY = (
+        IN_REPO_DATA_FOLDER / "keyword_vocabulary_safety_filtered_58641.txt"
+    )
+    KEYWORDS_IDF = IN_REPO_DATA_FOLDER / "keyword_idf_safety_filtered_58641.npy"
+
+    RESID_CSV = "data/uniref90_and_mgnify90_residue_annotations_gt_1k_proteins.csv"
+    INTERPRO2KEYWORDS = IN_REPO_DATA_FOLDER / "interpro_29026_to_keywords_58641.csv"
+
+ESM_CONSTANTS = ESM_CONSTANT_CLASS()
+
+class EsmSequenceTokenizer(PreTrainedTokenizerFast):
+    """
+    Constructs an ESM tokenizer.
+    """
+
+    model_input_names = ["sequence_tokens", "attention_mask"]
+
+    def __init__(
+        self,
+        unk_token="<unk>",
+        cls_token="<cls>",
+        pad_token="<pad>",
+        mask_token="<mask>",
+        eos_token="<eos>",
+        chain_break_token="|",
+        **kwargs,
+    ):
+        all_tokens = ESM_CONSTANTS.SEQUENCE_VOCAB
+        token_to_id = {tok: ind for ind, tok in enumerate(all_tokens)}
+
+        # a character-level tokenizer is the same as BPE with no token merges
+        bpe = BPE(token_to_id, merges=[], unk_token=unk_token)
+        tokenizer = Tokenizer(bpe)
+        special_tokens = [
+            cls_token,
+            pad_token,
+            mask_token,
+            eos_token,
+            chain_break_token,
+        ]
+        self.cb_token = chain_break_token
+        additional_special_tokens = [chain_break_token]
+
+        tokenizer.add_special_tokens(
+            special_tokens,
+        )
+
+        # This is where we configure the automatic addition of special tokens when we call
+        # tokenizer(text, add_special_tokens=True). Note that you can also configure how two
+        # sequences are merged if you want.
+        tokenizer.post_processor = TemplateProcessing(  # type: ignore
+            single="<cls> $A <eos>",
+            special_tokens=[
+                ("<cls>", tokenizer.token_to_id("<cls>")),
+                ("<eos>", tokenizer.token_to_id("<eos>")),
+            ],
+        )
+        super().__init__(
+            tokenizer_object=tokenizer,
+            unk_token=unk_token,
+            cls_token=cls_token,
+            pad_token=pad_token,
+            mask_token=mask_token,
+            eos_token=eos_token,
+            additional_special_tokens=additional_special_tokens,
+            **kwargs,
+        )
+
+    # These are a footgun, we never use the `bos` token anywhere so we're just overriding it here.
+    @property
+    def bos_token(self):
+        return self.cls_token
+
+    @property
+    def bos_token_id(self):
+        return self.cls_token_id
+
+    @property
+    def chain_break_token(self):
+        return self.cb_token
+
+    @property
+    def chain_break_token_id(self):
+        return self.convert_tokens_to_ids(self.chain_break_token)
+
+    @property
+    def all_token_ids(self):
+        return list(range(self.vocab_size))
+
+    @property
+    def special_token_ids(self):
+        return self.all_special_ids
+
+
+
+def get_model(
     model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0"
-) -> ESM3InferenceClient:
+) -> ESM3:
     """
     Load the ESM-3 model.
 
@@ -31,11 +239,11 @@ def _get_model(
         The ESM-3 model.
     """
     d: torch.device = torch.device(device)
-    model: ESM3InferenceClient = ESM3.from_pretrained(model).to(d)
+    model: ESM3 = ESM3.from_pretrained(model).to(d)
     return model
 
 
-def _get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
+def get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     """
     Get the ESM-3 tokenizers.
 
@@ -46,7 +254,7 @@ def _get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     return get_model_tokenizers(model)
 
 
-def _get_structure_vae() -> tuple:
+def get_structure_vae() -> tuple:
     """
     Get the ESM-3 structure encoder.
 
@@ -55,164 +263,17 @@ def _get_structure_vae() -> tuple:
         The ESM-3 structure encoder.
     """
     encoder = ESM3_structure_encoder_v0()
-    decoder = ESM3_structure_decoder_v0()
 
-    return encoder, decoder
+    return encoder
 
-def _tokenize_chain(esmc) -> torch.Tensor:
-    struct_encoder = _get_structure_vae()[0]
-    struct_tokenizer = _get_tokenizers().structure
+# def _tokenize_chain(esmc) -> torch.Tensor:
+#     struct_encoder = _get_structure_vae()[0]
+#     struct_tokenizer = _get_tokenizers().structure
 
-    _, _, struct_tokens = tokenize_structure(
-        torch.from_numpy(esmc.atom37_positions),
-        structure_encoder = struct_encoder,
-        structure_tokenizer = struct_tokenizer,
-        reference_sequence = esmc.sequence,
-    )
-    return struct_tokens[1:-1].cpu()
-
-
-def sequence_encode(
-    seqs: list[str],
-    model: ESM3InferenceClient,
-    tokenizers: tuple,
-    device: str = "cuda:0",
-) -> torch.Tensor:
-    """
-    Embed sequences using the ESM-3 model.
-
-    Parameters:
-    seqs: list[str]
-        The sequences to embed.
-    model: ESM3InferenceClient
-        The ESM-3 model.
-    tokenizers: tuple
-        ESM-3 tokenizers.
-    device: str
-        The device to use.
-
-    Returns:
-    torch.Tensor
-        The embeddings.
-    """
-    d: torch.device = torch.device(device)
-
-    seqs: list[str] = [s for s in seqs]
-    esmprots: list[ESMProtein] = [ESMProtein(sequence=s) for s in seqs]
-    tokens = [model.encode(i) for i in esmprots]
-    lengths = [len(i) for i in tokens]
-    batch = _stack_protein_tensors(tokens, lengths, tokenizers, d)
-    cfg = LogitsConfig(
-        sequence=True,
-        structure=False,
-        secondary_structure=False,
-        sasa=False,
-        function=False,
-        residue_annotations=False,
-        return_embeddings=True,
-    )
-    logits = model.logits(batch, cfg)
-    return logits.embeddings
-
-def frame_to_chain(F):
-    with tempfile.NamedTemporaryFile(suffix=".pdb") as tmp:
-        F.save_pdb(tmp.name)
-        tmp.seek(0)
-        pdb_content = tmp.read()
-        with StringIO(pdb_content.decode()) as sio:
-            esmc = ProteinChain.from_pdb(sio)
-    return esmc
-
-def frame_to_struct_encoder_inputs(F):
-
-    num_res = F.n_residues
-
-    atom_positions = np.full(
-        [num_res, RC.atom_type_num, 3], np.nan, dtype=np.float32
-    )
-    residue_index = np.full([num_res], -1, dtype=np.int64)
-
-    for i, res in enumerate(F.top.residues):
-
-        residue_index[i] = res.index + 1
-
-        for j, atom in enumerate(res.atoms):
-            if atom.name == "SE" and res.name == "MSE":
-                atom.name = "SD"
-
-            if atom.name in RC.atom_order:
-                atom_positions[i, RC.atom_order[atom.name]] = 10 * np.round(F.xyz[0, atom.index], 4)
-
-    return atom_positions, residue_index
-        
-def struct_tokenize_frame(F, encoder=None, tokenizer=None, device=None):
-    """
-    Tokenize a trajectory frame using the ESM-3 structure tokenizer.
-    """
-
-    if device is None:
-        device = torch.device("cuda:0")
-    if encoder is None:
-        encoder = _get_structure_vae()[0]
-    if tokenizer is None:
-        tokenizer = _get_tokenizers().structure
-    encoder = encoder.to(device)
-
-    atom37_positions, residue_index = frame_to_struct_encoder_inputs(F)
-    coordinates = torch.from_numpy(atom37_positions).unsqueeze(0).to(device)
-    residue_index = torch.from_numpy(residue_index).unsqueeze(0).to(device)
-    
-    _, structure_tokens = encoder.encode(coordinates, residue_index=residue_index)
-    return torch.squeeze(structure_tokens, dim=0)
-
-def struct_tokenize_chain(esmc, encoder=None, tokenizer=None, device=None):
-    """
-    Tokenize a trajectory frame using the ESM-3 structure tokenizer.
-    """
-
-    if device is None:
-        device = torch.device("cuda:0")
-    if encoder is None:
-        encoder = _get_structure_vae()[0]
-    if tokenizer is None:
-        tokenizer = _get_tokenizers().structure
-    encoder = encoder.to(device)
-
-    esmc = esmc.normalize_coordinates()
-    coordinates = torch.from_numpy(esmc.atom37_positions).unsqueeze(0).to(device)
-    residue_index = torch.from_numpy(esmc.residue_index).unsqueeze(0).to(device)
-    
-    _, structure_tokens = encoder.encode(coordinates, residue_index=residue_index)
-    return torch.squeeze(structure_tokens, dim=0)
-
-def structure_encode(chain: ProteinChain, encoder, stage = "encoded"):
-    """
-    "stage" can be one of "encoded", "pre-quantized", or "quantized"
-    """
-    assert stage in ["encoded", "pre-quantized", "quantized"], "Invalid stage"
-
-    coords = normalize_coordinates(torch.tensor(chain.atom37_positions, dtype=torch.float32)).unsqueeze(0)
-    coords = coords.to("cuda")
-    coords = coords[..., :3, :]
-    affine, affine_mask = build_affine3d_from_coordinates(coords=coords)
-
-    attention_mask = torch.ones_like(affine_mask, dtype=torch.bool)
-    attention_mask = attention_mask.bool()
-    sequence_id = torch.zeros_like(affine_mask, dtype=torch.int64)
-
-    z = encoder.encode_local_structure(
-        coords=coords,
-        affine=affine,
-        attention_mask=attention_mask,
-        affine_mask=affine_mask,
-        sequence_id=sequence_id,
-    )
-
-    if stage in ["pre-quantized", "quantized"]:
-        z = z.masked_fill(~affine_mask.unsqueeze(2), 0)
-        z = encoder.pre_vq_proj(z)
-
-    if stage == "quantized":
-        _, z, _ = encoder.codebook(z)
-
-    return z
+#     _, _, struct_tokens = tokenize_structure(
+#         torch.from_numpy(esmc.atom37_positions),
+#         structure_encoder = struct_encoder,
+#         structure_tokenizer = struct_tokenizer,
+#         reference_sequence = esmc.sequence,
+#     )
+#     return struct_tokens[1:-1].cpu()

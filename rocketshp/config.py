@@ -1,10 +1,11 @@
-import os, sys
+import os
+from dataclasses import dataclass
 from pathlib import Path
 
 from dotenv import load_dotenv
 from loguru import logger
-from dataclasses import dataclass
 from omegaconf import OmegaConf
+
 from rocketshp.utils import configure_logger
 
 # # Load environment variables from .env file if it exists
@@ -52,5 +53,7 @@ class PARAMETER_STRUCT:
     dyn_corr_alpha: float = 1.0
     seq_features: bool = True
     struct_features: bool = False
+    struct_stage: str = "quantized"
+    struct_dim: int = 1
 
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())

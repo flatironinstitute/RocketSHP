@@ -1,23 +1,16 @@
+import sys
 import time
-
-import numpy as np
-import os
-import torch
+from pathlib import Path
 
 import cuarray
-import netchem
 import netcalc
-import mdtraj as md
+import netchem
+import numpy as np
+import torch
 from loguru import logger
-from tqdm import tqdm
-from pathlib import Path
 
 from rocketshp import config
 from rocketshp.datasets.mdcath import convert_to_mdtraj
-
-import os
-import psutil
-import sys
 
 DO_LOCAL_ALIGN = True
 LOCAL_DIST_CUTOFF = 0.75 # in nm

@@ -54,7 +54,7 @@ def display_trajectory(traj, coloring="residueindex", bfactor=None, normalize=Tr
             self._remote_call('setColorByResidue',
                                 target='Widget',
                                 args=[colors, component_index, repr_index])
-            
+
         scheme = [value_to_hex(x).upper().replace("#", "0x") for x in bfactor_new]
         _set_color_by_residue(view, scheme)
 

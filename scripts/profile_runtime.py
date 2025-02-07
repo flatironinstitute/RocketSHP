@@ -1,27 +1,23 @@
-import torch
 import time
-from loguru import logger
-from tqdm import tqdm
-from omegaconf import OmegaConf
-import matplotlib.pyplot as plt
 
-import mdtraj as md
-import nglview as nv
+import torch
+from esm.utils.encoding import tokenize_structure
+from esm.utils.structure.protein_chain import ProteinChain
+from loguru import logger
+from omegaconf import OmegaConf
+from tqdm import tqdm
 
 from rocketshp import config
-from rocketshp.plot import display_trajectory
 from rocketshp.datasets.atlas import ATLASDataModule
-from rocketshp.modeling.architectures import FlexibilityModelWithTemperature, DynCorrModelWithTemperature
-
 from rocketshp.esm3 import (
     _get_model,
     _get_structure_vae,
     _get_tokenizers,
     sequence_encode,
 )
-
-from esm.utils.structure.protein_chain import ProteinChain
-from esm.utils.encoding import tokenize_structure
+from rocketshp.modeling.architectures import (
+    DynCorrModelWithTemperature,
+)
 
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 

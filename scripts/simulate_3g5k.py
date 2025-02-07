@@ -1,32 +1,27 @@
-# -*- coding: utf-8 -*-
 #%%
 """simulate_3g5k.ipynb
 """
 
-import shutil
 import sys
-import matplotlib.pyplot as plt
-import mdtraj
-import numpy as np
+
 import pandas
 from loguru import logger
-
-from openmm import Platform, LangevinIntegrator, MonteCarloBarostat
-from openmm.app import (
-    CharmmPsfFile,
-    PDBFile,
-    ForceField,
-    Modeller,
-    Simulation,
-    DCDReporter,
-    PDBReporter,
-    StateDataReporter,
-    PME,
-    HBonds,
-)
+from openmm import LangevinIntegrator, MonteCarloBarostat, Platform
 from openmm import unit as u
-# from openmm.unit import nanometer, picosecond, femtosecond, bar, kelvin
+from openmm.app import (
+    PME,
+    CharmmPsfFile,
+    DCDReporter,
+    ForceField,
+    HBonds,
+    Modeller,
+    PDBFile,
+    PDBReporter,
+    Simulation,
+    StateDataReporter,
+)
 
+# from openmm.unit import nanometer, picosecond, femtosecond, bar, kelvin
 from rocketshp import config
 from rocketshp.utils import seed_everything
 
@@ -73,6 +68,7 @@ logger.configure(
 #%% Download structure.
 
 from biotite.database import rcsb
+
 pdb = rcsb.fetch('3G5K', "pdb").read()
 
 with open(RAW_PDB_FILE,'w+') as f:

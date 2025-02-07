@@ -1,16 +1,16 @@
 #%% # Load packages
-import h5py
 import mdtraj as md
-import pandas as pd
-import torch
-from loguru import logger
-from tqdm import tqdm
 from datasets import Dataset
+from loguru import logger
 
 from rocketshp import config
-from rocketshp.datasets.utils import update_h5_dataset
-from rocketshp.parallel import create_batches, parallel_pool, process_batch_wrapper
-from rocketshp.trajectory import compute_rmsf, compute_contacts, compute_autocorrelation, normalize
+from rocketshp.parallel import parallel_pool
+from rocketshp.trajectory import (
+    compute_autocorrelation,
+    compute_contacts,
+    compute_rmsf,
+    normalize,
+)
 
 #%% Define file paths
 logger.info("Defining file paths")
@@ -46,7 +46,7 @@ def compute_batched_trajectory_derivatives(pdb_id):
         ca_dist = contacts[0]
         logger.info(f"Computing autocorrelation for {pdb_code}/{rep}")
         autocorr = compute_autocorrelation(traj, precomputed_contacts=contacts, normalized=True, ca_only=True)
-        
+
         r = {
             "pdb_code": pdb_code,
             "rep": rep,
@@ -64,7 +64,7 @@ def compute_batched_trajectory_derivatives(pdb_id):
 
 #%% Define all reps
 pdb_codes = [pdb_f.stem for pdb_f in pdb_files]
-pdb_reps = [(pdb_code, rep) for pdb_code in pdb_codes for rep in range(1, N_REPS + 1)]
+pdb_reps = [(pdb_code, rep) for pdb_code in pdb_codes for rep in range(1, N_REPS + 1)][:1000]
 
 
 #%% Compute values in parallel
@@ -87,13 +87,13 @@ def invert_dict(l):
 ds = Dataset.from_dict(invert_dict(results))
 logger.info(f"Dataset created with {len(ds)} samples")
 logger.info(f"Saving dataset to {ATLAS_PROCESSED_DATA_DIR / 'atlas_derivatives_v2'}")
-ds.save(ATLAS_PROCESSED_DATA_DIR / "atlas_derivatives_v2")
+ds.save(ATLAS_PROCESSED_DATA_DIR / "atlas_derivatives_v2_1000")
 
 #%% Process data
 # with h5py.File(ATLAS_PROCESSED_DATA_DIR / "atlas_processed.h5", "a") as h5file:
-    
-    
-    
+
+
+
     # for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
     #     pdb_code = pdb_f.stem
 

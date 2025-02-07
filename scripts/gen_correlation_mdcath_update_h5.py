@@ -1,12 +1,12 @@
-import h5py
-import mdtraj as md
 import os
+
+import h5py
 import torch
-from loguru import logger
 from tqdm import tqdm
 
 from rocketshp import config
 from rocketshp.datasets.utils import update_h5_dataset
+
 os.environ["LOGURU_LEVEL"] = "INFO"
 
 MDCATH_DATA_DIR = config.RAW_DATA_DIR / "mdcath"

@@ -1,23 +1,17 @@
-import time
 
-import numpy as np
 import os
 import subprocess as sp
-import torch
+import sys
 
-import cuarray
+import psutil
+
 # import netchem
 # import netcalc
-import mdtraj as md
 from loguru import logger
 from tqdm import tqdm
 
 from rocketshp import config
-from rocketshp.datasets.mdcath import convert_to_mdtraj
 
-import os
-import psutil
-import sys
 
 def check_memory_usage(max_memory_percent=90):
     """
@@ -28,12 +22,12 @@ def check_memory_usage(max_memory_percent=90):
     """
     process = psutil.Process(os.getpid())
     memory_percent = process.memory_percent()
-    
+
     if memory_percent > max_memory_percent:
         print(f"Memory usage exceeded {max_memory_percent}% (current: {memory_percent:.1f}%)")
         print("Terminating process...")
         sys.exit(1)
-    
+
     return memory_percent
 
 os.environ["LOGURU_LEVEL"] = "INFO"
@@ -52,7 +46,7 @@ for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
 
     for temp in TEMPS:
         for rep in REPS:
-            
+
             # if gen correlation exists, continue
             local_suff = "local_" if DO_LOCAL_ALIGN else ""
             corr_matrix_filename = str(MDCATH_PROCESSED_DATA_DIR / pdb_code / f"{pdb_code}_{temp}_{rep}_{local_suff}_corr_matrix.pt")

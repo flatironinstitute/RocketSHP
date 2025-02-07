@@ -2,20 +2,12 @@ import os
 import tempfile
 from pathlib import Path
 
-import h5py
-import torch
-import numpy as np
-import pandas as pd
-from loguru import logger
-from torch.utils.data import DataLoader, Dataset, Subset
-from lightning import LightningDataModule
 # from torchmdnet.datasets import MDCATH
-
-import biotite.structure as struc
-import biotite.structure.io.pdb as pdb
+import h5py
+import numpy as np
 
 from rocketshp.config import PROCESSED_DATA_DIR
-from rocketshp.datasets.utils import MDDataset, MDDataModule
+from rocketshp.datasets.utils import MDDataModule, MDDataset
 
 MDCATH_PROCESSED_H5 = PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5"
 MDCATH_TEMPS = [320, 348, 379, 413, 450]
@@ -28,28 +20,28 @@ MDCATH_FOLDSEEK_CLUSTERS_FILE = PROCESSED_DATA_DIR / "mdcath/foldseek_mdcath_0.2
 
 def _renumber_pdb(filename):
     # First read all lines into memory
-    with open(filename, 'r') as f:
+    with open(filename) as f:
         lines = f.readlines()
-    
+
     # Process the lines
     new_lines = []
     current_chain = None
     current_resid = None  # Will store "resnum+insertion" as identifier
     new_number = None
-    
+
     for line in lines:
         if line.startswith(('ATOM', 'HETATM')):
             chain = line[21]
             resnum = line[22:26].strip()  # Current residue number
             ins_code = line[26]           # Insertion code
             current_full_resid = resnum + ins_code  # Combine for unique identifier
-            
+
             # If we hit a new chain, reset our counters
             if chain != current_chain:
                 current_chain = chain
                 current_resid = None
                 new_number = None
-            
+
             # If we hit a new residue (checking full residue identifier)
             if current_full_resid != current_resid:
                 if new_number is None:
@@ -59,16 +51,16 @@ def _renumber_pdb(filename):
                     # Increment for new residue
                     new_number += 1
                 current_resid = current_full_resid
-            
+
             # Create new line with updated residue number and no insertion code
-            new_line = (line[:22] + 
+            new_line = (line[:22] +
                       f"{new_number:>4}" +
                       " " +    # Replace insertion code with space
                       line[27:])
             new_lines.append(new_line)
         else:
             new_lines.append(line)
-    
+
     # Write back to the same file
     with open(filename, 'w') as f:
         f.writelines(new_lines)
@@ -223,16 +215,20 @@ class MDCathDataset(MDDataset):
         processed_h5: Path,
         seq_features: bool = True,
         struct_features: bool = True,
+        *args,
+        **kwargs,
     ):
         super().__init__(
             processed_h5=processed_h5,
             seq_features=seq_features,
             struct_features=struct_features,
+            *args,
+            **kwargs,
         )
 
     def _get_keys(self):
         return list(self._handle.keys())
-        
+
     def _get_samples(self):
         return [f"{k}/T{t}/R{r}" for k in self.keys for r in MDCATH_REPS for t in MDCATH_TEMPS]
 

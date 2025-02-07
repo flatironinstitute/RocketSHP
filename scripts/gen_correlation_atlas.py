@@ -1,13 +1,12 @@
+import os
 import time
 
-import numpy as np
-import os
-import torch
-
 import cuarray
-import netchem
-import netcalc
 import mdtraj as md
+import netcalc
+import netchem
+import numpy as np
+import torch
 from loguru import logger
 from tqdm import tqdm
 
@@ -137,7 +136,7 @@ for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
             graph.nodeCoordinates().fromNumpy2D(locally_aligned_nodes.astype(np.float32))
 
         local_suff = "local_" if DO_LOCAL_ALIGN else ""
-        
+
         # Compute generalized correlation and output to proteinG_R
         logger.info("Performing generalized correlation computation "\
             f"on {n} data points with {num_nodes} nodes.")

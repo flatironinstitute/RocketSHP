@@ -1,17 +1,16 @@
-import h5py
-import mdtraj as md
 import os
-import torch
 import tempfile
+from io import StringIO
+
+import h5py
+import torch
 from esm.utils.encoding import tokenize_structure
 from esm.utils.structure.protein_chain import ProteinChain
 from loguru import logger
 from tqdm import tqdm
-from io import StringIO
 
 from rocketshp import config
-from rocketshp.datasets.mdcath import convert_to_mdtraj, convert_to_files
-
+from rocketshp.datasets.mdcath import convert_to_files
 from rocketshp.esm3 import (
     _get_model,
     _get_structure_vae,
@@ -48,7 +47,7 @@ def frame_to_chain(F):
 
 def update_h5_dataset(f, dataset_name, data):
     if dataset_name in f:
-        del f[dataset_name]  
+        del f[dataset_name]
     f.create_dataset(dataset_name, data=data)
 
 with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file:
@@ -56,7 +55,7 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
         pdb_code = mdc_f.stem.split("_")[-1]
 
         h5file.require_group(pdb_code)
-    
+
         os.makedirs(MDCATH_PROCESSED_DATA_DIR / pdb_code, exist_ok=True)
         pdb_f, _ = convert_to_files(mdc_f, basename = MDCATH_PROCESSED_DATA_DIR / pdb_code/ pdb_code, temp_list=TEMPS, replica_list=REPS)
         esm_chain = ProteinChain.from_pdb(pdb_f)

@@ -2,23 +2,23 @@ import logging
 import os
 
 import dotenv
+import lightning as L
 import neptune
 import torch
 import typer
-from loguru import logger as stdout_logger
-from omegaconf import OmegaConf
-
-import lightning as L
 from lightning import Trainer
 from lightning.pytorch.callbacks import ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
+from loguru import logger as stdout_logger
+from omegaconf import OmegaConf
 
-from rocketshp.config import PROCESSED_DATA_DIR, DEFAULT_PARAMETERS
-from rocketshp.utils import seed_everything, configure_logger
+from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
 from rocketshp.datasets.atlas import ATLASDataModule
-from rocketshp.datasets.mdcath import MDCathDataModule
-from rocketshp.modeling.architectures import FlexibilityModelWithTemperature, DynCorrModelWithTemperature
+from rocketshp.modeling.architectures import (
+    DynCorrModelWithTemperature,
+)
 from rocketshp.modeling.pt_lightning import LightningWrapper
+from rocketshp.utils import configure_logger, seed_everything
 
 
 class _FilterCallback(logging.Filterer):
@@ -94,12 +94,14 @@ def main(
         n_heads = PARAMS.n_heads,
         n_layers = PARAMS.n_layers,
         seq_only = not PARAMS.struct_features,
+        struct_stage = PARAMS.struct_stage,
+        struct_dim = PARAMS.struct_dim,
     )
     PARAMS.num_parameters = model._num_parameters()
 
     stdout_logger.info(model)
     lightning_model = LightningWrapper(model, PARAMS)
-    
+
     if not debug: neptune_logger.log_hyperparams(params=PARAMS.__dict__)
     torch.set_float32_matmul_precision(PARAMS.precision)
 
@@ -115,6 +117,7 @@ def main(
         random_seed=PARAMS.random_seed,
         train_pct=PARAMS.train_pct,
         val_pct=PARAMS.val_pct,
+        struct_stage=PARAMS.struct_stage,
     )
 
     # Set up ModelCheckpoint to monitor val_loss

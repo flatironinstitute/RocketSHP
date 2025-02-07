@@ -1,8 +1,10 @@
-from multiprocessing import Pool
-from itertools import count, chain
-from loguru import logger
 import math
+from itertools import chain, count
+from multiprocessing import Pool
+
+from loguru import logger
 from tqdm import tqdm
+
 
 def create_batches(dataset, batch_size):
     """Create batches from a list of IDs."""
@@ -13,18 +15,18 @@ def create_batches(dataset, batch_size):
 def process_batch_wrapper(args):
     """Wrapper to handle job numbering and batch processing."""
     job_num, batch, process_fn, report_every = args
-    
+
     if report_every:
         logger.info(f"Job {job_num}: Processing batch of size {len(batch)}")
-    
+
     try:
         result = process_fn(batch)
-        
+
         if report_every and job_num % report_every == 0:
             logger.info(f"Job {job_num}: Completed successfully")
-            
+
         return result
-    
+
     except Exception as e:
         logger.info(f"Job {job_num}: Failed with error: {str(e)}")
         return []
@@ -45,17 +47,17 @@ def parallel_pool(dataset, process_fn, n_jobs=4, batch_size=32, report_every=Non
     """
     total_batches = math.ceil(len(dataset) / batch_size)
     batches = create_batches(dataset, batch_size)
-    
+
     # Create tuples of (job_num, batch, process_fn, report_every)
-    job_args = ((i, batch, process_fn, report_every) 
+    job_args = ((i, batch, process_fn, report_every)
                 for i, batch in zip(count(), batches))
-    
+
     with Pool(processes=n_jobs) as pool:
         results = list(tqdm(
             pool.imap(process_batch_wrapper, job_args),
             total=total_batches,
             desc="Processing batches"
         ))
-    
+
     # Flatten results
     return list(chain.from_iterable(results))

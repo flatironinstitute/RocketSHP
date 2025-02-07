@@ -1,18 +1,6 @@
 import torch
-import h5py
 from loguru import logger
-from tqdm import tqdm
-from omegaconf import OmegaConf
 
-import matplotlib.pyplot as plt
-import mdtraj as md
-import nglview as nv
-
-from esm.utils.encoding import tokenize_structure
-from esm.utils.structure.protein_chain import ProteinChain
-
-from rocketshp import config
-from rocketshp.plot import display_trajectory
 from rocketshp.esm3 import (
     _get_model,
     _get_structure_vae,
@@ -20,6 +8,7 @@ from rocketshp.esm3 import (
     esm3_embed,
 )
 from rocketshp.modeling.architectures import DynCorrModelWithTemperature
+
 device = torch.device("cuda:0")
 
 # elf3 (disordered)
@@ -50,7 +39,7 @@ rshp_model.eval().to(device)
 logger.info("Generating intial features")
 with torch.inference_mode():
     embeddings = esm3_embed([SEQUENCE], esm_model, tokenizers, device=device).squeeze()[1:-1].detach()
-    struct_like = torch.zeros((embeddings.size()[0])).int().to(device)
+    struct_like = torch.zeros(embeddings.size()[0]).int().to(device)
     temperature = torch.ones_like(struct_like).to(device) * 290
 
     logger.debug(embeddings.size())
@@ -66,8 +55,6 @@ with torch.inference_mode():
     })
     print(y_hat)
 
-import matplotlib.pyplot as plt
-import numpy as np
 
 # plt.plot(np.arange(432, 432+len(SEQUENCE)), y_hat["rmsf"].squeeze().cpu().detach().numpy(), label="RMSF")
 # xticks only at 432, 452, 472, 492, 512, 532, 552, 572, 592
