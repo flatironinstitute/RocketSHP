@@ -117,7 +117,7 @@ def esm3_sequence(
         return_embeddings=True,
     )
     logits = model.logits(batch, cfg)
-    return logits.embeddings[:,1:-1,:]
+    return logits.embeddings
 
 @app.command()
 def main(

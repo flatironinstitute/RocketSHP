@@ -17,4 +17,4 @@ source ~/venvs/scc-rocketshp/bin/activate
 
 cd $HOME/Projects/rocketshp
 REPLICATE=1
-python scripts/process_atlas_cpu.py
+python scripts/01_preprocess/atlas/process_atlas_cpu.py

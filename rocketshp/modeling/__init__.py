@@ -1,1 +1,1 @@
-__all__ = ["architectures", "lightning"]
+__all__ = ["architectures", "pt_lightning"]

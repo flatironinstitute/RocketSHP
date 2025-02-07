@@ -2,8 +2,6 @@ from __future__ import annotations
 
 import typing as T
 from dataclasses import dataclass
-from typing import Self
-
 import torch
 
 from rocketshp.utils import fp32_autocast_context
@@ -12,14 +10,14 @@ from rocketshp.utils import fp32_autocast_context
 @T.runtime_checkable
 class Rotation(T.Protocol):
     @classmethod
-    def identity(cls, shape: tuple[int, ...], **tensor_kwargs) -> Self:
+    def identity(cls, shape: tuple[int, ...], **tensor_kwargs):
         ...
 
     @classmethod
-    def random(cls, shape: tuple[int, ...], **tensor_kwargs) -> Self:
+    def random(cls, shape: tuple[int, ...], **tensor_kwargs):
         ...
 
-    def __getitem__(self, idx: T.Any) -> Self:
+    def __getitem__(self, idx: T.Any):
         ...
 
     @property
@@ -38,11 +36,11 @@ class Rotation(T.Protocol):
     def as_matrix(self) -> RotationMatrix:
         ...
 
-    def compose(self, other: Self) -> Self:
+    def compose(self, other: Self):
         # To be safe, we force users to explicitly convert between rotation types.
         ...
 
-    def convert_compose(self, other: Self) -> Self:
+    def convert_compose(self, other: Self):
         # This function will automatically convert between types of rotations
         ...
 
@@ -50,7 +48,7 @@ class Rotation(T.Protocol):
         # rotates points by this rotation object
         ...
 
-    def invert(self) -> Self:
+    def invert(self):
         ...
 
     @property
@@ -66,19 +64,19 @@ class Rotation(T.Protocol):
         return self.tensor.requires_grad
 
     @classmethod
-    def _from_tensor(cls, t: torch.Tensor) -> Self:
+    def _from_tensor(cls, t: torch.Tensor):
         # This function exists to simplify the below functions, esp type signatures
         # Its implementation is different from Affine3D.from_tensor and does not
         # autodetect rotation types.
         return cls(t)  # type: ignore
 
-    def to(self, **kwargs) -> Self:
+    def to(self, **kwargs):
         return self._from_tensor(self.tensor.to(**kwargs))
 
-    def detach(self, *args, **kwargs) -> Self:
+    def detach(self, *args, **kwargs):
         return self._from_tensor(self.tensor.detach(**kwargs))
 
-    def tensor_apply(self, func) -> Self:
+    def tensor_apply(self, func):
         # Applys a function to the underlying tensor
         return self._from_tensor(
             torch.stack([func(x) for x in self.tensor.unbind(dim=-1)], dim=-1)

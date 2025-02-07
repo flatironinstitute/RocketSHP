@@ -13,6 +13,7 @@ from tokenizers.models import BPE
 from tokenizers.processors import TemplateProcessing
 from transformers import PreTrainedTokenizerFast
 
+from esm.tokenization import get_esm3_model_tokenizers
 
 def _auth_huggingface(token):
     import os
@@ -251,7 +252,7 @@ def get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     tuple
         The ESM-3 tokenizers.
     """
-    return get_model_tokenizers(model)
+    return get_esm3_model_tokenizers(model)
 
 
 def get_structure_vae() -> tuple:
