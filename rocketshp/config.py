@@ -13,7 +13,8 @@ load_dotenv()
 configure_logger(os.getenv("LOGURU_LEVEL", "INFO"))
 
 # Paths
-PROJ_ROOT = Path(__file__).resolve().parents[1]
+# PROJ_ROOT = Path(__file__).resolve().parents[1]
+PROJ_ROOT = Path("/mnt/home/ssledzieski/Projects/rocketshp")
 logger.debug(f"PROJ_ROOT path is: {PROJ_ROOT}")
 
 DATA_DIR = PROJ_ROOT / "data"
@@ -21,6 +22,7 @@ RAW_DATA_DIR = DATA_DIR / "raw"
 INTERIM_DATA_DIR = DATA_DIR / "interim"
 PROCESSED_DATA_DIR = DATA_DIR / "processed"
 EXTERNAL_DATA_DIR = DATA_DIR / "external"
+EVALUATION_DATA_DIR = DATA_DIR / "evaluation"
 
 MODELS_DIR = PROJ_ROOT / "models"
 
@@ -51,6 +53,8 @@ class PARAMETER_STRUCT:
     rmsf_alpha: float = 1.0
     ca_alpha: float = 1.0
     dyn_corr_alpha: float = 1.0
+    autocorr_alpha: float = 1.0
+    shp_alpha: float = 1.0
     seq_features: bool = True
     struct_features: bool = False
     struct_stage: str = "quantized"

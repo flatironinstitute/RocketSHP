@@ -4,7 +4,6 @@ from esm.layers.transformer_stack import TransformerStack
 from esm.utils.constants import esm3 as ESM_CONSTANTS
 from torch import nn
 
-
 class StructEncoder(nn.Module):
     def __init__(self, d_model: int, n_tokens: int = ESM_CONSTANTS.VQVAE_CODEBOOK_SIZE):
         super().__init__()
@@ -167,161 +166,230 @@ class GradNorm(nn.Module):
 
         return total_loss, weighted_losses, grad_norm_loss.detach()
 
-class FlexibilityModel(nn.Module):
-    def __init__(
-        self,
-        embedding_dim: int,
-        output_dim: int,
-        d_model: int,
-        n_heads: int,
-        n_layers: int,
-        k_size: int = 1,
-    ):
-        super().__init__()
+def CategoricalHead(
+    d_model: int,
+    output_dim: int,
+    hidden_dim: int | None = None,
+) -> nn.Module:
+    """Single-hidden layer MLP for supervised output of categorical variable.
+    
+    Args:
+        d_model: input dimension
+        output_dim: dimensionality of the output.
+        hidden_dim: optional dimension of hidden layer, defaults to d_model.
+    Returns:
+        output MLP module.
+    """
+    hidden_dim = hidden_dim if hidden_dim is not None else d_model
+    return nn.Sequential(
+        nn.Linear(d_model, hidden_dim),
+        nn.GELU(),
+        nn.LayerNorm(hidden_dim),
+        nn.Linear(hidden_dim, output_dim),
+        # nn.Softmax(dim=-1),
+    )
 
-        self.encoder = JointStructAndSequenceEncoder(embedding_dim, d_model)
-        self.transformer = TransformerStack(
-            d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
-        )
-        self.squareformer = nn.Sequential(
-            nn.Conv2d(d_model, d_model, kernel_size=k_size, stride=1),
-            nn.GELU(),
-            nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
-            nn.GELU(),
-        )
-        self.output = RegressionHead(d_model, output_dim)
+def RegressionHead(
+    d_model: int,
+    output_dim: int,
+    hidden_dim: int | None = None,
+) -> nn.Module:
+    """Single-hidden layer MLP for supervised output.
 
-    def _transform(self, x):
-        x = self.encoder(x)
-        x, _ = self.transformer(x)
-        return x
+    Args:
+        d_model: input dimension
+        output_dim: dimensionality of the output.
+        hidden_dim: optional dimension of hidden layer, defaults to d_model.
+    Returns:
+        output MLP module.
+    """
+    hidden_dim = hidden_dim if hidden_dim is not None else d_model
+    return nn.Sequential(
+        nn.Linear(d_model, hidden_dim),
+        nn.GELU(),
+        nn.LayerNorm(hidden_dim),
+        nn.Linear(hidden_dim, output_dim),
+    )
 
-    def _cross_transform(self, x):
-        x = self._transform(x)
-        return x @ x.transpose(1,2)
+def PairwiseRegressionHead(
+    d_model: int,
+    kernel_size: int,
+    hidden_dim: int | None = None,
+    output_dim: int = 1
+) -> nn.Module:
+    """Single hidden layer MLP for pairwise output.
+    
+    Args:
+        d_model: input dimension
+        kernel_size: kernel size for convolutional layers
+        hidden_dim: optional dimension of hidden layer, defaults to d_model.
+        output_dim: dimensionality of the output.
+    Returns:
+        output MLP module.
+    """
+    hidden_dim = hidden_dim if hidden_dim is not None else d_model
+    return nn.Sequential(
+        nn.Conv2d(d_model, hidden_dim, kernel_size=kernel_size, stride=1),
+        nn.GELU(),
+        nn.Conv2d(hidden_dim, output_dim, kernel_size=kernel_size, stride=1),
+        nn.Sigmoid(),
+    )
 
-    def squareform(self, x):
-        x = self._transform(x)
-        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
-        return self.squareformer(sqform).squeeze(1)
+# class FlexibilityModel(nn.Module):
+#     def __init__(
+#         self,
+#         embedding_dim: int,
+#         output_dim: int,
+#         d_model: int,
+#         n_heads: int,
+#         n_layers: int,
+#         k_size: int = 1,
+#     ):
+#         super().__init__()
 
-    def rmsf(self, x):
-        x = self._transform(x)
-        return self.output(x)
+#         self.encoder = JointStructAndSequenceEncoder(embedding_dim, d_model)
+#         self.transformer = TransformerStack(
+#             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
+#         )
+#         self.squareformer = nn.Sequential(
+#             nn.Conv2d(d_model, d_model, kernel_size=k_size, stride=1),
+#             nn.GELU(),
+#             nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
+#             nn.GELU(),
+#         )
+#         self.output = RegressionHead(d_model, output_dim)
 
-    def forward(self, x):
-        """
-        x = {"seq_feats": v, "struct_feats": v, "temp": v}
-        seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
-        struct_tokens \\in [1, n_tokens]^{batch_size \times N}
-        """
-        x = self._transform(x)
-        rmsf_pred = self.output(x)
+#     def _transform(self, x):
+#         x = self.encoder(x)
+#         x, _ = self.transformer(x)
+#         return x
 
-        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
-        sqform_pred = self.squareformer(sqform).squeeze(1)
-        return {
-            "rmsf": rmsf_pred,
-            "ca_dist": sqform_pred,
-        }
+#     def _cross_transform(self, x):
+#         x = self._transform(x)
+#         return x @ x.transpose(1,2)
 
-    def _num_parameters(self, requires_grad: bool = True):
-        return sum(
-            p.numel() for p in self.parameters() if p.requires_grad == requires_grad
-        )
+#     def squareform(self, x):
+#         x = self._transform(x)
+#         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+#         return self.squareformer(sqform).squeeze(1)
 
-    @classmethod
-    def load_from_checkpoint(cls, checkpoint_path: str, strict: bool = True):
-        chk = torch.load(checkpoint_path)
-        hp = chk["hyper_parameters"]
-        state_dict = {}
-        fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"])
-        for k,v in chk["state_dict"].items():
-            new_k = k.replace("child_model.","")
-            state_dict[new_k] = v
-        fm.load_state_dict(state_dict, strict=strict)
-        fm.eval()
-        return fm
+#     def rmsf(self, x):
+#         x = self._transform(x)
+#         return self.output(x)
 
-class FlexibilityModelWithTemperature(nn.Module):
-    def __init__(
-        self,
-        embedding_dim: int,
-        output_dim: int,
-        d_model: int,
-        n_heads: int,
-        n_layers: int,
-        k_size: int = 1,
-        seq_only: bool = False,
-    ):
-        super().__init__()
+#     def forward(self, x):
+#         """
+#         x = {"seq_feats": v, "struct_feats": v, "temp": v}
+#         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
+#         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
+#         """
+#         x = self._transform(x)
+#         rmsf_pred = self.output(x)
 
-        self.encoder = JointStructAndSequenceEncoder(embedding_dim, d_model, seq_only=seq_only)
-        self.transformer = TransformerStack(
-            d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
-        )
-        self.squareformer = nn.Sequential(
-            nn.Conv2d(d_model, d_model, kernel_size=k_size, stride=1),
-            nn.GELU(),
-            nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
-            nn.GELU(),
-        )
-        self.output = RegressionHead(d_model + 1, output_dim)
+#         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+#         sqform_pred = self.squareformer(sqform).squeeze(1)
+#         return {
+#             "rmsf": rmsf_pred,
+#             "ca_dist": sqform_pred,
+#         }
 
-    def _transform(self, x):
-        x = self.encoder(x)
-        tout = self.transformer(x)
-        x = tout[0]
-        return x
+#     def _num_parameters(self, requires_grad: bool = True):
+#         return sum(
+#             p.numel() for p in self.parameters() if p.requires_grad == requires_grad
+#         )
 
-    def _cross_transform(self, x):
-        x = self._transform(x)
-        return x @ x.transpose(1,2)
+#     @classmethod
+#     def load_from_checkpoint(cls, checkpoint_path: str, strict: bool = True):
+#         chk = torch.load(checkpoint_path)
+#         hp = chk["hyper_parameters"]
+#         state_dict = {}
+#         fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"])
+#         for k,v in chk["state_dict"].items():
+#             new_k = k.replace("child_model.","")
+#             state_dict[new_k] = v
+#         fm.load_state_dict(state_dict, strict=strict)
+#         fm.eval()
+#         return fm
 
-    def squareform(self, x):
-        x = self._transform(x)
-        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
-        return self.squareformer(sqform).squeeze(1)
+# class FlexibilityModelWithTemperature(nn.Module):
+#     def __init__(
+#         self,
+#         embedding_dim: int,
+#         output_dim: int,
+#         d_model: int,
+#         n_heads: int,
+#         n_layers: int,
+#         k_size: int = 1,
+#         seq_only: bool = False,
+#     ):
+#         super().__init__()
 
-    def rmsf(self, x):
-        x = self._transform(x)
-        return self.output(x)
+#         self.encoder = JointStructAndSequenceEncoder(embedding_dim, d_model, seq_only=seq_only)
+#         self.transformer = TransformerStack(
+#             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
+#         )
+#         self.squareformer = nn.Sequential(
+#             nn.Conv2d(d_model, d_model, kernel_size=k_size, stride=1),
+#             nn.GELU(),
+#             nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
+#             nn.GELU(),
+#         )
+#         self.output = RegressionHead(d_model + 1, output_dim)
 
-    def forward(self, x):
-        """
-        x = (seq_embeddings, struct_tokens)
-        seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
-        struct_tokens \\in [1, n_tokens]^{batch_size \times N}
-        """
-        temperature = x["temp"]
-        x = self._transform(x)
-        rmsf_pred = self.output(torch.cat([x, temperature.unsqueeze(-1)], dim=-1))
+#     def _transform(self, x):
+#         x = self.encoder(x)
+#         tout = self.transformer(x)
+#         x = tout[0]
+#         return x
 
-        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
-        sqform_pred = self.squareformer(sqform).squeeze(1)
-        return {
-            "rmsf": rmsf_pred,
-            "ca_dist": sqform_pred,
-            # "dyn_corr": sqform_pred,
-        }
+#     def _cross_transform(self, x):
+#         x = self._transform(x)
+#         return x @ x.transpose(1,2)
 
-    def _num_parameters(self, requires_grad: bool = True):
-        return sum(
-            p.numel() for p in self.parameters() if p.requires_grad == requires_grad
-        )
+#     def squareform(self, x):
+#         x = self._transform(x)
+#         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+#         return self.squareformer(sqform).squeeze(1)
 
-    @classmethod
-    def load_from_checkpoint(cls, checkpoint_path: str, strict: bool = True):
-        chk = torch.load(checkpoint_path)
-        hp = chk["hyper_parameters"]
-        state_dict = {}
-        fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"])
-        for k,v in chk["state_dict"].items():
-            new_k = k.replace("child_model.","")
-            state_dict[new_k] = v
-        fm.load_state_dict(state_dict, strict=strict)
-        fm.eval()
-        return fm
+#     def rmsf(self, x):
+#         x = self._transform(x)
+#         return self.output(x)
+
+#     def forward(self, x):
+#         """
+#         x = (seq_embeddings, struct_tokens)
+#         seq_embeddings \\in R^{batch_size \times N \times embedding_dim}
+#         struct_tokens \\in [1, n_tokens]^{batch_size \times N}
+#         """
+#         temperature = x["temp"]
+#         x = self._transform(x)
+#         rmsf_pred = self.output(torch.cat([x, temperature.unsqueeze(-1)], dim=-1))
+
+#         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+#         sqform_pred = self.squareformer(sqform).squeeze(1)
+#         return {
+#             "rmsf": rmsf_pred,
+#             "ca_dist": sqform_pred,
+#             # "dyn_corr": sqform_pred,
+#         }
+
+#     def _num_parameters(self, requires_grad: bool = True):
+#         return sum(
+#             p.numel() for p in self.parameters() if p.requires_grad == requires_grad
+#         )
+
+#     @classmethod
+#     def load_from_checkpoint(cls, checkpoint_path: str, strict: bool = True):
+#         chk = torch.load(checkpoint_path)
+#         hp = chk["hyper_parameters"]
+#         state_dict = {}
+#         fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"])
+#         for k,v in chk["state_dict"].items():
+#             new_k = k.replace("child_model.","")
+#             state_dict[new_k] = v
+#         fm.load_state_dict(state_dict, strict=strict)
+#         fm.eval()
+#         return fm
 
 class DynCorrModelWithTemperature(nn.Module):
     def __init__(
@@ -335,26 +403,21 @@ class DynCorrModelWithTemperature(nn.Module):
         seq_only: bool = False,
         struct_stage: str = "quantized",
         struct_dim: int = None,
+        # n_shp_tokens: int = ESM_CONSTANTS.VQVAE_CODEBOOK_SIZE,
+        n_shp_tokens: int = 20,
     ):
         super().__init__()
 
-        self.encoder = JointStructAndSequenceEncoder(embedding_dim, d_model, seq_only=seq_only, struct_stage=struct_stage, struct_dim=struct_dim)
+        self.encoder = JointStructAndSequenceEncoder(embedding_dim, d_model, n_tokens=n_shp_tokens, seq_only=seq_only, struct_stage=struct_stage, struct_dim=struct_dim)
         self.transformer = TransformerStack(
             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
         )
         self.rmsf_head = RegressionHead(d_model + 1, output_dim)
-        self.ca_dist_head = nn.Sequential(
-            nn.Conv2d(d_model, d_model, kernel_size=k_size, stride=1),
-            nn.GELU(),
-            nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
-            nn.GELU(),
-        )
-        self.dyn_corr_head = nn.Sequential(
-            nn.Conv2d(d_model, d_model, kernel_size=k_size, stride=1),
-            nn.GELU(),
-            nn.Conv2d(d_model, 1, kernel_size=k_size, stride=1),
-            nn.Sigmoid(),
-        )
+
+        self.ca_dist_head = PairwiseRegressionHead(d_model, k_size)
+        self.dyn_corr_head = PairwiseRegressionHead(d_model, k_size)
+        self.autocorr_head = PairwiseRegressionHead(d_model, k_size)
+        self.shp_head = CategoricalHead(d_model, n_shp_tokens)
 
         self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
         # self.grad_norm.task_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
@@ -382,6 +445,15 @@ class DynCorrModelWithTemperature(nn.Module):
         x = self._transform(x)
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
         return self.dyn_corr_head(sqform).squeeze
+    
+    def autocorr(self, x):
+        x = self._transform(x)
+        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+        return self.autocorr_head(sqform).squeeze(1)
+
+    def shp(self, x):
+        x = self._transform(x)
+        return self.shp_head(x).squeeze(1)
 
     def forward(self, x):
         """
@@ -395,15 +467,20 @@ class DynCorrModelWithTemperature(nn.Module):
         x = self._transform(x)
         feats_with_temp = torch.cat([x, temperature.unsqueeze(-1)], dim=-1)
         rmsf_pred = self.rmsf_head(feats_with_temp)
-        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
+        shp_pred = self.shp_head(x).squeeze(1)
 
+        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
         ca_dist_pred = self.ca_dist_head(sqform).squeeze(1)
         dyn_corr_pred = self.dyn_corr_head(sqform).squeeze(1)
+        autocorr_pred = self.autocorr_head(sqform).squeeze(1)
+
 
         return {
             "rmsf": rmsf_pred,
             "ca_dist": ca_dist_pred,
             "dyn_corr": dyn_corr_pred,
+            "autocorr": autocorr_pred,
+            "shp": shp_pred,
         }
 
     def _num_parameters(self, requires_grad: bool = True):
@@ -416,6 +493,10 @@ class DynCorrModelWithTemperature(nn.Module):
         chk = torch.load(checkpoint_path)
         hp = chk["hyper_parameters"]
         state_dict = {}
+        if "struct_stage" not in hp:
+            hp["struct_stage"] = "quantized"
+        if "struct_dim" not in hp:
+            hp["struct_dim"] = None
         fm = cls(hp["embedding_dim"], hp["output_dim"], hp["d_model"], hp["n_heads"], hp["n_layers"], seq_only=not hp["struct_features"], struct_stage=hp["struct_stage"], struct_dim=hp["struct_dim"])
         for k,v in chk["state_dict"].items():
             new_k = k.replace("child_model.","")

@@ -9,8 +9,8 @@ import torch
 from loguru import logger
 from torch.utils.data import DataLoader, Dataset, Subset
 
-from rocketshp.esm3 import get_structure_vae
-from rocketshp.features import esm3_vqvae, ramachandran_angles
+from rocketshp.esm3 import get_structure_vae, get_model, get_tokenizers
+from rocketshp.features import esm3_vqvae, esm3_sequence, ramachandran_angles
 from rocketshp.structure.protein_chain import ProteinChain
 
 MAX_CACHE_SIZE = 500
@@ -104,6 +104,7 @@ def update_h5_dataset(f, dataset_name, data, overwrite: bool = True):
     else:
         logger.warning(f"Dataset {dataset_name} already exists in file and overwrite=False.")
 
+
 class MDDataset(Dataset):
     def __init__(
         self,
@@ -124,6 +125,8 @@ class MDDataset(Dataset):
 
         self.struct_encoder = get_structure_vae()
         self.struct_stage = struct_stage
+        self.seq_encoder = get_model()
+        self.tokenizers = get_tokenizers()
 
     def _get_keys(self):
         raise NotImplementedError
@@ -134,7 +137,7 @@ class MDDataset(Dataset):
     def _code_rep_temp(self, key):
         raise NotImplementedError
 
-    def _handle_key(self, pdb_code, rep, temp, ):
+    def _handle_key(self, pdb_code, rep, temp):
         raise NotImplementedError
 
     def __len__(self):
@@ -142,40 +145,51 @@ class MDDataset(Dataset):
 
     @lru_cache(maxsize=MAX_CACHE_SIZE)
     def __getitem__(self, idx):
-        rep_key = self.samples[idx]
-        pdb_code, rep, temp = self._code_rep_temp(rep_key)
-
-        features = {}
-        if self._use_seq:
-            seq_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/embedding"][:]
-            features["seq_feats"] = torch.from_numpy(seq_features)
-            features["temp"] = torch.ones(features["seq_feats"].shape[0]) * temp
-        if self._use_struct:
-            struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_tokens"][:]
-
-            ###### ALTERNATE STRUCT FEATURES HERE #########
-            # features["struct_feats"] = torch.from_numpy(struct_features)
-            pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
-            if self.struct_stage == "ramachandran":
-                features["struct_feats"] = ramachandran_angles(pc).squeeze()
-            else:
-                with torch.inference_mode():
-                    struct_features = esm3_vqvae(pc, self.struct_encoder, stage = self.struct_stage).detach().squeeze()
-                features["struct_feats"] = struct_features
-            ###############################################
-
-            features["temp"] = torch.ones(features["struct_feats"].shape[0]) * temp
-
-        labels = {}
-        labels["rmsf"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/rmsf"][:])
         try:
-            labels["ca_dist"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/ca_distances"][:]).squeeze()
-        except KeyError:
-            pass
-        try:
-            labels["dyn_corr"] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/dyn_corr"][:])
-        except KeyError:
-            pass
+            rep_key = self.samples[idx]
+            pdb_code, rep, temp = self._code_rep_temp(rep_key)
+
+            features = {}
+            if self._use_seq:
+                try:
+                    seq_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/embedding"][:]
+                    features["seq_feats"] = torch.from_numpy(seq_features)
+                except KeyError:
+                    pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
+                    seq_features = esm3_sequence(pc, self.seq_encoder, self.tokenizers).squeeze()
+                    features["seq_feats"] = seq_features
+
+                features["temp"] = torch.ones(features["seq_feats"].shape[0]) * temp
+                
+            if self._use_struct:
+                try:
+                    struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_embedding/{self.struct_stage}"][:]
+                    features["struct_feats"] = torch.from_numpy(struct_features)
+                except KeyError:
+                    ###### ALTERNATE STRUCT FEATURES HERE #########
+                    # struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_tokens"][:]
+                    # features["struct_feats"] = torch.from_numpy(struct_features)
+                    pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
+                    if self.struct_stage == "ramachandran":
+                        features["struct_feats"] = ramachandran_angles(pc).squeeze()
+                    else:
+                        with torch.inference_mode():
+                            struct_features = esm3_vqvae(pc, self.struct_encoder, stage = self.struct_stage).detach().squeeze()
+                        features["struct_feats"] = struct_features
+                    ###############################################
+
+                features["temp"] = torch.ones(features["struct_feats"].shape[0]) * temp
+
+            labels = {}
+            for key in ["rmsf", "ca_dist", "dyn_corr", "autocorr", "shp"]:
+                try:
+                    labels[key] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/{key}"][:]).float()
+                except KeyError:
+                    pass
+        except KeyError as e:
+            logger.error(f"Error processing sample {rep_key}: {e}")
+            raise
+
 
         return features, labels
 

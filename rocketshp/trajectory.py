@@ -20,9 +20,10 @@ def normalize(traj: md.Trajectory, ca_only: bool = True):
     traj.center_coordinates()
     if ca_only:
         atom_indices = traj.top.select("name CA")
+        return traj.atom_slice(atom_indices)
     else:
-        atom_indices = None
-    return traj.atom_slice(atom_indices)
+        return traj
+    
 
 def compute_rmsf(traj: md.Trajectory, normalized: bool = False, ca_only: bool = True):
     if not normalized:

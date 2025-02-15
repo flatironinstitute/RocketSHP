@@ -2,6 +2,7 @@ from pathlib import Path
 
 import biotite.structure as bs
 import numpy as np
+import subprocess as sp
 import torch
 import typer
 from esm.sdk.api import ESMProtein, LogitsConfig
@@ -67,7 +68,7 @@ def esm3_vqvae(chain: ProteinChain, esm_struct_encoder, stage = "encoded"):
 
     return z
 
-def esm3_sequence(chain: ProteinChain, esm_model, esm_tokenizer):
+def esm3_sequence_OLD(chain: ProteinChain, esm_model, esm_tokenizer):
     """
     Encode sequence using ESM-3 model.
     """
@@ -79,7 +80,7 @@ def esm3_sequence(chain: ProteinChain, esm_model, esm_tokenizer):
 
     with torch.no_grad():
         result = esm_model(sequence)
-    return result["representations"]["mean"].detach()
+    return result["representations"]["mean"].detach()[1:-1]
 
 def esm3_sequence(
     chain: ProteinChain,

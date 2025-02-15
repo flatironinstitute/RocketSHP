@@ -1,9 +1,9 @@
 #!/usr/bin/bash
-#SBATCH --job-name=process_atlas_huggingface
-#SBATCH -p gen
-#SBATCH --cpus-per-task=72
+#SBATCH --job-name=atlas_hfds_3000_4000
+#SBATCH -p genx
+#SBATCH --cpus-per-task=8
 #SBATCH --ntasks=1
-#SBATCH --mem=900G
+#SBATCH --mem=512GB
 #SBATCH --time=2-00:00:00
 #SBATCH --output=%x.%j.out
 #SBATCH --error=%x.%j.err
@@ -16,5 +16,5 @@ module load openmm
 source ~/venvs/scc-rocketshp/bin/activate
 
 cd $HOME/Projects/rocketshp
-REPLICATE=1
-python scripts/01_preprocess/atlas/process_atlas_cpu.py
+python scripts/01_preprocess/atlas/process_atlas_cpu.py 3000 4000
+# python scripts/01_preprocess/atlas/process_atlas_shp.py 2000 5000

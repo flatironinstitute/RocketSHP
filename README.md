@@ -6,6 +6,11 @@
 
 Fast structural heterogeneity estimation
 
+## Installation
+
+pip3 install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
+pip3 install .
+
 ## Project Organization
 
 ```

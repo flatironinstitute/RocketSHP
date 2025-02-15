@@ -155,7 +155,7 @@ def convert_to_mdtraj(h5, temp, replica):
 
 
 def convert_to_files(
-    fn, basename=None, temp_list=[320, 348, 379, 413, 450], replica_list=[0, 1, 2, 3, 4]
+    fn, basename=None, temp_list=[320, 348, 379, 413, 450], replica_list=[0, 1, 2, 3, 4], directory = ".",
 ):
     """
     Converts data from an H5 file to separate PDB and XTC files based on specified temperatures and replicas.
@@ -188,6 +188,7 @@ def convert_to_files(
 
     if not basename:
         basename = code
+    basename = os.path.join(directory, basename)
 
     pdbpath = f"{basename}.pdb"
     with open(pdbpath, "wb") as pdbfile:

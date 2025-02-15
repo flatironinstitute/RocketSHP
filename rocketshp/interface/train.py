@@ -20,6 +20,8 @@ from rocketshp.modeling.architectures import (
 from rocketshp.modeling.pt_lightning import LightningWrapper
 from rocketshp.utils import configure_logger, seed_everything
 
+import warnings
+warnings.simplefilter(action='ignore', category=FutureWarning)
 
 class _FilterCallback(logging.Filterer):
     def filter(self, record: logging.LogRecord):
@@ -35,7 +37,7 @@ neptune.internal.operation_processors.async_operation_processor.logger.addFilter
     _FilterCallback()
 )
 
-app = typer.Typer()#pretty_exceptions_enable=False)
+app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @app.command()
@@ -65,9 +67,9 @@ def main(
             else:
                 return f"{self.__class__.__name__}(...) with {sum(p.numel() for p in self.parameters())} parameters"
 
-        torch.Tensor.__repr__ = simple_repr
-        torch.nn.Module.__repr__ = simple_repr
-        L.LightningModule.__repr__ = simple_repr
+        # torch.Tensor.__repr__ = simple_repr
+        # torch.nn.Module.__repr__ = simple_repr
+        # L.LightningModule.__repr__ = simple_repr
 
         PARAMS.epoch_scale = 3100
         os.environ["LOGURU_LEVEL"] = "DEBUG"
@@ -111,7 +113,7 @@ def main(
         # processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
         seq_features=PARAMS.seq_features,
         struct_features=PARAMS.struct_features,
-        batch_size=PARAMS.batch_size,
+        batch_size=1,
         num_workers=PARAMS.num_data_workers,
         shuffle=PARAMS.shuffle,
         random_seed=PARAMS.random_seed,
@@ -137,6 +139,8 @@ def main(
         max_epochs=PARAMS.max_epochs,
         max_steps=PARAMS.epoch_scale,
         callbacks=[checkpoint_callback],
+        accumulate_grad_batches=PARAMS.batch_size,
+        gradient_clip_val=1,
         log_every_n_steps=5
     )
     trainer.fit(lightning_model, datamodule=datamod)
