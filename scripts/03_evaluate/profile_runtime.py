@@ -15,7 +15,7 @@ from rocketshp.esm3 import (
 )
 from rocketshp.features import esm3_sequence, esm3_vqvae
 from rocketshp.modeling.architectures import (
-    DynCorrModelWithTemperature,
+    RocketSHPModel,
 )
 
 logger.info("Loading models...")
@@ -33,7 +33,7 @@ struct_tokenizer = tokenizers.structure
 config_file = "/mnt/home/ssledzieski/Projects/rocketshp/configs/default_config.yml"
 checkpoint_file = "/mnt/home/ssledzieski/Projects/rocketshp/models/grad_norm_alpha0.12_lr1e-5/model-epoch=19-train_loss=0.55.pt.ckpt"
 
-model = DynCorrModelWithTemperature.load_from_checkpoint(checkpoint_file, strict=False)
+model = RocketSHPModel.load_from_checkpoint(checkpoint_file, strict=False)
 model = model.to(device)
 
 PARAMS = config.DEFAULT_PARAMETERS

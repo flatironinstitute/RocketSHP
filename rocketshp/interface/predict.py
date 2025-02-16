@@ -14,7 +14,7 @@ from rocketshp.esm3 import (
     get_tokenizers,
 )
 from rocketshp.features import esm3_sequence, esm3_vqvae, ramachandran_angles
-from rocketshp.modeling.architectures import DynCorrModelWithTemperature
+from rocketshp.modeling.architectures import RocketSHPModel
 from rocketshp.structure.protein_chain import ProteinChain
 
 app = typer.Typer(pretty_exceptions_enable=False)
@@ -41,9 +41,7 @@ def main(
     config = OmegaConf.load(config_path)
 
     logger.info("Loading RSHP Model")
-    rshp_model = DynCorrModelWithTemperature.load_from_checkpoint(
-        model_path, strict=True
-    )
+    rshp_model = RocketSHPModel.load_from_checkpoint(model_path, strict=True)
     rshp_model.eval().to(device)
 
     logger.info("Loading structure features")

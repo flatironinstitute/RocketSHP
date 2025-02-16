@@ -15,7 +15,7 @@ from omegaconf import OmegaConf
 from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
 from rocketshp.data.mdcath import MDCathDataModule
 from rocketshp.modeling.architectures import (
-    DynCorrModelWithTemperature,
+    RocketSHPModel,
 )
 from rocketshp.modeling.pt_lightning import LightningWrapper
 from rocketshp.utils import configure_logger, seed_everything
@@ -85,8 +85,7 @@ def main(run_id: str, config: str | None = None, debug: bool = False):
 
     loggers.append(CSVLogger("logs", name=run_id))
 
-    # model = FlexibilityModelWithTemperature(
-    model = DynCorrModelWithTemperature(
+    model = RocketSHPModel(
         embedding_dim=PARAMS.embedding_dim,
         output_dim=PARAMS.output_dim,
         d_model=PARAMS.d_model,

@@ -30,7 +30,7 @@ clean:
 ## Lint using ruff (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	ruff check rocketshp scripts
+	ruff check rocketshp scripts --fix
 	ruff format rocketshp scripts notebooks
 
 ## Format source code with black

@@ -16,7 +16,7 @@ from tqdm import tqdm
 
 from rocketshp import config
 from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.modeling.architectures import DynCorrModelWithTemperature
+from rocketshp.modeling.architectures import RocketSHPModel
 
 # %% Script inputs
 CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/fs_shp_kl_reweight2.yml"
@@ -61,9 +61,7 @@ ads = adl.dataset
 
 # %% Load model
 logger.info("Loading model...")
-model = DynCorrModelWithTemperature.load_from_checkpoint(
-    MODEL_CHECKPOINT_FILE, strict=True
-)
+model = RocketSHPModel.load_from_checkpoint(MODEL_CHECKPOINT_FILE, strict=True)
 model = model.to(device)
 
 # %% Inference loop

@@ -7,7 +7,7 @@ from rocketshp.esm3 import (
     _get_tokenizers,
     esm3_embed,
 )
-from rocketshp.modeling.architectures import DynCorrModelWithTemperature
+from rocketshp.modeling.architectures import RocketSHPModel
 
 device = torch.device("cuda:0")
 
@@ -33,7 +33,7 @@ tokenizers = _get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
 logger.info("Loading RSHP Model")
-rshp_model = DynCorrModelWithTemperature.load_from_checkpoint(CHECKPOINT, strict=True)
+rshp_model = RocketSHPModel.load_from_checkpoint(CHECKPOINT, strict=True)
 rshp_model.eval().to(device)
 
 logger.info("Generating intial features")
