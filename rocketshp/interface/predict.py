@@ -6,6 +6,7 @@ import torch
 import typer
 from loguru import logger
 from omegaconf import OmegaConf
+from torch.nn.functional import softmax
 
 from rocketshp.esm3 import (
     get_model,
@@ -74,9 +75,9 @@ def main(
 
     temperature = torch.ones(seq_embeddings.shape[0]).to(device) * 290
 
-    logger.info(seq_embeddings.size())
-    logger.info(struct_embeddings.size())
-    logger.info(temperature.size())
+    # logger.info(seq_embeddings.size())
+    # logger.info(struct_embeddings.size())
+    # logger.info(temperature.size())
 
     logger.info("Performing inference")
     with torch.inference_mode():
@@ -87,6 +88,7 @@ def main(
                 "temp": temperature.to(device).unsqueeze(0),
             }
         )
+        y_hat = {k: v.squeeze().cpu().detach() for k, v in y_hat.items()}
 
     if save_results:
         logger.info("Saving results")
@@ -95,7 +97,7 @@ def main(
 
         plt.plot(
             np.arange(len(chain.sequence)),
-            y_hat["rmsf"].squeeze().cpu().detach().numpy(),
+            y_hat["rmsf"],
             label="RMSF",
         )
         plt.title(pdb_path.stem)
@@ -103,16 +105,21 @@ def main(
         plt.savefig(out_file.with_suffix(".rmsf.png"), dpi=300, bbox_inches="tight")
         plt.close()
 
-        plt.imshow(y_hat["ca_dist"].squeeze().cpu().detach().numpy(), cmap="viridis")
-        plt.title(pdb_path.stem)
-        plt.xlabel("Contact Map")
-        plt.savefig(out_file.with_suffix(".contacts.png"), dpi=300, bbox_inches="tight")
-        plt.close()
+        # plt.imshow(y_hat["ca_dist"], cmap="viridis")
+        # plt.title(pdb_path.stem)
+        # plt.xlabel("Contact Map")
+        # plt.savefig(out_file.with_suffix(".contacts.png"), dpi=300, bbox_inches="tight")
+        # plt.close()
 
-        plt.imshow(y_hat["dyn_corr"].squeeze().cpu().detach().numpy(), cmap="viridis")
+        plt.imshow(y_hat["autocorr"], cmap="viridis")
         plt.title(pdb_path.stem)
-        plt.xlabel("Dynamic Correlation")
-        plt.savefig(out_file.with_suffix(".dyncorr.png"), dpi=300, bbox_inches="tight")
+        plt.xlabel("Autocorrelation of Distances")
+        plt.savefig(out_file.with_suffix(".autocorr.png"), dpi=300, bbox_inches="tight")
+
+        plt.imshow(softmax(y_hat["shp"].T, dim=0), cmap="binary")
+        plt.title(pdb_path.stem)
+        plt.xlabel("Structural Heterogeneity Profile")
+        plt.savefig(out_file.with_suffix(".shp.png"), dpi=300, bbox_inches="tight")
 
 
 def __app__():

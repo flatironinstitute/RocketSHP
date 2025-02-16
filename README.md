@@ -1,10 +1,10 @@
 # RocketSHP
 
-🚧 This is pre-release code that is under active development 🚧
-
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
+
+🚧 This is pre-release code that is under active development 🚧
 
 Machine learning models of protein structure have transformed our understanding of protein function and enabled advances in modeling biological systems, drug discovery and design, and protein engineering. However, static structures are only one piece of the puzzle. Proteins are flexible molecules which are known to adopt diverse conformations, and these dynamics play a crucial role in their eventual function. While molecular dynamics simulations offer one high-powered approach to estimating these ensembles, they are presently too computationally expensive to apply at the scale of the whole proteome, let alone to isoforms, sequence and structural variants, or designed proteins.
 
@@ -33,4 +33,10 @@ or on a SLURM cluster
 
 ```
 sbatch scripts/02_train/submit_default_config.sbatch
+```
+
+## Inference
+
+```
+rocketshp_predict {PDB FILE} {CONFIG FILE} {MODEL FILE} {OUT PATH} --device {DEVICE="cuda:0"}
 ```

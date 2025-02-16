@@ -436,7 +436,8 @@ class DynCorrModelWithTemperature(nn.Module):
             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
         )
         self.rmsf_head = RegressionHead(d_model + 1, output_dim)
-        self.shp_head = CategoricalHead(d_model + 1, n_shp_tokens)
+        self.shp_head = CategoricalHead(d_model, n_shp_tokens)
+        # self.shp_head = CategoricalHead(d_model + 1, n_shp_tokens)
 
         self.ca_dist_head = PairwiseRegressionHead(d_model, k_size)
         self.dyn_corr_head = PairwiseRegressionHead(d_model, k_size)
