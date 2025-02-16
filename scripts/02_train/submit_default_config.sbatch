@@ -1,5 +1,5 @@
 #!/usr/bin/bash
-#SBATCH --job-name=fs_shp_pred_kl_reweighted2
+#SBATCH --job-name=mdcath_fs_shp_temp
 #SBATCH -p gpu
 #SBATCH --constraint=a100-40gb  # if you want a particular type of GPU
 #SBATCH --gpus-per-task=1

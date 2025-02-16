@@ -14,6 +14,7 @@ from omegaconf import OmegaConf
 
 from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
 from rocketshp.data.atlas import ATLASDataModule
+from rocketshp.data.mdcath import MDCathDataModule
 from rocketshp.modeling.architectures import (
     DynCorrModelWithTemperature,
 )
@@ -107,10 +108,10 @@ def main(
     if not debug: neptune_logger.log_hyperparams(params=PARAMS.__dict__)
     torch.set_float32_matmul_precision(PARAMS.precision)
 
-    datamod = ATLASDataModule(
-        processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
-    # datamod = MDCathDataModule(
-        # processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
+    # datamod = ATLASDataModule(
+        # processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
+    datamod = MDCathDataModule(
+        processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
         seq_features=PARAMS.seq_features,
         struct_features=PARAMS.struct_features,
         batch_size=1,

@@ -84,7 +84,7 @@ class LightningWrapper(L.LightningModule):
 
         self.rmsf_loss_fn = partial(compute_masked_mse_loss, rmse=not params.square_loss)
         self.ca_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
-        self.dyn_corr_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
+        # self.dyn_corr_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
         self.autocorr_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
         self.shp_loss_fn = compute_masked_kl_div_loss
 
@@ -92,7 +92,7 @@ class LightningWrapper(L.LightningModule):
         self.norm_grad = params.grad_norm
         self.rmsf_alpha = params.rmsf_alpha
         self.ca_alpha = params.ca_alpha
-        self.dyn_corr_alpha = params.dyn_corr_alpha
+        # self.dyn_corr_alpha = params.dyn_corr_alpha
         self.autocorr_alpha = params.autocorr_alpha
         self.shp_alpha = params.shp_alpha
         self.variance_norm = params.variance_norm
@@ -112,21 +112,21 @@ class LightningWrapper(L.LightningModule):
         if self.norm_grad and stage == "train":
             rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
             ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-            dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
+            # dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
             autocorr_loss = self.autocorr_loss_fn(y_hat["autocorr"], y["autocorr"], mask)
             shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
 
-            weighted_loss, weighted_losses, grad_loss = self.child_model.grad_norm(
-                [rmsf_loss, ca_dist_loss, dyn_corr_loss]
-            )
+            # weighted_loss, weighted_losses, grad_loss = self.child_model.grad_norm(
+            #     [rmsf_loss, ca_dist_loss, dyn_corr_loss]
+            # )
 
             return_dict["rmsf_loss"] = rmsf_loss
             return_dict["ca_loss"] = ca_dist_loss
-            return_dict["corr_loss"] = dyn_corr_loss
+            # return_dict["corr_loss"] = dyn_corr_loss
             return_dict["autocorr_loss"] = autocorr_loss
             return_dict["shp_loss"] = shp_loss
-            return_dict["batch_loss"] = weighted_loss
-            return_dict["grad_loss"] = grad_loss
+            # return_dict["batch_loss"] = weighted_loss
+            # return_dict["grad_loss"] = grad_loss
 
         else:
             loss = 0
@@ -138,10 +138,10 @@ class LightningWrapper(L.LightningModule):
                 ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
                 loss += self.ca_alpha * ca_dist_loss
                 return_dict["ca_loss"] = ca_dist_loss
-            if "dyn_corr" in y_hat:
-                dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
-                loss += self.dyn_corr_alpha * dyn_corr_loss
-                return_dict["corr_loss"] = dyn_corr_loss
+            # if "dyn_corr" in y_hat:
+            #     dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
+            #     loss += self.dyn_corr_alpha * dyn_corr_loss
+            #     return_dict["corr_loss"] = dyn_corr_loss
             if "autocorr" in y_hat:
                 autocorr_loss = self.autocorr_loss_fn(y_hat["autocorr"], y["autocorr"], mask)
                 loss += self.autocorr_alpha * autocorr_loss

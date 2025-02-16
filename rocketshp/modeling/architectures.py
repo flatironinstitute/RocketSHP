@@ -413,11 +413,11 @@ class DynCorrModelWithTemperature(nn.Module):
             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
         )
         self.rmsf_head = RegressionHead(d_model + 1, output_dim)
+        self.shp_head = CategoricalHead(d_model + 1, n_shp_tokens)
 
         self.ca_dist_head = PairwiseRegressionHead(d_model, k_size)
         self.dyn_corr_head = PairwiseRegressionHead(d_model, k_size)
         self.autocorr_head = PairwiseRegressionHead(d_model, k_size)
-        self.shp_head = CategoricalHead(d_model, n_shp_tokens)
 
         self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
         # self.grad_norm.task_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
@@ -467,7 +467,9 @@ class DynCorrModelWithTemperature(nn.Module):
         x = self._transform(x)
         feats_with_temp = torch.cat([x, temperature.unsqueeze(-1)], dim=-1)
         rmsf_pred = self.rmsf_head(feats_with_temp)
+        # shp_pred = self.shp_head(feats_with_temp).squeeze(1)
         shp_pred = self.shp_head(x).squeeze(1)
+
 
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1,3)
         ca_dist_pred = self.ca_dist_head(sqform).squeeze(1)

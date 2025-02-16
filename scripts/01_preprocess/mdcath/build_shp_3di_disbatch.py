@@ -4,6 +4,8 @@ from datasets import Dataset
 from tqdm import tqdm
 import torch
 import glob
+import numpy as np
+from esm.utils.constants import esm3 as ESM_CONSTANTS
 
 #%%
 disbatch_tasks_file = f"{config.PROJ_ROOT}/scripts/01_preprocess/mdcath/mdcath_shp_fs_disbatch.tasks.txt"
@@ -40,11 +42,22 @@ def invert_dict(l):
         out_dict[key] = [i[key] for i in l]
     return out_dict
 
+def convert_to_normalized_shp(preshp, max_dim = 20):
+    if f.ndim > 2:
+        preshp = torch.tensor(preshp).squeeze()
+    elif f.ndim == 1:
+        preshp = torch.tensor(preshp).unsqueeze(0)
+    shp = torch.stack([torch.from_numpy(np.bincount(i,minlength=max_dim)) for i in preshp.T])
+    shp = shp.T / shp.sum(axis=1)
+    return shp.T
+
+#%%
 shp_files = glob.glob(f"{config.PROCESSED_DATA_DIR}/mdcath/fs_shp/*/*.pt")
 results = []
 for f in tqdm(shp_files):
     shp = torch.load(f)
-    shp["fs_shp"] = shp["fs_shp"].squeeze()
+    shp = shp["fs_shp"].squeeze()
+    shp["fs_shp"] = convert_to_normalized_shp(shp, max_dim=20)    
     results.append(shp)
 shp_results = invert_dict(results)
 ds = Dataset.from_dict(shp_results)

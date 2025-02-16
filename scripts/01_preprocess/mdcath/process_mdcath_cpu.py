@@ -35,8 +35,8 @@ N_REPS = 5
 TEMPS = [320, 348, 379, 413, 450]
 RANDOM_STATE = 42
 OVERWRITE_H5 = False
-I_START = int(sys.argv[1])
-I_STOP = int(sys.argv[2])
+# I_START = int(sys.argv[1])
+# I_STOP = int(sys.argv[2])
 # I_START = 0
 # I_STOP = 20
 
@@ -141,14 +141,14 @@ ds.save_to_disk(str(out_path))
 logger.info("Joining datasets")
 from datasets import concatenate_datasets
 subsets = [
-    (0, 16200)
-    (16200, 32400)
-    (32400, 48600)
-    (48600, 64800)
-    (64800, 81000)
-    (81000, 97200)
-    (97200, 113400)
-    (113400, 129600)
+    (0, 16200),
+    (16200, 32400),
+    (32400, 48600),
+    (48600, 64800),
+    (64800, 81000),
+    (81000, 97200),
+    (97200, 113400),
+    (113400, 129600),
 ]
 all_ds = []
 for (s0, s1) in subsets:
@@ -157,3 +157,4 @@ for (s0, s1) in subsets:
 
 all_ds = concatenate_datasets(all_ds)
 all_ds.save_to_disk(str(MDCATH_PROCESSED_DATA_DIR / "mdcath_derivatives_v2"))
+# %%
