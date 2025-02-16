@@ -2,7 +2,6 @@ from pathlib import Path
 
 import biotite.structure as bs
 import numpy as np
-import subprocess as sp
 import torch
 import typer
 from esm.sdk.api import ESMProtein, LogitsConfig
@@ -16,6 +15,7 @@ from rocketshp.structure.normalize_coordinates import normalize_coordinates
 from rocketshp.structure.protein_chain import ProteinChain
 
 app = typer.Typer()
+
 
 def ramachandran_angles(chain: ProteinChain):
     """
@@ -35,14 +35,16 @@ def ramachandran_angles(chain: ProteinChain):
     return torch.stack([torch.tensor(phi), torch.tensor(psi)], dim=1).unsqueeze(0)
 
 
-def esm3_vqvae(chain: ProteinChain, esm_struct_encoder, stage = "encoded"):
+def esm3_vqvae(chain: ProteinChain, esm_struct_encoder, stage="encoded"):
     """
     "stage" can be one of "encoded", "pre-quantized", or "quantized"
     """
     assert stage in ["encoded", "pre-quantized", "quantized"], "Invalid stage"
     device = next(esm_struct_encoder.parameters()).device
 
-    coords = normalize_coordinates(torch.tensor(chain.atom37_positions, dtype=torch.float32)).unsqueeze(0)
+    coords = normalize_coordinates(
+        torch.tensor(chain.atom37_positions, dtype=torch.float32)
+    ).unsqueeze(0)
     coords = coords.to(device)
     coords = coords[..., :3, :]
     affine, affine_mask = build_affine3d_from_coordinates(coords=coords)
@@ -68,6 +70,7 @@ def esm3_vqvae(chain: ProteinChain, esm_struct_encoder, stage = "encoded"):
 
     return z
 
+
 def esm3_sequence_OLD(chain: ProteinChain, esm_model, esm_tokenizer):
     """
     Encode sequence using ESM-3 model.
@@ -81,6 +84,7 @@ def esm3_sequence_OLD(chain: ProteinChain, esm_model, esm_tokenizer):
     with torch.no_grad():
         result = esm_model(sequence)
     return result["representations"]["mean"].detach()[1:-1]
+
 
 def esm3_sequence(
     chain: ProteinChain,
@@ -119,6 +123,7 @@ def esm3_sequence(
     )
     logits = model.logits(batch, cfg)
     return logits.embeddings
+
 
 @app.command()
 def main(

@@ -1,13 +1,14 @@
-#%%
-from tqdm import tqdm
+# %%
 import os
+
 import torch
+from tqdm import tqdm
 
 from rocketshp import config
+from rocketshp.data.mdcath import convert_to_files
+from rocketshp.esm3 import get_model, get_tokenizers
 from rocketshp.features import esm3_sequence
 from rocketshp.structure.protein_chain import ProteinChain
-from rocketshp.esm3 import get_model, get_tokenizers
-from rocketshp.data.mdcath import convert_to_files
 
 MDCATH_DATA_DIR = config.RAW_DATA_DIR / "mdcath"
 MDCATH_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "mdcath"
@@ -16,7 +17,7 @@ os.makedirs(SEQ_EMBEDDING_PATH, exist_ok=True)
 
 mdcath_files = list(MDCATH_DATA_DIR.glob("mdcath_dataset_*.h5"))
 
-#%%
+# %%
 
 model = get_model()
 model.eval()

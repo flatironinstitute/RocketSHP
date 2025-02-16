@@ -9,11 +9,12 @@ import torch
 from loguru import logger
 from torch.utils.data import DataLoader, Dataset, Subset
 
-from rocketshp.esm3 import get_structure_vae, get_model, get_tokenizers
-from rocketshp.features import esm3_vqvae, esm3_sequence, ramachandran_angles
+from rocketshp.esm3 import get_model, get_structure_vae, get_tokenizers
+from rocketshp.features import esm3_sequence, esm3_vqvae, ramachandran_angles
 from rocketshp.structure.protein_chain import ProteinChain
 
 MAX_CACHE_SIZE = 500
+
 
 def _stack_variable_length_tensors(
     sequences: list[torch.Tensor],
@@ -48,26 +49,29 @@ def _stack_variable_length_tensors(
 
     return array
 
+
 def _unstack_variable_length_tensors(stacked, lengths) -> list[torch.Tensor]:
     """
     Unstack a variable length tensor given the lengths of the sequences
     """
-    return [stacked[i, :lengths[i]] for i in range(len(lengths))]
+    return [stacked[i, : lengths[i]] for i in range(len(lengths))]
+
 
 def _unstack_variable_size_squareforms(stacked, lengths):
-
     return [stacked[i, :sl, :sl] for i, sl in enumerate(lengths)]
+
 
 def _get_seq_lengths(sequences: list[torch.Tensor]) -> torch.Tensor:
     return torch.tensor([len(seq) for seq in sequences], dtype=torch.long)
 
+
 def _dict_collate_fn(batch):
     """
     Custom collate function for batching variable length sequences.
-    
+
     Args:
         batch: List of tuples (features_dict, labels_dict) from the dataset
-        
+
     Returns:
         features_dict: Dictionary of padded feature tensors
         labels_dict: Dictionary of label tensors
@@ -95,14 +99,17 @@ def _dict_collate_fn(batch):
 
     return padded_features, padded_labels, lengths
 
+
 def update_h5_dataset(f, dataset_name, data, overwrite: bool = True):
     if dataset_name in f and overwrite:
-            del f[dataset_name]
-            f.create_dataset(dataset_name, data=data)
+        del f[dataset_name]
+        f.create_dataset(dataset_name, data=data)
     elif dataset_name not in f:
         f.create_dataset(dataset_name, data=data)
     else:
-        logger.warning(f"Dataset {dataset_name} already exists in file and overwrite=False.")
+        logger.warning(
+            f"Dataset {dataset_name} already exists in file and overwrite=False."
+        )
 
 
 class MDDataset(Dataset):
@@ -111,7 +118,7 @@ class MDDataset(Dataset):
         processed_h5: Path,
         seq_features: bool = True,
         struct_features: bool = True,
-        struct_stage: str = "quantized"
+        struct_stage: str = "quantized",
     ):
         super().__init__()
         self._pdb_file_map = {}
@@ -152,18 +159,24 @@ class MDDataset(Dataset):
             features = {}
             if self._use_seq:
                 try:
-                    seq_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/embedding"][:]
+                    seq_features = self._handle[
+                        f"{self._handle_path(pdb_code, rep, temp, False)}/embedding"
+                    ][:]
                     features["seq_feats"] = torch.from_numpy(seq_features)
                 except KeyError:
                     pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
-                    seq_features = esm3_sequence(pc, self.seq_encoder, self.tokenizers).squeeze()
+                    seq_features = esm3_sequence(
+                        pc, self.seq_encoder, self.tokenizers
+                    ).squeeze()
                     features["seq_feats"] = seq_features
 
                 features["temp"] = torch.ones(features["seq_feats"].shape[0]) * temp
-                
+
             if self._use_struct:
                 try:
-                    struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_embedding/{self.struct_stage}"][:]
+                    struct_features = self._handle[
+                        f"{self._handle_path(pdb_code, rep, temp, False)}/struct_embedding/{self.struct_stage}"
+                    ][:]
                     features["struct_feats"] = torch.from_numpy(struct_features)
                 except KeyError:
                     ###### ALTERNATE STRUCT FEATURES HERE #########
@@ -174,7 +187,13 @@ class MDDataset(Dataset):
                         features["struct_feats"] = ramachandran_angles(pc).squeeze()
                     else:
                         with torch.inference_mode():
-                            struct_features = esm3_vqvae(pc, self.struct_encoder, stage = self.struct_stage).detach().squeeze()
+                            struct_features = (
+                                esm3_vqvae(
+                                    pc, self.struct_encoder, stage=self.struct_stage
+                                )
+                                .detach()
+                                .squeeze()
+                            )
                         features["struct_feats"] = struct_features
                     ###############################################
 
@@ -183,19 +202,25 @@ class MDDataset(Dataset):
             labels = {}
             for key in ["rmsf", "ca_dist", "dyn_corr", "autocorr", "shp"]:
                 try:
-                    labels[key] = torch.from_numpy(self._handle[f"{self._handle_path(pdb_code, rep, temp, True)}/{key}"][:]).float()
+                    labels[key] = torch.from_numpy(
+                        self._handle[
+                            f"{self._handle_path(pdb_code, rep, temp, True)}/{key}"
+                        ][:]
+                    ).float()
                 except KeyError:
                     pass
         except KeyError as e:
             logger.error(f"Error processing sample {rep_key}: {e}")
             raise
 
-
         return features, labels
 
     def __del__(self):
-        if hasattr(self, "_handle") and self._handle is not None:# and isinstance(self._handle, h5py._hl.files.File):
+        if (
+            hasattr(self, "_handle") and self._handle is not None
+        ):  # and isinstance(self._handle, h5py._hl.files.File):
             self._handle.close()
+
 
 class MDDataModule(L.LightningDataModule):
     def __init__(
@@ -224,7 +249,7 @@ class MDDataModule(L.LightningDataModule):
         self.num_workers = num_workers
         self.train_pct = train_pct
         self.val_pct = val_pct
-        self.clusters = pd.read_csv(clusters_file,sep="\t",header=None)
+        self.clusters = pd.read_csv(clusters_file, sep="\t", header=None)
 
         self.random_seed = random_seed
 
@@ -235,12 +260,11 @@ class MDDataModule(L.LightningDataModule):
         pass
 
     def setup(self, stage: str):
-
         self.dataset = self._get_dataset_class()(
             self._processed_h5,
             seq_features=self._seq_features,
             struct_features=self._struct_features,
-            struct_stage=self._struct_stage
+            struct_stage=self._struct_stage,
         )
 
         all_clusters = self.clusters[0].unique()
@@ -254,9 +278,15 @@ class MDDataModule(L.LightningDataModule):
         self.val_subset = shuffled_entities[train_size : train_size + val_size]
         self.test_subset = shuffled_entities[train_size + val_size :]
 
-        train_subset_pdb = self.clusters[self.clusters[0].isin(self.train_subset)][1].unique()
-        val_subset_pdb = self.clusters[self.clusters[0].isin(self.val_subset)][1].unique()
-        test_subset_pdb = self.clusters[self.clusters[0].isin(self.test_subset)][1].unique()
+        train_subset_pdb = self.clusters[self.clusters[0].isin(self.train_subset)][
+            1
+        ].unique()
+        val_subset_pdb = self.clusters[self.clusters[0].isin(self.val_subset)][
+            1
+        ].unique()
+        test_subset_pdb = self.clusters[self.clusters[0].isin(self.test_subset)][
+            1
+        ].unique()
 
         train_sample_idx, val_sample_idx, test_sample_idx = [], [], []
         for i, s in enumerate(self.dataset.samples):
@@ -273,7 +303,9 @@ class MDDataModule(L.LightningDataModule):
         self.train_data = Subset(self.dataset, train_sample_idx)
         self.val_data = Subset(self.dataset, val_sample_idx)
         self.test_data = Subset(self.dataset, test_sample_idx)
-        assert len(self.train_data) + len(self.val_data) + len(self.test_data) == len(self.dataset)
+        assert len(self.train_data) + len(self.val_data) + len(self.test_data) == len(
+            self.dataset
+        )
 
     def train_dataloader(self):
         return DataLoader(

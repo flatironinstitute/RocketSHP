@@ -1,7 +1,6 @@
 import time
 
 import torch
-from esm.utils.encoding import tokenize_structure
 from esm.utils.structure.protein_chain import ProteinChain
 from loguru import logger
 from omegaconf import OmegaConf
@@ -14,11 +13,7 @@ from rocketshp.esm3 import (
     get_structure_vae,
     get_tokenizers,
 )
-from rocketshp.features import (
-    esm3_sequence,
-    esm3_vqvae
-)
-
+from rocketshp.features import esm3_sequence, esm3_vqvae
 from rocketshp.modeling.architectures import (
     DynCorrModelWithTemperature,
 )
@@ -45,12 +40,17 @@ PARAMS = config.DEFAULT_PARAMETERS
 PARAMS.update(OmegaConf.load(config_file))
 
 logger.info("Loading data...")
-adl = ATLASDataModule(config.PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
-                      seq_features=True, struct_features=True,
-                      batch_size=8, num_workers=PARAMS.num_data_workers,
-                      train_pct=PARAMS.train_pct, val_pct=PARAMS.val_pct,
-                      random_seed=PARAMS.random_seed, struct_stage="quantized"
-                      )
+adl = ATLASDataModule(
+    config.PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
+    seq_features=True,
+    struct_features=True,
+    batch_size=8,
+    num_workers=PARAMS.num_data_workers,
+    train_pct=PARAMS.train_pct,
+    val_pct=PARAMS.val_pct,
+    random_seed=PARAMS.random_seed,
+    struct_stage="quantized",
+)
 adl.setup("train")
 
 all_pdb_chains = adl.dataset._get_keys()
@@ -73,7 +73,7 @@ for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
         tmp_feats = {
             "struct_feats": struct_feats.to("cpu").squeeze(),
             "seq_feats": embeddings.to("cpu").squeeze(),
-            "temp": temp
+            "temp": temp,
         }
         precomputed_feats[pdb_id] = tmp_feats
 end = time.time()
@@ -84,7 +84,9 @@ logger.info(f"Per sample: {(end - start) / len(all_pdb_chains):.4f} seconds")
 start_time = time.time()
 for pdb_id in tqdm(all_pdb_chains, desc="Running inference..."):
     with torch.inference_mode():
-        both_result = model({k: v.to(device).unsqueeze(0) for k, v in precomputed_feats[pdb_id].items()})
+        both_result = model(
+            {k: v.to(device).unsqueeze(0) for k, v in precomputed_feats[pdb_id].items()}
+        )
         results[pdb_id] = both_result
 
 end_time = time.time()

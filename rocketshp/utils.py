@@ -1,12 +1,14 @@
 import sys
 from collections.abc import Sequence
-from typing import ContextManager, TypeVar
+from contextlib import AbstractContextManager as ContextManager
+from typing import TypeVar
 
 import numpy as np
 import torch
 from loguru import logger
 
 TSequence = TypeVar("TSequence", bound=Sequence)
+
 
 def seed_everything(seed: int):
     """Seed all random number generators for reproducibility."""
@@ -17,16 +19,18 @@ def seed_everything(seed: int):
     import torch
 
     random.seed(seed)
-    os.environ['PYTHONHASHSEED'] = str(seed)
+    os.environ["PYTHONHASHSEED"] = str(seed)
     np.random.seed(seed)
     torch.manual_seed(seed)
     torch.cuda.manual_seed(seed)
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = True
 
+
 def configure_logger(level: str = "INFO"):
     try:
         from tqdm import tqdm
+
         try:
             logger.remove(0)
         except ValueError:
@@ -53,6 +57,7 @@ def fp32_autocast_context(device_type: str) -> ContextManager[torch.amp.autocast
         return torch.amp.autocast(device_type, dtype=torch.float32)  # type: ignore
     else:
         raise ValueError(f"Unsupported device type: {device_type}")
+
 
 def slice_python_object_as_numpy(
     obj: TSequence, idx: int | list[int] | slice | np.ndarray

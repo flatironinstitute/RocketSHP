@@ -6,6 +6,7 @@ from pathlib import Path
 import torch
 from esm.models.esm3 import ESM3
 from esm.pretrained import ESM3_structure_encoder_v0
+from esm.tokenization import get_esm3_model_tokenizers
 from esm.utils.constants import models as M
 from huggingface_hub import snapshot_download
 from tokenizers import Tokenizer
@@ -13,12 +14,12 @@ from tokenizers.models import BPE
 from tokenizers.processors import TemplateProcessing
 from transformers import PreTrainedTokenizerFast
 
-from esm.tokenization import get_esm3_model_tokenizers
 
 def _auth_huggingface(token):
     import os
 
     os.environ["HF_TOKEN"] = token
+
 
 @dataclass
 class ESM_CONSTANT_CLASS:
@@ -109,9 +110,7 @@ class ESM_CONSTANT_CLASS:
 
     MAX_RESIDUE_ANNOTATIONS = 16
 
-
     TFIDF_VECTOR_SIZE = 58641
-
 
     @staticmethod
     @cache
@@ -121,7 +120,6 @@ class ESM_CONSTANT_CLASS:
         # Try to download from hugginface if it doesn't exist
         path = Path(snapshot_download(repo_id="EvolutionaryScale/esm3-sm-open-v1"))
         return path
-
 
     IN_REPO_DATA_FOLDER = Path(__file__).parents[2] / "data"
 
@@ -142,7 +140,9 @@ class ESM_CONSTANT_CLASS:
     RESID_CSV = "data/uniref90_and_mgnify90_residue_annotations_gt_1k_proteins.csv"
     INTERPRO2KEYWORDS = IN_REPO_DATA_FOLDER / "interpro_29026_to_keywords_58641.csv"
 
+
 ESM_CONSTANTS = ESM_CONSTANT_CLASS()
+
 
 class EsmSequenceTokenizer(PreTrainedTokenizerFast):
     """
@@ -228,10 +228,7 @@ class EsmSequenceTokenizer(PreTrainedTokenizerFast):
         return self.all_special_ids
 
 
-
-def get_model(
-    model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0"
-) -> ESM3:
+def get_model(model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0") -> ESM3:
     """
     Load the ESM-3 model.
 
@@ -266,6 +263,7 @@ def get_structure_vae() -> tuple:
     encoder = ESM3_structure_encoder_v0()
 
     return encoder
+
 
 # def _tokenize_chain(esmc) -> torch.Tensor:
 #     struct_encoder = _get_structure_vae()[0]

@@ -29,6 +29,7 @@ MODELS_DIR = PROJ_ROOT / "models"
 REPORTS_DIR = PROJ_ROOT / "reports"
 FIGURES_DIR = REPORTS_DIR / "figures"
 
+
 @dataclass
 class PARAMETER_STRUCT:
     num_parameters: int = -1
@@ -59,5 +60,6 @@ class PARAMETER_STRUCT:
     struct_features: bool = False
     struct_stage: str = "quantized"
     struct_dim: int = 1
+
 
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())

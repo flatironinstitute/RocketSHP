@@ -5,7 +5,7 @@ from collections.abc import Sequence
 from dataclasses import asdict, dataclass, replace
 from functools import cached_property
 from pathlib import Path
-from typing import TypeVar, Union
+from typing import TypeVar
 
 import biotite.structure as bs
 import brotli
@@ -37,8 +37,8 @@ CHAIN_ID_CONST = "A"
 
 
 ArrayOrTensor = TypeVar("ArrayOrTensor", np.ndarray, Tensor)
-PathLike = Union[str, Path, CloudPath]
-PathOrBuffer = Union[PathLike, io.StringIO]
+PathLike = str | Path | CloudPath
+PathOrBuffer = PathLike | io.StringIO
 
 
 def index_by_atom_name(
@@ -65,7 +65,10 @@ def infer_CB(C, N, Ca, L: float = 1.522, A: float = 1.927, D: float = -2.143):
     input:  3 coords (a,b,c), (L)ength, (A)ngle, and (D)ihedral
     output: 4th coord
     """
-    norm = lambda x: x / np.sqrt(np.square(x).sum(-1, keepdims=True) + 1e-8)
+
+    def norm(x):
+        return x / np.sqrt(np.square(x).sum(-1, keepdims=True) + 1e-8)
+
     with np.errstate(invalid="ignore"):  # inf - inf = nan is ok here
         vec_bc = N - Ca
         vec_ba = N - C

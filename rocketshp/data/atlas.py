@@ -4,10 +4,13 @@ from rocketshp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
 from rocketshp.data.utils import MDDataModule, MDDataset
 
 ATLAS_PDBS_DIR = RAW_DATA_DIR / "atlas"
-ATLAS_FOLDSEEK_CLUSTERS_FILE = PROCESSED_DATA_DIR / "atlas/foldseek_atlas_0.2_cluster.tsv"
+ATLAS_FOLDSEEK_CLUSTERS_FILE = (
+    PROCESSED_DATA_DIR / "atlas/foldseek_atlas_0.2_cluster.tsv"
+)
 ATLAS_PROCESSED_H5 = PROCESSED_DATA_DIR / "atlas/atlas_processed.h5"
 ATLAS_TEMP = 300
 ATLAS_REPS = [1, 2, 3]
+
 
 class ATLASDataset(MDDataset):
     def __init__(
@@ -27,7 +30,8 @@ class ATLASDataset(MDDataset):
         )
 
         self._pdb_file_map = {
-            pdb_code: str(ATLAS_PDBS_DIR / f"{pdb_code[:2]}/{pdb_code}.pdb") for pdb_code in self._get_keys()
+            pdb_code: str(ATLAS_PDBS_DIR / f"{pdb_code[:2]}/{pdb_code}.pdb")
+            for pdb_code in self._get_keys()
         }
 
     def _get_keys(self):

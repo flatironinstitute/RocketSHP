@@ -36,6 +36,7 @@ model.eval().to(device)
 tokenizers = _get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
+
 def frame_to_chain(F):
     with tempfile.NamedTemporaryFile(suffix=".pdb") as tmp:
         F.save_pdb(tmp.name)
@@ -45,10 +46,12 @@ def frame_to_chain(F):
             esmc = ProteinChain.from_pdb(sio)
     return esmc
 
+
 def update_h5_dataset(f, dataset_name, data):
     if dataset_name in f:
         del f[dataset_name]
     f.create_dataset(dataset_name, data=data)
+
 
 with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file:
     for mdc_f in tqdm(mdcath_files, total=len(mdcath_files)):
@@ -57,7 +60,12 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
         h5file.require_group(pdb_code)
 
         os.makedirs(MDCATH_PROCESSED_DATA_DIR / pdb_code, exist_ok=True)
-        pdb_f, _ = convert_to_files(mdc_f, basename = MDCATH_PROCESSED_DATA_DIR / pdb_code/ pdb_code, temp_list=TEMPS, replica_list=REPS)
+        pdb_f, _ = convert_to_files(
+            mdc_f,
+            basename=MDCATH_PROCESSED_DATA_DIR / pdb_code / pdb_code,
+            temp_list=TEMPS,
+            replica_list=REPS,
+        )
         esm_chain = ProteinChain.from_pdb(pdb_f)
 
         # Access sequence with f['1l5o_A/sequence'][()]
@@ -81,8 +89,12 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
                 reference_sequence=sequence,
             )
             update_h5_dataset(h5file, f"{pdb_code}/plddt", plddt.cpu())
-            update_h5_dataset(h5file, f"{pdb_code}/struct_tokens", struct_tokens[1:-1].cpu())
+            update_h5_dataset(
+                h5file, f"{pdb_code}/struct_tokens", struct_tokens[1:-1].cpu()
+            )
 
             embeddings = sequence_encode([sequence], model, tokenizers, device=device)
-            update_h5_dataset(h5file, f"{pdb_code}/embedding", embeddings.squeeze()[1:-1].cpu())
+            update_h5_dataset(
+                h5file, f"{pdb_code}/embedding", embeddings.squeeze()[1:-1].cpu()
+            )
             logger.info(f"Processed {pdb_code}")

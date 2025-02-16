@@ -12,11 +12,14 @@ from rocketshp.data.utils import MDDataModule, MDDataset
 MDCATH_PROCESSED_H5 = PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5"
 MDCATH_TEMPS = [320, 348, 379, 413, 450]
 MDCATH_REPS = [0, 1, 2, 3, 4]
-MDCATH_FOLDSEEK_CLUSTERS_FILE = PROCESSED_DATA_DIR / "mdcath/foldseek_mdcath_0.2_cluster.tsv"
+MDCATH_FOLDSEEK_CLUSTERS_FILE = (
+    PROCESSED_DATA_DIR / "mdcath/foldseek_mdcath_0.2_cluster.tsv"
+)
 
 # def download(target_directory=f"{RAW_DATA_DIR}/mdcath"):
 #     mdc = MDCATH(target_directory)
 #     mdc.download()
+
 
 def _renumber_pdb(filename):
     # First read all lines into memory
@@ -30,10 +33,10 @@ def _renumber_pdb(filename):
     new_number = None
 
     for line in lines:
-        if line.startswith(('ATOM', 'HETATM')):
+        if line.startswith(("ATOM", "HETATM")):
             chain = line[21]
             resnum = line[22:26].strip()  # Current residue number
-            ins_code = line[26]           # Insertion code
+            ins_code = line[26]  # Insertion code
             current_full_resid = resnum + ins_code  # Combine for unique identifier
 
             # If we hit a new chain, reset our counters
@@ -53,17 +56,20 @@ def _renumber_pdb(filename):
                 current_resid = current_full_resid
 
             # Create new line with updated residue number and no insertion code
-            new_line = (line[:22] +
-                      f"{new_number:>4}" +
-                      " " +    # Replace insertion code with space
-                      line[27:])
+            new_line = (
+                line[:22]
+                + f"{new_number:>4}"
+                + " "  # Replace insertion code with space
+                + line[27:]
+            )
             new_lines.append(new_line)
         else:
             new_lines.append(line)
 
     # Write back to the same file
-    with open(filename, 'w') as f:
+    with open(filename, "w") as f:
         f.writelines(new_lines)
+
 
 def _open_h5_file(h5):
     if isinstance(h5, str) or isinstance(h5, Path):
@@ -155,7 +161,11 @@ def convert_to_mdtraj(h5, temp, replica):
 
 
 def convert_to_files(
-    fn, basename=None, temp_list=[320, 348, 379, 413, 450], replica_list=[0, 1, 2, 3, 4], directory = ".",
+    fn,
+    basename=None,
+    temp_list=[320, 348, 379, 413, 450],
+    replica_list=[0, 1, 2, 3, 4],
+    directory=".",
 ):
     """
     Converts data from an H5 file to separate PDB and XTC files based on specified temperatures and replicas.
@@ -210,6 +220,7 @@ def convert_to_files(
 
     return pdbpath, xtcpath
 
+
 class MDCathDataset(MDDataset):
     def __init__(
         self,
@@ -231,7 +242,12 @@ class MDCathDataset(MDDataset):
         return list(self._handle.keys())
 
     def _get_samples(self):
-        return [f"{k}/T{t}/R{r}" for k in self.keys for r in MDCATH_REPS for t in MDCATH_TEMPS]
+        return [
+            f"{k}/T{t}/R{r}"
+            for k in self.keys
+            for r in MDCATH_REPS
+            for t in MDCATH_TEMPS
+        ]
 
     def _code_rep_temp(self, key):
         pdb_code, temp, rep = key.split("/")
@@ -241,6 +257,7 @@ class MDCathDataset(MDDataset):
         if is_label:
             return f"{pdb_code}/T{temp}/{rep}"
         return pdb_code
+
 
 class MDCathDataModule(MDDataModule):
     def __init__(

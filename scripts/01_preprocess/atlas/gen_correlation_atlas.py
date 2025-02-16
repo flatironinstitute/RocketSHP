@@ -19,7 +19,7 @@ ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"
 
 pdb_files = list(ATLAS_DATA_DIR.glob("*/*.pdb"))
 N_REPS = 3
-LOCAL_DIST_CUTOFF = 0.75 # in nm
+LOCAL_DIST_CUTOFF = 0.75  # in nm
 STEP = 10
 DO_LOCAL_ALIGN = True
 
@@ -42,7 +42,7 @@ for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
         traj.center_coordinates()
         logger.info("Slicing trajectory")
         traj = traj[::STEP]
-        atoms_to_keep = [a.index for a in traj.topology.atoms if a.name == 'CA']
+        atoms_to_keep = [a.index for a in traj.topology.atoms if a.name == "CA"]
         traj.restrict_atoms(atoms_to_keep)
 
         dcd_f = ATLAS_DATA_DIR / pdb_code[:2] / f"{pdb_code}_prod_R{rep}_fit.dcd"
@@ -77,7 +77,7 @@ for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
         ab.init(num_node_pairs, 2)
         for i in range(num_nodes):
             for j in range(num_nodes):
-                node_pair_index = i*num_nodes + j
+                node_pair_index = i * num_nodes + j
                 ab[node_pair_index][0] = i
                 ab[node_pair_index][1] = j
 
@@ -99,7 +99,7 @@ for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
             logger.info("Locally aligning nodes")
 
             def residue_com(traj, res, frame=0):
-                first_frame_coords = traj.xyz[frame,:,:]
+                first_frame_coords = traj.xyz[frame, :, :]
                 com = np.array([0.0, 0.0, 0.0])
                 total_mass = 0.0
                 for k, atom1 in enumerate(res.atoms):
@@ -110,36 +110,51 @@ for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
                 com /= total_mass
                 return com
 
-            #globally_aligned_nodes = graph.nodeCoordinates()
-            locally_aligned_nodes = np.zeros((num_nodes, 3*num_frames)).astype(np.float32)
+            # globally_aligned_nodes = graph.nodeCoordinates()
+            locally_aligned_nodes = np.zeros((num_nodes, 3 * num_frames)).astype(
+                np.float32
+            )
             for i, res1 in enumerate(traj.topology.residues):
                 atom1_coords = residue_com(traj, res1)
                 close_atom_indices = []
                 for j, res2 in enumerate(traj.topology.residues):
-                    if i == j: continue
+                    if i == j:
+                        continue
                     atom2_coords = residue_com(traj, res2)
                     dist = np.linalg.norm(atom2_coords - atom1_coords)
                     if dist <= LOCAL_DIST_CUTOFF:
                         close_atom_indices.append(j)
 
-                traj.superpose(traj, atom_indices=close_atom_indices, ref_atom_indices=close_atom_indices)
-                #positions = traj.xyz[:,i,:] - traj.xyz[0,i,:]
+                traj.superpose(
+                    traj,
+                    atom_indices=close_atom_indices,
+                    ref_atom_indices=close_atom_indices,
+                )
+                # positions = traj.xyz[:,i,:] - traj.xyz[0,i,:]
                 atom1_coords_aligned = residue_com(traj, res1)
                 positions = np.zeros((traj.n_frames, 3))
                 for L in range(traj.n_frames):
-                    positions[L,:] = residue_com(traj, res1, frame=L) - atom1_coords_aligned
+                    positions[L, :] = (
+                        residue_com(traj, res1, frame=L) - atom1_coords_aligned
+                    )
 
-                locally_aligned_nodes[i, 0:num_frames] = positions[:,0]
-                locally_aligned_nodes[i, num_frames:2*num_frames] = positions[:,1]
-                locally_aligned_nodes[i, 2*num_frames:3*num_frames] = positions[:,2]
+                locally_aligned_nodes[i, 0:num_frames] = positions[:, 0]
+                locally_aligned_nodes[i, num_frames : 2 * num_frames] = positions[:, 1]
+                locally_aligned_nodes[i, 2 * num_frames : 3 * num_frames] = positions[
+                    :, 2
+                ]
 
-            graph.nodeCoordinates().fromNumpy2D(locally_aligned_nodes.astype(np.float32))
+            graph.nodeCoordinates().fromNumpy2D(
+                locally_aligned_nodes.astype(np.float32)
+            )
 
         local_suff = "local_" if DO_LOCAL_ALIGN else ""
 
         # Compute generalized correlation and output to proteinG_R
-        logger.info("Performing generalized correlation computation "\
-            f"on {n} data points with {num_nodes} nodes.")
+        logger.info(
+            "Performing generalized correlation computation "
+            f"on {n} data points with {num_nodes} nodes."
+        )
         netcalc.generalizedCorrelation(
             X=graph.nodeCoordinates(),
             R=R,
@@ -150,17 +165,21 @@ for pdb_f in tqdm(pdb_files, total=len(pdb_files)):
             xd=xd,
             platform=platform,
         )
-        logger.info(f"Time: {time.time()-starttime:.3f} s.")
+        logger.info(f"Time: {time.time() - starttime:.3f} s.")
 
         # Gen. Corr. in numpy array object
         logger.info("Saving results")
         R_np = R.toNumpy2D().reshape(num_nodes, num_nodes)
         # corr_matrix_filename = str(ATLAS_DATA_DIR / pdb_code[:2] / f"{pdb_code}_{rep}_{local_suff}step{STEP}_corr_matrix.txt")
-        corr_matrix_filename = str(ATLAS_DATA_DIR / pdb_code[:2] / f"{pdb_code}_{rep}_{local_suff}step{STEP}_corr_matrix.pt")
+        corr_matrix_filename = str(
+            ATLAS_DATA_DIR
+            / pdb_code[:2]
+            / f"{pdb_code}_{rep}_{local_suff}step{STEP}_corr_matrix.pt"
+        )
         logger.info(f"Saving matrix to: {corr_matrix_filename}")
         # np.savetxt(corr_matrix_filename, R_np)
         torch.save(torch.tensor(R_np), corr_matrix_filename)
-        logger.info(f"Total time: {time.time()-starttime:.3f} s.")
+        logger.info(f"Total time: {time.time() - starttime:.3f} s.")
 
         # Plotting
         # logger.info("Plotting")

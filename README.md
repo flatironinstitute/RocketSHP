@@ -1,5 +1,7 @@
 # RocketSHP
 
+🚧 This is pre-release code that is under active development 🚧
+
 <a target="_blank" href="https://cookiecutter-data-science.drivendata.org/">
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
@@ -25,4 +27,10 @@ pip3 install .
 
 ```
 rocketshp_train {JOB NAME} --config configs/default_config.yml
+```
+
+or on a SLURM cluster
+
+```
+sbatch scripts/02_train/submit_default_config.sbatch
 ```

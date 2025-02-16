@@ -1,22 +1,22 @@
-
 from functools import partial
 
-import torch.nn.functional as F
 import lightning as L
 import torch
-from loguru import logger
+import torch.nn.functional as F
 from omegaconf import OmegaConf
 from torch import nn
 
 
 def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
-
     # Create sequence mask based on lengths
-    mask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
+    mask = (
+        torch.arange(outputs.shape[1], device=outputs.device)[None, :]
+        < lengths[:, None]
+    )
     mask = mask.unsqueeze(-1)  # Add feature dimension
 
     # Use built-in MSELoss with reduction='none' to get per-element loss
-    mse_loss = nn.MSELoss(reduction='none')
+    mse_loss = nn.MSELoss(reduction="none")
     loss = mse_loss(outputs, labels)
 
     # Apply mask and compute mean over valid elements
@@ -25,28 +25,38 @@ def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0)
 
     return torch.sqrt(mse) if rmse else mse
 
+
 def compute_square_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
-    linmask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
-    squaremask = (linmask.unsqueeze(2) & linmask.unsqueeze(1))
+    linmask = (
+        torch.arange(outputs.shape[1], device=outputs.device)[None, :]
+        < lengths[:, None]
+    )
+    squaremask = linmask.unsqueeze(2) & linmask.unsqueeze(1)
 
     # Use built-in MSELoss with reduction='none' to get per-element loss
-    mse_loss = nn.MSELoss(reduction='none')
+    mse_loss = nn.MSELoss(reduction="none")
     loss = mse_loss(outputs, labels)
 
     # Apply mask and compute mean over valid elements
     masked_loss = loss * squaremask
     # mse = masked_loss.sum() / squaremask.sum().clamp(min=1)
-    mse = (masked_loss.sum(axis=(1,2)) / squaremask.sum(axis=(1,2))).mean()
+    mse = (masked_loss.sum(axis=(1, 2)) / squaremask.sum(axis=(1, 2))).mean()
 
     return torch.sqrt(mse) if rmse else mse
 
-def compute_categorical_masked_cross_entropy_loss(outputs, labels, lengths, pad_value=0.0):
+
+def compute_categorical_masked_cross_entropy_loss(
+    outputs, labels, lengths, pad_value=0.0
+):
     # Create sequence mask based on lengths
-    mask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None])
+    mask = (
+        torch.arange(outputs.shape[1], device=outputs.device)[None, :]
+        < lengths[:, None]
+    )
 
     # Use built-in BCELoss with reduction='none' to get per-element loss
-    ce_loss = nn.CrossEntropyLoss(reduction='none')
-    loss = ce_loss(outputs.transpose(1,2), labels.transpose(1,2))
+    ce_loss = nn.CrossEntropyLoss(reduction="none")
+    loss = ce_loss(outputs.transpose(1, 2), labels.transpose(1, 2))
 
     # Apply mask and compute mean over valid elements
     masked_loss = loss * mask
@@ -54,25 +64,30 @@ def compute_categorical_masked_cross_entropy_loss(outputs, labels, lengths, pad_
 
     return ce
 
+
 def compute_masked_kl_div_loss(outputs, labels, lengths, pad_value=0.0):
     # Create sequence mask based on lengths
-    mask = (torch.arange(outputs.shape[1], device=outputs.device)[None, :] < lengths[:, None]).unsqueeze(-1) 
+    mask = (
+        torch.arange(outputs.shape[1], device=outputs.device)[None, :]
+        < lengths[:, None]
+    ).unsqueeze(-1)
 
     outputs = F.log_softmax(outputs, dim=1)
-    
+
     # KL divergence: sum(target * (log(target) - log(pred)))
     # We can ignore the log(target) term as it's constant w.r.t. optimization
-    kld_loss = nn.KLDivLoss(reduction='none', log_target=False)
+    kld_loss = nn.KLDivLoss(reduction="none", log_target=False)
     kl_div = kld_loss(outputs, labels)
-    masked_kl_div = kl_div * mask # Apply mask
+    masked_kl_div = kl_div * mask  # Apply mask
 
     # Sum over the distribution dimension (D)
     summed_kl_div = masked_kl_div.sum(dim=1)  # Now (B, L)
-    
+
     # Take mean over batch and sequence length
     loss = summed_kl_div.mean()
-    
+
     return loss
+
 
 class LightningWrapper(L.LightningModule):
     def __init__(self, model: nn.Module, params: OmegaConf):
@@ -82,12 +97,17 @@ class LightningWrapper(L.LightningModule):
         self.training_step_outputs = []
         self.validation_step_outputs = []
 
-        self.rmsf_loss_fn = partial(compute_masked_mse_loss, rmse=not params.square_loss)
-        self.ca_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
+        self.rmsf_loss_fn = partial(
+            compute_masked_mse_loss, rmse=not params.square_loss
+        )
+        self.ca_loss_fn = partial(
+            compute_square_masked_mse_loss, rmse=not params.square_loss
+        )
         # self.dyn_corr_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
-        self.autocorr_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
+        self.autocorr_loss_fn = partial(
+            compute_square_masked_mse_loss, rmse=not params.square_loss
+        )
         self.shp_loss_fn = compute_masked_kl_div_loss
-
 
         self.norm_grad = params.grad_norm
         self.rmsf_alpha = params.rmsf_alpha
@@ -113,7 +133,9 @@ class LightningWrapper(L.LightningModule):
             rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
             ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
             # dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
-            autocorr_loss = self.autocorr_loss_fn(y_hat["autocorr"], y["autocorr"], mask)
+            autocorr_loss = self.autocorr_loss_fn(
+                y_hat["autocorr"], y["autocorr"], mask
+            )
             shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
 
             # weighted_loss, weighted_losses, grad_loss = self.child_model.grad_norm(
@@ -131,7 +153,9 @@ class LightningWrapper(L.LightningModule):
         else:
             loss = 0
             if "rmsf" in y_hat:
-                rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
+                rmsf_loss = self.rmsf_loss_fn(
+                    y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask
+                )
                 loss += self.rmsf_alpha * rmsf_loss
                 return_dict["rmsf_loss"] = rmsf_loss
             if "ca_dist" in y_hat:
@@ -143,7 +167,9 @@ class LightningWrapper(L.LightningModule):
             #     loss += self.dyn_corr_alpha * dyn_corr_loss
             #     return_dict["corr_loss"] = dyn_corr_loss
             if "autocorr" in y_hat:
-                autocorr_loss = self.autocorr_loss_fn(y_hat["autocorr"], y["autocorr"], mask)
+                autocorr_loss = self.autocorr_loss_fn(
+                    y_hat["autocorr"], y["autocorr"], mask
+                )
                 loss += self.autocorr_alpha * autocorr_loss
                 return_dict["autocorr_loss"] = autocorr_loss
             if "shp" in y_hat:
@@ -168,11 +194,13 @@ class LightningWrapper(L.LightningModule):
         # self.log_dict({"task_weights/ca_dist": self.child_model.grad_norm.task_weights[1]}, on_step=True, on_epoch=False)
         # self.log_dict({"task_weights/dyn_corr": self.child_model.grad_norm.task_weights[2]}, on_step=True, on_epoch=False)
         # if batch_idx % 1000 == 0:
-            # logger.debug(f"rmsf_weight: {self.child_model.grad_norm.task_weights[0]:.3f}, ca_dist_weight: {self.child_model.grad_norm.task_weights[1]:.3f}, dyn_corr_weight: {self.child_model.grad_norm.task_weights[2]:.3f}, total_weights: {torch.sum(self.child_model.grad_norm.task_weights):.3f}")
-            # logger.debug(f"rmsf_weighted_loss: {self.child_model.grad_norm.task_weights[0]*loss_dict['rmsf_loss']:.3f}, ca_loss: {self.child_model.grad_norm.task_weights[1]*loss_dict['ca_loss']:.3f}, dyn_corr_loss: {self.child_model.grad_norm.task_weights[2]*loss_dict['corr_loss']:.3f}")
-            # logger.debug(f"grad_loss: {loss_dict['grad_loss']:.3f}, total_loss: {total_loss:.3f}")
+        # logger.debug(f"rmsf_weight: {self.child_model.grad_norm.task_weights[0]:.3f}, ca_dist_weight: {self.child_model.grad_norm.task_weights[1]:.3f}, dyn_corr_weight: {self.child_model.grad_norm.task_weights[2]:.3f}, total_weights: {torch.sum(self.child_model.grad_norm.task_weights):.3f}")
+        # logger.debug(f"rmsf_weighted_loss: {self.child_model.grad_norm.task_weights[0]*loss_dict['rmsf_loss']:.3f}, ca_loss: {self.child_model.grad_norm.task_weights[1]*loss_dict['ca_loss']:.3f}, dyn_corr_loss: {self.child_model.grad_norm.task_weights[2]*loss_dict['corr_loss']:.3f}")
+        # logger.debug(f"grad_loss: {loss_dict['grad_loss']:.3f}, total_loss: {total_loss:.3f}")
 
-        self.log_dict({"train_loss": loss_dict["batch_loss"]}, on_step=False, on_epoch=True)
+        self.log_dict(
+            {"train_loss": loss_dict["batch_loss"]}, on_step=False, on_epoch=True
+        )
 
         return {"loss": total_loss}
 

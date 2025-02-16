@@ -1,13 +1,12 @@
-#%% Import packages
-import mdtraj as md
-import pandas as pd
-import seaborn as sns
+# %% Import packages
 import matplotlib.pyplot as plt
+import mdtraj as md
+import seaborn as sns
 
 from rocketshp import config
 from rocketshp.trajectory import compute_rmsf, normalize
 
-#%% Load single trajectory from ATLAS 
+# %% Load single trajectory from ATLAS
 key = "3g5k_D"
 rep = 1
 
@@ -19,7 +18,7 @@ single_chain_traj = normalize(single_chain_traj)
 chain_length = single_chain_traj.xyz.shape[1]
 print(chain_length)
 
-#%% Load tetramer trajectory that we've run
+# %% Load tetramer trajectory that we've run
 
 # run vmd in text only mode with -dispdev text
 # load init.pdb in vmd and write out to fix charmm-gui errors
@@ -34,7 +33,7 @@ tetramer_traj = md.load_dcd(OURS_DCD, top=OURS_PDB)
 tetramer_traj = normalize(tetramer_traj)
 print(tetramer_traj.xyz.shape)
 
-#%% Subset trajectory for each chain
+# %% Subset trajectory for each chain
 monomer_top = tetramer_traj.top.select("protein and name CA")
 monomer_traj = tetramer_traj.atom_slice(monomer_top)
 
@@ -55,7 +54,7 @@ chains = {
     "A": normalize(chain_A_traj),
     "B": normalize(chain_B_traj),
     "C": normalize(chain_C_traj),
-    "D": normalize(chain_D_traj)
+    "D": normalize(chain_D_traj),
 }
 
 # %% Compute RMSF for each chain
@@ -67,14 +66,18 @@ monomer_rmsf = {}
 for chain, traj in chains.items():
     monomer_rmsf[chain] = compute_rmsf(traj)
 
-#%% Plot RMSF for each chain
+# %% Plot RMSF for each chain
 
 for chain, rmsf_values in monomer_rmsf.items():
-    plt.plot(rmsf_values, label = f"Tetramer {chain}")
-plt.plot(single_chain_rmsf, label = "ATLAS Chain")
+    plt.plot(rmsf_values, label=f"Tetramer {chain}")
+plt.plot(single_chain_rmsf, label="ATLAS Chain")
 plt.legend()
 sns.despine()
-plt.savefig(config.PROJ_ROOT / "img" / "3g5k_tetramer_comparison.png", bbox_inches="tight", dpi=300)
+plt.savefig(
+    config.PROJ_ROOT / "img" / "3g5k_tetramer_comparison.png",
+    bbox_inches="tight",
+    dpi=300,
+)
 plt.show()
 
 # %%

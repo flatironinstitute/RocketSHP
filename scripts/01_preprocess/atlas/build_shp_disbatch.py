@@ -1,11 +1,13 @@
-#%%
-from rocketshp import config
-from datasets import Dataset
-from tqdm import tqdm
-import torch
+# %%
 import glob
 
-#%%
+import torch
+from datasets import Dataset
+from tqdm import tqdm
+
+from rocketshp import config
+
+# %%
 # disbatch_tasks_file = f"{config.PROJ_ROOT}/scripts/01_preprocess/atlas/atlas_shp_disbatch.tasks.txt"
 
 # N_REPS = 3
@@ -24,11 +26,12 @@ import glob
 #     for (pdb_id, rep) in pdb_reps:
 #         f.write(f"{pdb_id} {rep}\n")
 
-#%%
+# %%
 # sbatch -n 50 -c 4 disBatch scripts/01_preprocess/atlas/atlas_shp_disbatch.tasks.txt
 
-#%%
+# %%
 # Compile and save results
+
 
 def invert_dict(l):
     """
@@ -39,6 +42,7 @@ def invert_dict(l):
     for key in keys:
         out_dict[key] = [i[key] for i in l]
     return out_dict
+
 
 shp_files = glob.glob(f"{config.PROCESSED_DATA_DIR}/atlas/esm_shp/*/*.pt")
 results = []

@@ -28,8 +28,13 @@ with h5py.File(MDCATH_PROCESSED_DATA_DIR / "mdcath_processed.h5", "a") as h5file
 
         for temp in TEMPS:
             for rep in REPS:
-
-                gen_correlation_file = str(MDCATH_PROCESSED_DATA_DIR / pdb_code / f"{pdb_code}_{temp}_{rep}_{local_suff}_corr_matrix.pt")
+                gen_correlation_file = str(
+                    MDCATH_PROCESSED_DATA_DIR
+                    / pdb_code
+                    / f"{pdb_code}_{temp}_{rep}_{local_suff}_corr_matrix.pt"
+                )
                 gen_correlation = torch.load(gen_correlation_file, weights_only=True)
 
-                update_h5_dataset(h5file, f"{pdb_code}/T{temp}/R{rep}/dyn_corr", gen_correlation)
+                update_h5_dataset(
+                    h5file, f"{pdb_code}/T{temp}/R{rep}/dyn_corr", gen_correlation
+                )

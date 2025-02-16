@@ -2,6 +2,7 @@ from __future__ import annotations
 
 import typing as T
 from dataclasses import dataclass
+
 import torch
 
 from rocketshp.utils import fp32_autocast_context
@@ -10,15 +11,12 @@ from rocketshp.utils import fp32_autocast_context
 @T.runtime_checkable
 class Rotation(T.Protocol):
     @classmethod
-    def identity(cls, shape: tuple[int, ...], **tensor_kwargs):
-        ...
+    def identity(cls, shape: tuple[int, ...], **tensor_kwargs): ...
 
     @classmethod
-    def random(cls, shape: tuple[int, ...], **tensor_kwargs):
-        ...
+    def random(cls, shape: tuple[int, ...], **tensor_kwargs): ...
 
-    def __getitem__(self, idx: T.Any):
-        ...
+    def __getitem__(self, idx: T.Any): ...
 
     @property
     def tensor(self) -> torch.Tensor:
@@ -33,23 +31,21 @@ class Rotation(T.Protocol):
         # This means that 1x4 quaternions are treated as size (1,) for example
         ...
 
-    def as_matrix(self) -> RotationMatrix:
-        ...
+    def as_matrix(self) -> RotationMatrix: ...
 
-    def compose(self, other: Self):
-        # To be safe, we force users to explicitly convert between rotation types.
-        ...
+    # def compose(self, other: Self):
+    #     # To be safe, we force users to explicitly convert between rotation types.
+    #     ...
 
-    def convert_compose(self, other: Self):
-        # This function will automatically convert between types of rotations
-        ...
+    # def convert_compose(self, other: Self):
+    #     # This function will automatically convert between types of rotations
+    #    ...
 
     def apply(self, p: torch.Tensor) -> torch.Tensor:
         # rotates points by this rotation object
         ...
 
-    def invert(self):
-        ...
+    def invert(self): ...
 
     @property
     def dtype(self) -> torch.dtype:
@@ -282,7 +278,7 @@ class Affine3D:
                 rot = RotationMatrix(t[..., :-3].unflatten(-1, (3, 3)))
             case _:
                 raise RuntimeError(
-                    f"Cannot detect rotation fromat from {t.shape[-1] -3}-d flat vector"
+                    f"Cannot detect rotation fromat from {t.shape[-1] - 3}-d flat vector"
                 )
         return Affine3D(trans, rot)
 

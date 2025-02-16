@@ -38,7 +38,11 @@ rshp_model.eval().to(device)
 
 logger.info("Generating intial features")
 with torch.inference_mode():
-    embeddings = esm3_embed([SEQUENCE], esm_model, tokenizers, device=device).squeeze()[1:-1].detach()
+    embeddings = (
+        esm3_embed([SEQUENCE], esm_model, tokenizers, device=device)
+        .squeeze()[1:-1]
+        .detach()
+    )
     struct_like = torch.zeros(embeddings.size()[0]).int().to(device)
     temperature = torch.ones_like(struct_like).to(device) * 290
 
@@ -48,11 +52,13 @@ with torch.inference_mode():
 
 logger.info("Performing inference")
 with torch.inference_mode():
-    y_hat = rshp_model({
-        "seq_feats": embeddings.unsqueeze(0),
-        "struct_feats": struct_like.unsqueeze(0),
-        "temp": temperature.unsqueeze(0),
-    })
+    y_hat = rshp_model(
+        {
+            "seq_feats": embeddings.unsqueeze(0),
+            "struct_feats": struct_like.unsqueeze(0),
+            "temp": temperature.unsqueeze(0),
+        }
+    )
     print(y_hat)
 
 

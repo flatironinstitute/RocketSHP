@@ -1,11 +1,11 @@
-#%%
-import pandas as pd
+# %%
 import matplotlib.pyplot as plt
+import pandas as pd
 import seaborn as sns
 
 from rocketshp.config import PROJ_ROOT
 
-#%% Load data
+# %% Load data
 root_dir = "/mnt/home/ssledzieski/Projects/rocketshp/data/processed/neptune_logs"
 
 id_map = {
@@ -19,14 +19,18 @@ id_map = {
 data = []
 
 for k in id_map.keys():
-    df = pd.read_csv(f"{root_dir}/{k}__training_val_loss.csv",header=None)
-    df.columns = ["Step","?","Validation Loss"]
+    df = pd.read_csv(f"{root_dir}/{k}__training_val_loss.csv", header=None)
+    df.columns = ["Step", "?", "Validation Loss"]
     df["Struct. Encoding"] = id_map[k]
     data.append(df)
 
 data = pd.concat(data)
 # %%
-sns.lineplot(data,x="Step",y="Validation Loss",hue="Struct. Encoding")
+sns.lineplot(data, x="Step", y="Validation Loss", hue="Struct. Encoding")
 sns.despine()
-plt.savefig(PROJ_ROOT / "img" / "struct_ablation_validation_loss.png",bbox_inches="tight",dpi=300)
+plt.savefig(
+    PROJ_ROOT / "img" / "struct_ablation_validation_loss.png",
+    bbox_inches="tight",
+    dpi=300,
+)
 # %%

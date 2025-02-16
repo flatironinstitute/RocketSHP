@@ -1,12 +1,13 @@
-#%%
-from tqdm import tqdm
+# %%
 import os
+
 import torch
+from tqdm import tqdm
 
 from rocketshp import config
+from rocketshp.esm3 import get_structure_vae
 from rocketshp.features import esm3_vqvae
 from rocketshp.structure.protein_chain import ProteinChain
-from rocketshp.esm3 import get_structure_vae
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"
@@ -16,7 +17,7 @@ os.makedirs(STRUCT_EMBEDDING_PATH, exist_ok=True)
 pdb_files = list(ATLAS_DATA_DIR.glob("*/*.pdb"))
 pdb_files = [i for i in pdb_files if ".ca.pdb" not in i.name]
 
-#%%
+# %%
 
 vae = get_structure_vae()
 vae.eval()
