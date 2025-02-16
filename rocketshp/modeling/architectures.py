@@ -514,7 +514,7 @@ class DynCorrModelWithTemperature(nn.Module):
 
     @classmethod
     def load_from_checkpoint(cls, checkpoint_path: str, strict: bool = True):
-        chk = torch.load(checkpoint_path)
+        chk = torch.load(checkpoint_path, weights_only=True)
         hp = chk["hyper_parameters"]
         state_dict = {}
         if "struct_stage" not in hp:

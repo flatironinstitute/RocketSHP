@@ -91,3 +91,23 @@ def slice_python_object_as_numpy(
             sliced_obj = obj.__class__(sliced_obj)  # type: ignore
 
     return sliced_obj  # type: ignore
+
+
+def save_small_checkpoint(check_in_path: str, check_out_path: str):
+    """
+    Saves a small checkpoint file that can be loaded with `Model.load_from_checkpoint` for inference, but cannot be used to resume training.
+
+    Args:
+        check_in_path: The path to the original checkpoint file.
+        check_out_path: The path to save the cleaned checkpoint file.
+    """
+    checkpoint = torch.load(check_in_path)
+
+    checkpoint_small = {
+        "state_dict": checkpoint["state_dict"],
+        "hyper_parameters": checkpoint["hyper_parameters"],
+        "hparams_name": checkpoint["hparams_name"],
+    }
+
+    torch.save(checkpoint_small, check_out_path)
+    logger.info(f"Saved clean checkpoint to {check_out_path}")

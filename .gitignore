@@ -184,5 +184,10 @@ slurm_logs/
 .neptune
 checkpoints/
 logs/
-models/
+
+# ML Models
+models/*
+!models/rocketshp_pretrained*
+
+# Presentation
 img/
