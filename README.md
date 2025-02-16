@@ -40,3 +40,5 @@ sbatch scripts/02_train/submit_default_config.sbatch
 ```
 rocketshp_predict {PDB FILE} {CONFIG FILE} {MODEL FILE} {OUT PATH} --device {DEVICE="cuda:0"}
 ```
+
+We currently provide two pre-trained models trained on ATLAS, see the `models/` directory.
