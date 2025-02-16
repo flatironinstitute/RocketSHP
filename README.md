@@ -4,63 +4,25 @@
     <img src="https://img.shields.io/badge/CCDS-Project%20template-328F97?logo=cookiecutter" />
 </a>
 
-Fast structural heterogeneity estimation
+Machine learning models of protein structure have transformed our understanding of protein function and enabled advances in modeling biological systems, drug discovery and design, and protein engineering. However, static structures are only one piece of the puzzle. Proteins are flexible molecules which are known to adopt diverse conformations, and these dynamics play a crucial role in their eventual function. While molecular dynamics simulations offer one high-powered approach to estimating these ensembles, they are presently too computationally expensive to apply at the scale of the whole proteome, let alone to isoforms, sequence and structural variants, or designed proteins.
+
+To address this shortcoming, we introduce RocketSHP, a super-fast method for estimating protein flexibility and dynamics, requiring only amino acid sequence and, optionally, a static structure. Trained on over 100,000 trajectories from publicly-available dynamics data, we represent each ensemble as a compressed structural heterogeneity profile (SHP) using recent advances in structure quantization. We then train a protein language model to reconstruct these SHPs, along with the RMSF and autocorrelation of pairwise distances from the trajectory. This provides not only a single measure of flexibility but a higher dimensional measure of local motion for each residue. RocketSHP enables ultra-high throughput measures of conformational flexibility,  shedding light on the dynamic dimension of the "dark proteome". We anticipate that RocketSHP will enable advancements in dynamics-dependent tasks such as modeling protein interactions, engineering protein switches, or estimating pathogenicity of coding variants.
 
 ## Installation
 
-pip3 install torch==2.5.1 torchvision==0.20.1 --index-url https://download.pytorch.org/whl/cu124
+```
+pip3 install torch==2.5.1 --index-url https://download.pytorch.org/whl/cu124
 pip3 install .
-
-## Project Organization
-
-```
-├── LICENSE            <- Open-source license if one is chosen
-├── Makefile           <- Makefile with convenience commands like `make data` or `make train`
-├── README.md          <- The top-level README for developers using this project.
-├── data
-│   ├── external       <- Data from third party sources.
-│   ├── interim        <- Intermediate data that has been transformed.
-│   ├── processed      <- The final, canonical data sets for modeling.
-│   └── raw            <- The original, immutable data dump.
-│
-├── docs               <- A default mkdocs project; see www.mkdocs.org for details
-│
-├── models             <- Trained and serialized models, model predictions, or model summaries
-│
-├── notebooks          <- Jupyter notebooks. Naming convention is a number (for ordering),
-│                         the creator's initials, and a short `-` delimited description, e.g.
-│                         `1.0-jqp-initial-data-exploration`.
-│
-├── pyproject.toml     <- Project configuration file with package metadata for 
-│                         rocketshp and configuration for tools like black
-│
-├── references         <- Data dictionaries, manuals, and all other explanatory materials.
-│
-├── reports            <- Generated analysis as HTML, PDF, LaTeX, etc.
-│   └── figures        <- Generated graphics and figures to be used in reporting
-│
-├── requirements.txt   <- The requirements file for reproducing the analysis environment, e.g.
-│                         generated with `pip freeze > requirements.txt`
-│
-├── setup.cfg          <- Configuration file for flake8
-│
-└── rocketshp   <- Source code for use in this project.
-    │
-    ├── __init__.py             <- Makes rocketshp a Python module
-    │
-    ├── config.py               <- Store useful variables and configuration
-    │
-    ├── dataset.py              <- Scripts to download or generate data
-    │
-    ├── features.py             <- Code to create features for modeling
-    │
-    ├── modeling                
-    │   ├── __init__.py 
-    │   ├── predict.py          <- Code to run model inference with trained models          
-    │   └── train.py            <- Code to train models
-    │
-    └── plots.py                <- Code to create visualizations
 ```
 
---------
+## Data Preparation
 
+```
+...
+```
+
+## Training
+
+```
+rocketshp_train {JOB NAME} --config configs/default_config.yml
+```

@@ -30,25 +30,20 @@ clean:
 ## Lint using ruff (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	ruff check rocketshp scripts
-	ruff format rocketshp scripts
+	ruff check rocketshp scripts notebooks
+	ruff format rocketshp scripts notebooks
 
 ## Format source code with black
 .PHONY: format
 format:
-	ruff format rocketshp scripts
-
-
-
+	ruff format rocketshp scripts notebooks
 
 ## Set up python interpreter environment
 .PHONY: create_environment
 create_environment:
-	conda env create --name $(PROJECT_NAME) -f environment.yml
+	mamba env create --name $(PROJECT_NAME) -f environment.yml
 	
 	@echo ">>> conda env created. Activate with:\nconda activate $(PROJECT_NAME)"
-	
-
 
 
 #################################################################################
@@ -57,9 +52,9 @@ create_environment:
 
 
 ## Make Dataset
-.PHONY: data
-data: requirements
-	$(PYTHON_INTERPRETER) rocketshp/dataset.py
+# .PHONY: data
+# data: requirements
+# 	$(PYTHON_INTERPRETER) rocketshp/dataset.py
 
 
 #################################################################################
