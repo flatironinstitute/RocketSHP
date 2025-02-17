@@ -13,7 +13,7 @@ d_model: 256
 n_heads: 8
 n_layers: 4
 seq_features: true
-struct_features: true
+struct_features: false
 struct_stage: "encoded"
 struct_dim: 1024
 
