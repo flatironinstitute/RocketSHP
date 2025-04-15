@@ -19,9 +19,9 @@ from rocketshp.data.atlas import ATLASDataModule
 from rocketshp.modeling.architectures import RocketSHPModel
 
 # %% Script inputs
-CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/fs_shp_kl_reweight2.yml"
+CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/rocketshp_pretrained_20250215_v0.yml"
 MODEL_CHECKPOINT_FILE = checkpoint_file = (
-    "/mnt/home/ssledzieski/Projects/rocketshp/models/fs_shp_pred_kl_reweighted2/model-epoch=42-val_loss=2.11.pt.ckpt"
+    "/mnt/home/ssledzieski/Projects/rocketshp/models/huggingface/checkpoints/rocketshp_pretrained_20250215_v0.ckpt"
 )
 OUTPUT_DIRECTORY = (
     f"{config.EVALUATION_DATA_DIR}/evaluations/fs_shp_pred_kl_reweighted2"
@@ -66,17 +66,25 @@ model = model.to(device)
 
 # %% Inference loop
 
+def run_inference(model, feats, device="cuda:0"):
+    """
+    Run a forward pass of the model
+    """
 
-def run_inference(
-    model, key, feats, labels, save_root: str = ".", img_ext: str = "png"
-):
     model.eval()
     with torch.inference_mode():
         feats = {k: v.to(device).unsqueeze(0) for k, v in feats.items()}
         y_hat = model(feats)
-
     # Move to cpu and squeeze
     y_hat = {k: v.detach().cpu().squeeze() for k, v in y_hat.items()}
+    return y_hat
+
+def plot_inference(
+    model, key, feats, labels, save_root: str = ".", img_ext: str = "png", device="cuda:0"
+):
+
+    # Compute forward pass
+    y_hat = run_inference(model, feats, device)
 
     # Plot RMSF
     plt.figure(figsize=(10, 5))
@@ -105,6 +113,8 @@ def run_inference(
 
     # compute autocorr MSE
     autocorr_mse = ((true_sqform - predicted_sqform) ** 2).mean()
+    autocorr_mae = (true_sqform - predicted_sqform).abs().mean()
+    # logger.info(f"Protein: {key} Autocorr MAE: {autocorr_mae}")
     # logger.info(f"Autocorr MSE: {autocorr_mse}")
 
     ax[0].imshow(true_sqform)
@@ -147,10 +157,10 @@ def run_inference(
         "pearson": pearson,
         "rmsf_mse": rmsf_mse,
         "autocorr_mse": autocorr_mse,
+        "autocorr_mae": autocorr_mae,
         "shp_kl": shp_kl,
     }
 
-    # save results as txt file
     with open(f"{save_root}/{key}/{key}_results.txt", "w") as f:
         for k, v in return_dict.items():
             f.write(f"{k}: {v}\n")
@@ -164,24 +174,26 @@ test_data = adl.val_data
 all_results = {}
 
 for i, (feats, labels) in enumerate(
-    tqdm(test_data, desc="Evaluating validation set...")
+tqdm(test_data, desc="Evaluating validation set...")
 ):
     key = adl.dataset.samples[test_data.indices[i]]
     key_under = key.replace("/", "_")
-    os.makedirs(f"{OUTPUT_DIRECTORY}/{key_under[:2]}/{key_under}", exist_ok=True)
-    rdict = run_inference(
-        model,
-        key_under,
-        feats,
-        labels,
-        save_root=f"{OUTPUT_DIRECTORY}/{key_under[:2]}",
-        img_ext="svg",
-    )
-    all_results[key] = rdict
+    # os.makedirs(f"{OUTPUT_DIRECTORY}/{key_under[:2]}/{key_under}", exist_ok=True)
+    # rdict = plot_inference(
+        # model,
+        # key_under,
+        # feats,
+        # labels,
+        # save_root=f"{OUTPUT_DIRECTORY}/{key_under[:2]}",
+        # img_ext="svg",
+    # )
+    # all_results[key] = rdict
+    fw_results = run_inference(model, feats)
+    all_results[key] = fw_results
 
-# import pickle as pk
-# with open(f"{OUTPUT_DIRECTORY}/results.pkl", "wb") as f:
-#     pk.dump(all_results, f)
+import pickle as pk
+with open(f"{OUTPUT_DIRECTORY}/inference_results.pkl", "wb") as f:
+    pk.dump(all_results, f)
 # %%
 
 with open(f"{OUTPUT_DIRECTORY}/results.pkl", "rb") as f:
@@ -195,6 +207,7 @@ pearson = [all_results[c]["pearson"][0] for c in codes]
 pearson_p = [all_results[c]["pearson"][1] for c in codes]
 rmsf_mse = [all_results[c]["rmsf_mse"].item() for c in codes]
 autocorr_mse = [all_results[c]["autocorr_mse"].item() for c in codes]
+autocorr_mae = [all_results[c]["autocorr_mae"].item() for c in codes]
 shp_kl = [all_results[c]["shp_kl"].item() for c in codes]
 df = pd.DataFrame(
     {

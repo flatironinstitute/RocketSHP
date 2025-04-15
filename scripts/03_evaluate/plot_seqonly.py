@@ -17,7 +17,7 @@ seq_results.columns = [f"seq_{i}" for i in seq_results.columns]
 all_results = pd.merge(struct_results, seq_results, left_index=True, right_index=True)
 # %%
 
-fig, ax = plt.subplots(3, 1, figsize=(5, 10))
+fig, ax = plt.subplots(1, 3, figsize=(15, 5))
 
 ax[0].scatter(all_results["spearman"], all_results["seq_spearman"], s=4)
 ax[0].set_xlabel("Structure+Sequence RMSF Spearman Correlation")
@@ -38,6 +38,7 @@ xmax = all_results["shp_kl"].max()
 ax[2].plot([0, xmax], [0, xmax], color="gray", linestyle="--")
 
 sns.despine()
-plt.savefig(config.PROJ_ROOT / "img" / "seqonly_vs_structseq.svg", bbox_inches="tight")
-plt.show()
+# plt.savefig(config.PROJ_ROOT / "img" / "seqonly_vs_structseq_wide.png", bbox_inches="tight")
+plt.show()# %%
+
 # %%
