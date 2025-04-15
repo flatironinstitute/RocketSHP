@@ -1,6 +1,7 @@
 import tempfile
 from io import StringIO
 from itertools import combinations
+from pathlib import Path
 
 import mdtraj as md
 import numpy as np
@@ -55,8 +56,27 @@ def compute_contacts(
         )
     )
 
+def compute_generalized_correlation_lmi(
+    top_file: str | Path,
+    traj_file: str | Path,
+    stride: int = 1,
+    verbose: bool = False,
+):
+    from mdigest.core.parsetrajectory import MDS
+    from mdigest.core.correlation import DynCorr
 
-def compute_autocorrelation(
+    mds = MDS()
+    mds.set_num_replicas(1)
+    mds.load_system(top_file, traj_file)
+    mds.align_traj(selection='name CA')
+    mds.set_selection('protein and name CA', 'protein')
+    mds.stride_trajectory(initial=0, final=-1, step=stride)
+
+    dyncorr = DynCorr(mds)
+    dyncorr.parse_dynamics(scale=True, normalize=True, LMI="gaussian", MI="None", CENTRALITY=False, VERBOSE=verbose)
+    return dyncorr.gcc_allreplicas["rep_0"]["gcc_lmi"]
+
+def compute_autocorrelation_DEPRECATED(
     traj: md.Trajectory,
     lag: int = 1,
     atom_indices: list = None,

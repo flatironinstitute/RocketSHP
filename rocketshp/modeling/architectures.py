@@ -4,6 +4,7 @@ from esm.utils.constants import esm3 as ESM_CONSTANTS
 from safetensors import safe_open
 from safetensors.torch import save_file
 from torch import nn
+from pathlib import Path
 
 
 class StructEncoder(nn.Module):
@@ -358,7 +359,27 @@ class RocketSHPModel(nn.Module):
         )
 
     @classmethod
-    def load_from_checkpoint(cls, checkpoint_path: str, strict: bool = True):
+    def load_from_checkpoint(cls, checkpoint_path: str = "latest", strict: bool = True):
+        """Load a model from a checkpoint."
+        """
+        from rocketshp.config import PRETRAINED_MODELS
+        from huggingface_hub import hf_hub_download
+
+        if checkpoint_path in PRETRAINED_MODELS:
+            checkpoint_path = hf_hub_download(
+                repo_id="samsl/rocketshp",
+                filename=PRETRAINED_MODELS[checkpoint_path],
+                subfolder="checkpoints",
+            )
+        elif not Path(checkpoint_path).exists():
+            raise FileNotFoundError(
+                f"Checkpoint path {checkpoint_path} does not exist."
+            )
+        elif not checkpoint_path.endswith(".ckpt"):
+            raise ValueError(
+                f"Checkpoint path {checkpoint_path} must end with .ckpt."
+            )
+
         chk = torch.load(checkpoint_path, weights_only=True)
         hp = chk["hyper_parameters"]
         state_dict = {}
