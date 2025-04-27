@@ -107,13 +107,16 @@ class LightningWrapper(L.LightningModule):
         self.autocorr_loss_fn = partial(
             compute_square_masked_mse_loss, rmse=not params.square_loss
         )
+        self.gcc_loss_fn = partial(
+            compute_square_masked_mse_loss, rmse=not params.square_loss
+        )
         self.shp_loss_fn = compute_masked_kl_div_loss
 
         self.norm_grad = params.grad_norm
         self.rmsf_alpha = params.rmsf_alpha
-        self.ca_alpha = params.ca_alpha
-        # self.dyn_corr_alpha = params.dyn_corr_alpha
+        self.ca_dist_alpha = params.ca_dist_alpha
         self.autocorr_alpha = params.autocorr_alpha
+        self.gcc_lmi_alpha = params.gcc_lmi_alpha
         self.shp_alpha = params.shp_alpha
         self.variance_norm = params.variance_norm
 
@@ -132,10 +135,8 @@ class LightningWrapper(L.LightningModule):
         if self.norm_grad and stage == "train":
             rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
             ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-            # dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
-            autocorr_loss = self.autocorr_loss_fn(
-                y_hat["autocorr"], y["autocorr"], mask
-            )
+            autocorr_loss = self.autocorr_loss_fn(y_hat["autocorr"], y["autocorr"], mask)
+            gcc_loss = self.gcc_loss_fn(y_hat["gcc_lmi"], y["gcc_lmi"], mask)
             shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
 
             # weighted_loss, weighted_losses, grad_loss = self.child_model.grad_norm(
@@ -144,8 +145,8 @@ class LightningWrapper(L.LightningModule):
 
             return_dict["rmsf_loss"] = rmsf_loss
             return_dict["ca_loss"] = ca_dist_loss
-            # return_dict["corr_loss"] = dyn_corr_loss
             return_dict["autocorr_loss"] = autocorr_loss
+            return_dict["gcc_lmi_loss"] = gcc_loss
             return_dict["shp_loss"] = shp_loss
             # return_dict["batch_loss"] = weighted_loss
             # return_dict["grad_loss"] = grad_loss
@@ -160,18 +161,18 @@ class LightningWrapper(L.LightningModule):
                 return_dict["rmsf_loss"] = rmsf_loss
             if "ca_dist" in y_hat:
                 ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-                loss += self.ca_alpha * ca_dist_loss
+                loss += self.ca_dist_alpha * ca_dist_loss
                 return_dict["ca_loss"] = ca_dist_loss
-            # if "dyn_corr" in y_hat:
-            #     dyn_corr_loss = self.dyn_corr_loss_fn(y_hat["dyn_corr"], y["dyn_corr"], mask)
-            #     loss += self.dyn_corr_alpha * dyn_corr_loss
-            #     return_dict["corr_loss"] = dyn_corr_loss
             if "autocorr" in y_hat:
                 autocorr_loss = self.autocorr_loss_fn(
                     y_hat["autocorr"], y["autocorr"], mask
                 )
                 loss += self.autocorr_alpha * autocorr_loss
                 return_dict["autocorr_loss"] = autocorr_loss
+            if "gcc_lmi" in y_hat:
+                gcc_loss = self.gcc_loss_fn(y_hat["gcc_lmi"], y["gcc_lmi"], mask)
+                loss += self.gcc_lmi_alpha * gcc_loss
+                return_dict["gcc_lmi_loss"] = gcc_loss
             if "shp" in y_hat:
                 shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
                 loss += self.shp_alpha * shp_loss
@@ -190,14 +191,7 @@ class LightningWrapper(L.LightningModule):
         total_loss = loss_dict["batch_loss"]
 
         self.log_dict(loss_dict, on_step=True, on_epoch=False)
-        # self.log_dict({"task_weights/rmsf": self.child_model.grad_norm.task_weights[0]}, on_step=True, on_epoch=False)
-        # self.log_dict({"task_weights/ca_dist": self.child_model.grad_norm.task_weights[1]}, on_step=True, on_epoch=False)
-        # self.log_dict({"task_weights/dyn_corr": self.child_model.grad_norm.task_weights[2]}, on_step=True, on_epoch=False)
-        # if batch_idx % 1000 == 0:
-        # logger.debug(f"rmsf_weight: {self.child_model.grad_norm.task_weights[0]:.3f}, ca_dist_weight: {self.child_model.grad_norm.task_weights[1]:.3f}, dyn_corr_weight: {self.child_model.grad_norm.task_weights[2]:.3f}, total_weights: {torch.sum(self.child_model.grad_norm.task_weights):.3f}")
-        # logger.debug(f"rmsf_weighted_loss: {self.child_model.grad_norm.task_weights[0]*loss_dict['rmsf_loss']:.3f}, ca_loss: {self.child_model.grad_norm.task_weights[1]*loss_dict['ca_loss']:.3f}, dyn_corr_loss: {self.child_model.grad_norm.task_weights[2]*loss_dict['corr_loss']:.3f}")
-        # logger.debug(f"grad_loss: {loss_dict['grad_loss']:.3f}, total_loss: {total_loss:.3f}")
-
+        
         self.log_dict(
             {"train_loss": loss_dict["batch_loss"]}, on_step=False, on_epoch=True
         )

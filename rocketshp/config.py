@@ -52,9 +52,10 @@ class PARAMETER_STRUCT:
     square_loss: bool = False
     variance_norm: bool = False
     rmsf_alpha: float = 1.0
-    ca_alpha: float = 1.0
-    dyn_corr_alpha: float = 1.0
-    autocorr_alpha: float = 1.0
+    ca_dist_alpha: float = 0.0
+    dyn_corr_alpha: float = 0.0
+    autocorr_alpha: float = 0.0
+    gcc_lmi_alpha: float = 1.0
     shp_alpha: float = 1.0
     seq_features: bool = True
     struct_features: bool = False

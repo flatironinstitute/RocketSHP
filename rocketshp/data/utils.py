@@ -112,6 +112,30 @@ def update_h5_dataset(f, dataset_name, data, overwrite: bool = True):
         )
 
 
+def train_test_split_foldseek(clusters, train_pct, val_pct, random_seed):
+    all_clusters = clusters[0].unique()
+    rng = np.random.default_rng(random_seed)
+    shuffled_entities = rng.permutation(all_clusters)
+    n_entities = len(shuffled_entities)
+
+    train_size = int(train_pct * n_entities)
+    val_size = int(val_pct * n_entities)
+    train_subset = shuffled_entities[:train_size]
+    val_subset = shuffled_entities[train_size : train_size + val_size]
+    test_subset = shuffled_entities[train_size + val_size :]
+
+    train_subset_pdb = clusters[clusters[0].isin(train_subset)][
+        1
+    ].unique()
+    val_subset_pdb = clusters[clusters[0].isin(val_subset)][
+        1
+    ].unique()
+    test_subset_pdb = clusters[clusters[0].isin(test_subset)][
+        1
+    ].unique()
+
+    return train_subset_pdb, val_subset_pdb, test_subset_pdb
+
 class MDDataset(Dataset):
     def __init__(
         self,
@@ -200,7 +224,7 @@ class MDDataset(Dataset):
                 features["temp"] = torch.ones(features["struct_feats"].shape[0]) * temp
 
             labels = {}
-            for key in ["rmsf", "ca_dist", "dyn_corr", "autocorr", "shp"]:
+            for key in ["rmsf", "ca_dist", "dyn_corr", "autocorr", "gcc_lmi", "shp"]:
                 try:
                     labels[key] = torch.from_numpy(
                         self._handle[

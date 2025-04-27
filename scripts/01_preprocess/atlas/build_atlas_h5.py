@@ -23,7 +23,7 @@ atlas_foldseek_shp_data = Dataset.load_from_disk(
 )
 # %%
 # Build file
-with h5py.File(ATLAS_PROCESSED_DATA_DIR / "atlas_processed.h5", "a") as h5file:
+with h5py.File(ATLAS_PROCESSED_DATA_DIR / "atlas_processed.h5", "r+") as h5file:
     # Basic Derivatives
     # for replicate in tqdm(atlas_derivatives_data, desc="Basic Derivatives"):
     #     pdb_id = replicate["pdb_code"]

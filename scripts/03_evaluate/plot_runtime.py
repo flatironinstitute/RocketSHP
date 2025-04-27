@@ -68,6 +68,6 @@ sns.despine()
 # put the legend to the right of the plot
 plt.legend(loc="center left", bbox_to_anchor=(1, 0.5))
 # plt.savefig(PROJ_ROOT / "img" / "20250212_runtime_comparison.svg", bbox_inches="tight")
-plt.savefig(PROJ_ROOT / "img" / "20250214_runtime_only_others.svg", bbox_inches="tight")
+# plt.savefig(PROJ_ROOT / "img" / "20250214_runtime_only_others.svg", bbox_inches="tight")
 plt.show()
 # %%

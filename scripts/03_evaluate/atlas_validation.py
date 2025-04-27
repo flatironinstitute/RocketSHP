@@ -13,35 +13,50 @@ from omegaconf import OmegaConf
 from scipy.stats import pearsonr, spearmanr
 from torch.nn.functional import kl_div, log_softmax, softmax
 from tqdm import tqdm
+from multiprocessing import Pool
 
 from rocketshp import config
 from rocketshp.data.atlas import ATLASDataModule
+from rocketshp.data.utils import train_test_split_foldseek
 from rocketshp.modeling.architectures import RocketSHPModel
+from rocketshp.metrics import (
+    ipsen_mikhailov_distance,
+    pearson,
+    spearman,
+    mse,
+    mae,
+    kl_divergence_2d,
+    wasserstein_2d,
+)
+
+plt.rcParams.update({
+    # "axes.prop_cycle": "cycler('color', ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#537eba', '#56B4E9'])",
+    "axes.prop_cycle": "cycler('color', ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#1D2954', '#FFD53E'])", # simons foundation
+    "axes.spines.top": False,
+    "axes.spines.right": False,
+    "font.size": 16,
+    # "figure.autolayout": False,
+    "savefig.bbox": "tight",
+    "savefig.dpi": 300,
+    "svg.fonttype": "none",
+    })
 
 # %% Script inputs
-CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/rocketshp_pretrained_20250215_v0.yml"
-MODEL_CHECKPOINT_FILE = checkpoint_file = (
-    "/mnt/home/ssledzieski/Projects/rocketshp/models/huggingface/checkpoints/rocketshp_pretrained_20250215_v0.ckpt"
-)
-OUTPUT_DIRECTORY = (
-    f"{config.EVALUATION_DATA_DIR}/evaluations/fs_shp_pred_kl_reweighted2"
-)
+EVAL_KEY = "cadist_20250427"
 
-# CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/seqonly_config.yml"
-# MODEL_CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/fs_shp_pred_kl_seqonly/model-epoch=30-val_loss=2.18.pt.ckpt"
-# OUTPUT_DIRECTORY = f"{config.EVALUATION_DATA_DIR}/evaluations/fs_shp_pred_kl_seqonly"
+CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
 
-# CONFIG_FILE = sys.argv[1]
-# MODEL_CHECKPOINT_FILE = sys.argv[2]
+# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
+CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt"
 
-
-# %% Data loading and prep
-GNM_ROOT = (
-    "/mnt/home/ssledzieski/Projects/rocketshp/data/processed/atlas/gaussian_net_models"
-)
+OUTPUT_DIRECTORY = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY
+FIGURES_DIRECTORY = config.REPORTS_DIR / EVAL_KEY / "figures"
+os.makedirs(FIGURES_DIRECTORY, exist_ok=True)
+os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
 PARAMS = config.DEFAULT_PARAMETERS
 PARAMS.update(OmegaConf.load(CONFIG_FILE))
 
+# %% Load data
 device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
 
 logger.info("Loading data...")
@@ -61,10 +76,8 @@ ads = adl.dataset
 
 # %% Load model
 logger.info("Loading model...")
-model = RocketSHPModel.load_from_checkpoint(MODEL_CHECKPOINT_FILE, strict=True)
+model = RocketSHPModel.load_from_checkpoint(CHECKPOINT_FILE, strict=True)
 model = model.to(device)
-
-# %% Inference loop
 
 def run_inference(model, feats, device="cuda:0"):
     """
@@ -79,242 +92,263 @@ def run_inference(model, feats, device="cuda:0"):
     y_hat = {k: v.detach().cpu().squeeze() for k, v in y_hat.items()}
     return y_hat
 
-def plot_inference(
-    model, key, feats, labels, save_root: str = ".", img_ext: str = "png", device="cuda:0"
-):
-
-    # Compute forward pass
-    y_hat = run_inference(model, feats, device)
-
-    # Plot RMSF
-    plt.figure(figsize=(10, 5))
-    plt.plot(labels["rmsf"], label="RMSF")
-    plt.plot(y_hat["rmsf"], label="Predicted")
-    plt.legend()
-    sns.despine()
-    plt.savefig(f"{save_root}/{key}/{key}_rmsf.{img_ext}", dpi=300, bbox_inches="tight")
-    plt.close()
-
-    # Compute RMSF statistics
-    spearman = spearmanr(labels["rmsf"], y_hat["rmsf"])
-    pearson = pearsonr(labels["rmsf"], y_hat["rmsf"])
-    rmsf_mse = ((labels["rmsf"] - y_hat["rmsf"]) ** 2).mean()
-
-    # logger.info(f"Protein: {key}")
-    # logger.info(f"Spearman: {spearman}")
-    # logger.info(f"Pearson: {pearson}")
-    # logger.info(f"RMSF MSE: {rmsf_mse}")
-
-    # Plot Autocorrelation
-    fig, ax = plt.subplots(1, 2, figsize=(15, 10))
-
-    true_sqform = labels["autocorr"]
-    predicted_sqform = y_hat["autocorr"]
-
-    # compute autocorr MSE
-    autocorr_mse = ((true_sqform - predicted_sqform) ** 2).mean()
-    autocorr_mae = (true_sqform - predicted_sqform).abs().mean()
-    # logger.info(f"Protein: {key} Autocorr MAE: {autocorr_mae}")
-    # logger.info(f"Autocorr MSE: {autocorr_mse}")
-
-    ax[0].imshow(true_sqform)
-    ax[0].set_xlabel("True")
-    ax[1].imshow(predicted_sqform)
-    ax[1].set_xlabel("Predicted")
-    plt.savefig(f"{save_root}/{key}/{key}_autocorr.{img_ext}")
-    plt.close()
-
-    # Foldseek Structure Heterogeneity Profile
-    fig, ax = plt.subplots(2, 1, figsize=(15, 8))
-
-    true_shp = labels["shp"].T
-    predicted_shp = y_hat["shp"].T
-
-    # compute shp KL divergence
-    shp_kl = kl_div(
-        log_softmax(predicted_shp, dim=0), true_shp, log_target=False, reduction="none"
-    )
-    shp_kl = shp_kl.sum(dim=0).mean()
-
-    # logger.info(f"SHP KL Divergence: {shp_kl}")
-
-    ax[0].imshow(true_shp, cmap="binary")
-    ax[0].set_xlabel("True")
-    ax[1].imshow(softmax(predicted_shp, dim=0), cmap="binary")
-    ax[1].set_xlabel("Predicted")
-    plt.savefig(f"{save_root}/{key}/{key}_shp.{img_ext}")
-    plt.close()
-
-    pdb_code = "_".join(key.split("_")[:2])
-    gnm_covar = f"{GNM_ROOT}/{pdb_code[:2]}/{pdb_code}_gnm.npz"
-    gnm_data = np.load(gnm_covar)
-    gnm_covar = gnm_data["covar"]
-    plt.imshow(gnm_covar)
-    plt.savefig(f"{save_root}/{key}/{key}_gnm.{img_ext}")
-
-    return_dict = {
-        "spearman": spearman,
-        "pearson": pearson,
-        "rmsf_mse": rmsf_mse,
-        "autocorr_mse": autocorr_mse,
-        "autocorr_mae": autocorr_mae,
-        "shp_kl": shp_kl,
-    }
-
-    with open(f"{save_root}/{key}/{key}_results.txt", "w") as f:
-        for k, v in return_dict.items():
-            f.write(f"{k}: {v}\n")
-
-    return return_dict
-
-
 # %% Run inference in loop
 
-test_data = adl.val_data
-all_results = {}
+valid_results = {}
+valid_labels = {}
+test_results = {}
+test_labels = {}
 
 for i, (feats, labels) in enumerate(
-tqdm(test_data, desc="Evaluating validation set...")
+    tqdm(adl.val_data, desc="Evaluating validation set...")
 ):
-    key = adl.dataset.samples[test_data.indices[i]]
+    key = adl.dataset.samples[adl.val_data.indices[i]]
     key_under = key.replace("/", "_")
-    # os.makedirs(f"{OUTPUT_DIRECTORY}/{key_under[:2]}/{key_under}", exist_ok=True)
-    # rdict = plot_inference(
-        # model,
-        # key_under,
-        # feats,
-        # labels,
-        # save_root=f"{OUTPUT_DIRECTORY}/{key_under[:2]}",
-        # img_ext="svg",
-    # )
-    # all_results[key] = rdict
-    fw_results = run_inference(model, feats)
-    all_results[key] = fw_results
+    rdict = run_inference(model, feats)
+    valid_results[key] = rdict
+    valid_labels[key] = labels
+
+for i, (feats, labels) in enumerate(
+    tqdm(adl.test_data, desc="Evaluating test set...")
+):
+    key = adl.dataset.samples[adl.test_data.indices[i]]
+    key_under = key.replace("/", "_")
+    rdict = run_inference(model, feats)
+    test_results[key] = rdict
+    test_labels[key] = labels
 
 import pickle as pk
-with open(f"{OUTPUT_DIRECTORY}/inference_results.pkl", "wb") as f:
-    pk.dump(all_results, f)
-# %%
+logger.info("Saving results...")
+with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_inference_results.pkl", "wb") as f:
+    pk.dump(valid_results, f)
+with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_inference_results.pkl", "wb") as f:
+    pk.dump(test_results, f)
 
-with open(f"{OUTPUT_DIRECTORY}/results.pkl", "rb") as f:
-    all_results = pk.load(f)
+# %% Load pickle
+logger.info("Loading results...")
+with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_inference_results.pkl", "rb") as f:
+    valid_results = pk.load(f)
+with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_inference_results.pkl", "rb") as f:
+    test_results = pk.load(f)
 
-# %%
-codes = list(all_results.keys())
-spearman = [all_results[c]["spearman"][0] for c in codes]
-spearman_p = [all_results[c]["spearman"][1] for c in codes]
-pearson = [all_results[c]["pearson"][0] for c in codes]
-pearson_p = [all_results[c]["pearson"][1] for c in codes]
-rmsf_mse = [all_results[c]["rmsf_mse"].item() for c in codes]
-autocorr_mse = [all_results[c]["autocorr_mse"].item() for c in codes]
-autocorr_mae = [all_results[c]["autocorr_mae"].item() for c in codes]
-shp_kl = [all_results[c]["shp_kl"].item() for c in codes]
-df = pd.DataFrame(
-    {
-        "pdb_code": codes,
-        "spearman": spearman,
-        "spearman_p": spearman_p,
-        "pearson": pearson,
-        "pearson_p": pearson_p,
-        "rmsf_mse": rmsf_mse,
-        "autocorr_mse": autocorr_mse,
-        "shp_kl": shp_kl,
-    }
+all_results = {**valid_results, **test_results}
+all_labels = {**valid_labels, **test_labels}
+
+# %% Get sequence lengths
+logger.info("Getting sequence lengths...")
+seq_lengths = []
+for k, v in valid_results.items():
+    seq_lengths.append((k, "valid", v["rmsf"].shape[0]))
+for k, v in test_results.items():
+    seq_lengths.append((k, "test", v["rmsf"].shape[0]))
+for i, f in enumerate(adl.train_data):
+    k = adl.dataset.samples[adl.train_data.indices[i]]
+    seq_lengths.append((k, "train", f[1]["rmsf"].shape[0]))
+
+seq_lengths = pd.DataFrame(
+    seq_lengths, columns=["key", "split", "length"]
 )
-df.to_csv(f"{OUTPUT_DIRECTORY}/results.csv", index=False)
-# %% get sequence lengths
 
-with h5py.File(config.PROCESSED_DATA_DIR / "atlas" / "atlas_processed.h5", "r") as f:
-    seq_lengths_ = {}
-    keys_ = list(f.keys())
-    for k in tqdm(keys_):
-        seq_lengths_[k] = f[k]["embedding"].shape[0]
-
-# %%
-
-# create 5 bins with equal numbers of proteins by sequence length
-seq_lengths = pd.Series(seq_lengths_)
-seq_lengths = seq_lengths.sort_values()
-seq_lengths = seq_lengths.reset_index()
+# %% Assign sequences to length bins
 
 bins = [
-    ("<100 residues", (0, 100)),
-    ("101-150 residues", (101, 150)),
-    ("151-250 residues", (151, 250)),
-    ("251-350 residues", (251, 350)),
-    (">350 residues", (351, seq_lengths.max()[0])),
+    ("<100 residues", (0, 99)),
+    ("100-149 residues", (100, 149)),
+    ("150-249 residues", (150, 249)),
+    ("250-349 residues", (250, 349)),
+    (">350 residues", (350, seq_lengths["length"].max())),
 ]
 
-# for each sequence in the dataset, assign it to a bin
-seq_bins = []
-for i, row in seq_lengths.iterrows():
-    seq_len = row[0]
-    for b_label, (b_min, b_max) in bins:
-        if b_min <= seq_len <= b_max:
-            seq_bins.append(b_label)
-            break
-seq_lengths["bin"] = seq_bins
-seq_lengths.set_index("index", inplace=True)
-
-# add sequence lengths to df
-df["seq_length"] = df.apply(
-    lambda x: seq_lengths.loc[x["pdb_code"].split("/")[0]][0], axis=1
+for label, (low, high) in bins:
+    seq_lengths.loc[
+        (seq_lengths["length"] >= low) & (seq_lengths["length"] <= high), "bin"
+    ] = label
+seq_lengths["bin"] = pd.Categorical(
+    seq_lengths["bin"], categories=[b[0] for b in bins], ordered=True
 )
-df["Sequence Length"] = df.apply(
-    lambda x: seq_lengths.loc[x["pdb_code"].split("/")[0]]["bin"], axis=1
-)
+seq_lengths["length"] = seq_lengths["length"].astype(int)
 
 
-# %%
+# %% Plot sequence lengths
 
-fig, ax = plt.subplots(1, 4, figsize=(18, 4))
-sns.scatterplot(
-    data=df,
-    x="spearman",
-    y=-np.log10(df["spearman_p"]),
+logger.info("Plotting sequence lengths...")
+seq_lengths_unique = seq_lengths.copy()
+seq_lengths_unique["key"] = seq_lengths_unique["key"].apply(lambda x: x.split("/")[0])
+seq_lengths_unique = seq_lengths_unique.drop_duplicates()
+
+plt.figure(figsize=(10, 5))
+plt_bins = np.arange(0, 2100, 50)
+plt.hist(seq_lengths_unique[seq_lengths_unique["split"] == "train"]["length"], bins=plt_bins, alpha=0.8, label="Train")
+plt.hist(seq_lengths_unique[seq_lengths_unique["split"] == "valid"]["length"], bins=plt_bins, alpha=0.8, label="Valid")
+plt.hist(seq_lengths_unique[seq_lengths_unique["split"] == "test"]["length"],  bins=plt_bins, alpha=0.8, label="Test")
+for b in bins:
+    b_min, b_max = b[1]
+    plt.axvline(x=b_min, color="black", linestyle="--")
+    plt.text(((b_min + b_max) // 2) - 5, 275, b[0], rotation=45, ha="left", va="center", fontsize=10)
+plt.xlabel("Sequence Length")
+plt.ylabel("Number of Proteins")
+plt.savefig(config.FIGURES_DIR / "atlas_all" / "seq_length_histogram.svg", dpi=300, bbox_inches="tight")
+plt.legend()
+plt.show()
+
+# %% Performance
+
+def compute_metric_single(key, target, pred):
+    metrics = {}
+    # print(i, key)
+
+    target = {k: v.cpu().numpy() for k, v in target.items()}
+    pred = {k: v.cpu().numpy() for k, v in pred.items()}
+
+    # Compute RMSF metrics
+    pearson_corr, pearson_p = pearson(target["rmsf"], pred["rmsf"])
+    spearman_corr, spearman_p = spearman(target["rmsf"], pred["rmsf"])
+    metrics.update({
+        "rmsf_pearson_r": pearson_corr,
+        "rmsf_pearson_p": pearson_p,
+        "rmsf_spearman_r": spearman_corr,
+        "rmsf_spearman_p": spearman_p,
+        "rmsf_mse": mse(target["rmsf"], pred["rmsf"])
+    })
+
+    # Compute GCC LMI metrics
+    metrics.update({
+        "gcc_mse": mse(target["gcc_lmi"], pred["gcc_lmi"]),
+        "gcc_mae": mae(target["gcc_lmi"], pred["gcc_lmi"]),
+        "gcc_im_dist": ipsen_mikhailov_distance(target["gcc_lmi"], pred["gcc_lmi"]),
+    })
+
+    # Compute SHP metrics
+    metrics.update({
+        "shp_mse": mse(target["shp"], pred["shp"]),
+        "shp_mae": mae(target["shp"], pred["shp"]),
+        "shp_kl_div": kl_divergence_2d(torch.from_numpy(target["shp"]), torch.from_numpy(pred["shp"])),
+        "shp_wasserstein": wasserstein_2d(target["shp"], pred["shp"]),
+    })
+
+    return metrics
+
+def compute_metrics(labels, predictions, save_path=None):
+    all_metrics = {}
+
+    zip_iterator = tqdm(zip(labels.keys(), labels.values(), predictions.values()),total=len(labels))
+
+    # with Pool(16) as p:
+        # metric_list = p.starmap(compute_metric_single, zip_iterator)
+    # for k, m in zip(labels.keys(), metric_list):
+        # all_metrics[k] = m
+
+    for (key, target, pred) in zip_iterator:
+        all_metrics[key] = compute_metric_single(key, target, pred)
+
+    all_metrics = pd.DataFrame(all_metrics).T
+    all_metrics = all_metrics.reset_index()
+    all_metrics = pd.merge(all_metrics, seq_lengths, left_on="index", right_on="key", how="inner")
+    all_metrics = all_metrics.rename({"bin": "Sequence Length"}, axis=1)
+
+    if save_path is not None:
+        with open(save_path, "wb") as f:
+            pk.dump(all_metrics, f)
+    logger.info(f"Metrics saved to {save_path}")
+
+    return all_metrics
+
+# %% Compute metrics
+logger.info("Computing validation metrics...")
+valid_metrics = compute_metrics(valid_labels, valid_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl")
+logger.info("Computing test metrics...")
+test_metrics = compute_metrics(test_labels, test_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl")
+
+# %% Load metrics
+with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl", "rb") as f:
+    valid_metrics = pk.load(f)
+with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl", "rb") as f:
+    test_metrics = pk.load(f)
+
+# %% Plot just RocketSHP results
+logger.info("Plotting metrics...")
+fig, ax = plt.subplots(1, 4, figsize=(28, 8))
+plot_metrics = valid_metrics
+
+sns.boxplot(
+    data=plot_metrics,
+    x="Sequence Length",
+    y="rmsf_mse",
+    color="white",
+    linecolor="black",
     ax=ax[0],
-    hue="Sequence Length",
-    s=8,
+    legend=False,
+    showfliers=False,
+    order=[b[0] for b in bins]
 )
+
+
+sns.stripplot(
+    data=plot_metrics,
+    x="Sequence Length",
+    y="rmsf_mse",
+    hue="Sequence Length",
+    ax=ax[0],
+    legend=False,
+    order=[b[0] for b in bins]
+)
+
+ax[0].set_ylabel("Mean Squared Error of RMSF")
+ax[0].set_xticklabels(ax[0].get_xticklabels(), rotation=45, ha="right")
+ax[0].set_yscale("log")
+
 sns.scatterplot(
-    data=df,
-    x="pearson",
-    y=-np.log10(df["pearson_p"]),
+    data=plot_metrics,
+    x="rmsf_spearman_r",
+    y=-np.log10(plot_metrics["rmsf_spearman_p"]),
     ax=ax[1],
     hue="Sequence Length",
     s=8,
-    legend=False,
+    legend=True,
+    hue_order=[b[0] for b in bins]
 )
-ax[0].set_xlabel("RMSF Spearman Correlation")
-ax[0].set_ylabel("-log10(p)")
-ax[1].set_xlabel("RMSF Pearson Correlation")
-ax[1].set_ylabel("-log10(p)")
-# sns.despine()
-# plt.savefig(f"{OUTPUT_DIRECTORY}/summary_rmsf.svg", dpi=300, bbox_inches="tight")
-# plt.show()
-# plt.close()
 
-# plt.figure(figsize=(5, 10))
+ax[1].set_xlabel("Spearman Correlation of RMSF")
+ax[1].set_ylabel("-log10(p)")
+
 sns.boxplot(
-    data=df, y="autocorr_mse", x="Sequence Length", hue="Sequence Length", ax=ax[2]
+    data=plot_metrics, y="gcc_im_dist", x="Sequence Length",
+    ax=ax[2],
+    color="white",
+    linecolor="black",
+    legend=False,
+    showfliers=False,
+    order=[b[0] for b in bins], hue_order=[b[0] for b in bins]
 )
-# rotate xticks
+
+sns.stripplot(
+    data=plot_metrics, y="gcc_im_dist", x="Sequence Length", hue="Sequence Length", ax=ax[2],
+    order=[b[0] for b in bins], hue_order=[b[0] for b in bins]
+)
 ax[2].set_xticklabels(ax[2].get_xticklabels(), rotation=45, ha="right")
 ax[2].set_xlabel("")
-ax[2].set_ylabel("Average MSE of Autocorrelation")
-# sns.despine()
-# plt.savefig(f"{OUTPUT_DIRECTORY}/summary_autocorr.svg", dpi=300, bbox_inches="tight")
-# plt.show()
-# plt.close()
+ax[2].set_ylabel("Ipsen-Mikhailov Distance of GCC")
 
-# plt.figure(figsize=(5, 10))
-sns.boxplot(data=df, y="shp_kl", x="Sequence Length", hue="Sequence Length", ax=ax[3])
+sns.boxplot(data=plot_metrics, y="shp_kl_div", x="Sequence Length",
+            ax=ax[3],
+            color="white",
+            linecolor="black",
+            legend=False,
+            showfliers=False,
+            order=[b[0] for b in bins], hue_order=[b[0] for b in bins])
+
+sns.stripplot(data=plot_metrics, y="shp_kl_div", x="Sequence Length", hue="Sequence Length",ax=ax[3],
+            order=[b[0] for b in bins], hue_order=[b[0] for b in bins])
+
 ax[3].set_xticklabels(ax[3].get_xticklabels(), rotation=45, ha="right")
 ax[3].set_xlabel("")
-ax[3].set_ylabel("Average KL Divergence of SHP")
+ax[3].set_ylabel("KL Divergence of SHP")
 sns.despine()
-
-plt.savefig(f"{OUTPUT_DIRECTORY}/summary_shp_all.svg", dpi=300, bbox_inches="tight")
+plt.tight_layout()
+plt.savefig(
+    FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_metrics.svg",
+    dpi=300,
+    bbox_inches="tight",
+)
 plt.show()
-plt.close()
 # %%

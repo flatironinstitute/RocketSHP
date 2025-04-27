@@ -230,8 +230,28 @@ def RegressionHead(
         nn.Linear(hidden_dim, output_dim),
     )
 
+def PairwiseDistanceHead(
+    d_model: int, kernel_size: int, hidden_dim: int | None = None, output_dim: int = 1
+) -> nn.Module:
+    """Single hidden layer MLP for pairwise output.
 
-def PairwiseRegressionHead(
+    Args:
+        d_model: input dimension
+        kernel_size: kernel size for convolutional layers
+        hidden_dim: optional dimension of hidden layer, defaults to d_model.
+        output_dim: dimensionality of the output.
+    Returns:
+        output MLP module.
+    """
+    hidden_dim = hidden_dim if hidden_dim is not None else d_model
+    return nn.Sequential(
+        nn.Conv2d(d_model, hidden_dim, kernel_size=kernel_size, stride=1),
+        nn.GELU(),
+        nn.Conv2d(hidden_dim, output_dim, kernel_size=kernel_size, stride=1),
+        nn.ReLU(),
+    )
+
+def PairwiseProbabilityHead(
     d_model: int, kernel_size: int, hidden_dim: int | None = None, output_dim: int = 1
 ) -> nn.Module:
     """Single hidden layer MLP for pairwise output.
@@ -251,7 +271,6 @@ def PairwiseRegressionHead(
         nn.Conv2d(hidden_dim, output_dim, kernel_size=kernel_size, stride=1),
         nn.Sigmoid(),
     )
-
 
 class RocketSHPModel(nn.Module):
     def __init__(
@@ -281,13 +300,16 @@ class RocketSHPModel(nn.Module):
         self.transformer = TransformerStack(
             d_model, n_heads, n_layers=n_layers, v_heads=0, n_layers_geom=0
         )
-        self.rmsf_head = RegressionHead(d_model + 1, output_dim)
-        self.shp_head = CategoricalHead(d_model, n_shp_tokens)
-        # self.shp_head = CategoricalHead(d_model + 1, n_shp_tokens)
 
-        self.ca_dist_head = PairwiseRegressionHead(d_model, k_size)
-        self.dyn_corr_head = PairwiseRegressionHead(d_model, k_size)
-        self.autocorr_head = PairwiseRegressionHead(d_model, k_size)
+        self.rmsf_head = RegressionHead(d_model + 1, output_dim)
+        self.ca_dist_head = PairwiseDistanceHead(d_model, k_size)
+        self.dyn_corr_head = PairwiseProbabilityHead(d_model, k_size)
+        self.autocorr_head = PairwiseProbabilityHead(d_model, k_size)
+        self.gcc_lmi_head = PairwiseProbabilityHead(d_model, k_size)
+        self.shp_head = CategoricalHead(d_model, n_shp_tokens)
+
+        # for name, module in self.OUTPUT_HEADS.items():
+        #     setattr(self, f"{name}_head", module)
 
         self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
         # self.grad_norm.task_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
@@ -304,7 +326,7 @@ class RocketSHPModel(nn.Module):
 
     def rmsf(self, x):
         x = self._transform(x)
-        return self.output(x)
+        return self.rmsf_head(x)
 
     def ca_dist(self, x):
         x = self._transform(x)
@@ -333,6 +355,8 @@ class RocketSHPModel(nn.Module):
         """
         if "temp" in x:
             temperature = x["temp"]
+        else:
+            temperature = torch.ones(x["seq_feats"].shape[0], device=x["seq_feats"].device) * 300.0
 
         x = self._transform(x)
         feats_with_temp = torch.cat([x, temperature.unsqueeze(-1)], dim=-1)
@@ -342,14 +366,14 @@ class RocketSHPModel(nn.Module):
 
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1, 3)
         ca_dist_pred = self.ca_dist_head(sqform).squeeze(1)
-        dyn_corr_pred = self.dyn_corr_head(sqform).squeeze(1)
-        autocorr_pred = self.autocorr_head(sqform).squeeze(1)
+        # autocorr_pred = self.autocorr_head(sqform).squeeze(1)
+        gcc_pred = self.gcc_lmi_head(sqform).squeeze(1)
 
         return {
             "rmsf": rmsf_pred,
             "ca_dist": ca_dist_pred,
-            "dyn_corr": dyn_corr_pred,
-            "autocorr": autocorr_pred,
+            # "autocorr": autocorr_pred,
+            "gcc_lmi": gcc_pred,
             "shp": shp_pred,
         }
 

@@ -13,7 +13,8 @@ from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 
 from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
-from rocketshp.data.mdcath import MDCathDataModule
+# from rocketshp.data.mdcath import MDCathDataModule
+from rocketshp.data.atlas import ATLASDataModule
 from rocketshp.modeling.architectures import (
     RocketSHPModel,
 )
@@ -104,10 +105,10 @@ def main(run_id: str, config: str | None = None, debug: bool = False):
         neptune_logger.log_hyperparams(params=PARAMS.__dict__)
     torch.set_float32_matmul_precision(PARAMS.precision)
 
-    # datamod = ATLASDataModule(
-    # processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
-    datamod = MDCathDataModule(
-        processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
+    datamod = ATLASDataModule(
+        processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
+    # datamod = MDCathDataModule(
+        # processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
         seq_features=PARAMS.seq_features,
         struct_features=PARAMS.struct_features,
         batch_size=1,
@@ -134,7 +135,7 @@ def main(run_id: str, config: str | None = None, debug: bool = False):
     trainer = Trainer(
         logger=loggers,
         max_epochs=PARAMS.max_epochs,
-        max_steps=PARAMS.epoch_scale,
+        # max_steps=PARAMS.epoch_scale,
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=PARAMS.batch_size,
         gradient_clip_val=1,
