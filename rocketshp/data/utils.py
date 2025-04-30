@@ -143,6 +143,7 @@ class MDDataset(Dataset):
         seq_features: bool = True,
         struct_features: bool = True,
         struct_stage: str = "quantized",
+        crop_size: int = 512,
     ):
         super().__init__()
         self._pdb_file_map = {}
@@ -158,6 +159,8 @@ class MDDataset(Dataset):
         self.struct_stage = struct_stage
         self.seq_encoder = get_model()
         self.tokenizers = get_tokenizers()
+
+        self.crop_size = crop_size
 
     def _get_keys(self):
         raise NotImplementedError
@@ -186,13 +189,13 @@ class MDDataset(Dataset):
                     seq_features = self._handle[
                         f"{self._handle_path(pdb_code, rep, temp, False)}/embedding"
                     ][:]
-                    features["seq_feats"] = torch.from_numpy(seq_features)
+                    features["seq_feats"] = torch.from_numpy(seq_features)[:self.crop_size]
                 except KeyError:
                     pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
                     seq_features = esm3_sequence(
                         pc, self.seq_encoder, self.tokenizers
                     ).squeeze()
-                    features["seq_feats"] = seq_features
+                    features["seq_feats"] = seq_features[:self.crop_size]
 
                 features["temp"] = torch.ones(features["seq_feats"].shape[0]) * temp
 
@@ -201,14 +204,14 @@ class MDDataset(Dataset):
                     struct_features = self._handle[
                         f"{self._handle_path(pdb_code, rep, temp, False)}/struct_embedding/{self.struct_stage}"
                     ][:]
-                    features["struct_feats"] = torch.from_numpy(struct_features)
+                    features["struct_feats"] = torch.from_numpy(struct_features)[:self.crop_size]
                 except KeyError:
                     ###### ALTERNATE STRUCT FEATURES HERE #########
                     # struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_tokens"][:]
                     # features["struct_feats"] = torch.from_numpy(struct_features)
                     pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
                     if self.struct_stage == "ramachandran":
-                        features["struct_feats"] = ramachandran_angles(pc).squeeze()
+                        features["struct_feats"] = ramachandran_angles(pc).squeeze()[:self.crop_size]
                     else:
                         with torch.inference_mode():
                             struct_features = (
@@ -218,7 +221,7 @@ class MDDataset(Dataset):
                                 .detach()
                                 .squeeze()
                             )
-                        features["struct_feats"] = struct_features
+                        features["struct_feats"] = struct_features[:self.crop_size]
                     ###############################################
 
                 features["temp"] = torch.ones(features["struct_feats"].shape[0]) * temp
@@ -226,11 +229,16 @@ class MDDataset(Dataset):
             labels = {}
             for key in ["rmsf", "ca_dist", "dyn_corr", "autocorr", "gcc_lmi", "shp"]:
                 try:
-                    labels[key] = torch.from_numpy(
+                    lk = torch.from_numpy(
                         self._handle[
                             f"{self._handle_path(pdb_code, rep, temp, True)}/{key}"
                         ][:]
                     ).float()
+                    if key in  ["rmsf", "shp"]:
+                        lk = lk[:self.crop_size]
+                    else:
+                        lk = lk[:self.crop_size, :self.crop_size]
+                    labels[key] = lk
                 except KeyError:
                     pass
         except KeyError as e:
@@ -260,6 +268,7 @@ class MDDataModule(L.LightningDataModule):
         val_pct: float,
         clusters_file: Path,
         random_seed: int,
+        crop_size: int,
     ):
         super().__init__()
 
@@ -269,6 +278,7 @@ class MDDataModule(L.LightningDataModule):
         self._struct_stage = struct_stage
 
         self.batch_size = batch_size
+        self.crop_size = crop_size
         self.shuffle = shuffle
         self.num_workers = num_workers
         self.train_pct = train_pct
@@ -289,6 +299,7 @@ class MDDataModule(L.LightningDataModule):
             seq_features=self._seq_features,
             struct_features=self._struct_features,
             struct_stage=self._struct_stage,
+            crop_size=self.crop_size
         )
 
         all_clusters = self.clusters[0].unique()

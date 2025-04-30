@@ -112,6 +112,7 @@ def main(run_id: str, config: str | None = None, debug: bool = False):
         seq_features=PARAMS.seq_features,
         struct_features=PARAMS.struct_features,
         batch_size=1,
+        crop_size=PARAMS.crop_size,
         num_workers=PARAMS.num_data_workers,
         shuffle=PARAMS.shuffle,
         random_seed=PARAMS.random_seed,

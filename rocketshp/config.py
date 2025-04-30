@@ -34,6 +34,7 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 class PARAMETER_STRUCT:
     num_parameters: int = -1
     batch_size: int = 8
+    crop_size: int = 512
     lr: float = 0.001
     grad_norm: bool = True
     max_epochs: int = 20

@@ -119,6 +119,8 @@ class LightningWrapper(L.LightningModule):
         self.gcc_lmi_alpha = params.gcc_lmi_alpha
         self.shp_alpha = params.shp_alpha
         self.variance_norm = params.variance_norm
+        
+        self.crop_size = 512
 
     def forward(self, x):
         return self.child_model(x)

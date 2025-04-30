@@ -6,6 +6,9 @@ from pathlib import Path
 import mdtraj as md
 import numpy as np
 import nglview as nv
+import torch
+import biotite.structure as bs
+from biotite.structure.alphabet import to_3di
 from statsmodels.tsa.stattools import acf
 
 from rocketshp.structure.protein_chain import ProteinChain
@@ -156,6 +159,57 @@ def compute_autocorrelation_DEPRECATED(
         correlations[c_j, c_i] = corrs_[lag]
     return correlations
 
+FS_3DI_LIST = [
+    "L",
+    "A",
+    "G",
+    "V",
+    "S",
+    "E",
+    "R",
+    "T",
+    "I",
+    "D",
+    "P",
+    "K",
+    "Q",
+    "N",
+    "F",
+    "Y",
+    "M",
+    "H",
+    "W",
+    "C",
+]
+
+def seq_list_to_tensor(seq_list):
+    max_len = max([len(i) for i in seq_list])
+    seq_tensor = torch.zeros(len(seq_list), max_len, dtype=torch.long)
+    for i, seq in enumerate(seq_list):
+        exploded = [FS_3DI_LIST.index(j) for j in seq]
+        seq_tensor[i] = torch.tensor(exploded)
+    return seq_tensor
+
+def convert_to_normalized_shp(preshp, max_dim=20):
+        preshp = torch.tensor(preshp).squeeze()
+        shp = torch.stack([torch.bincount(i, minlength=max_dim) for i in preshp.T])
+        shp = shp.T / shp.sum(axis=1)
+        return shp.T
+
+def compute_shp(aa_stack: bs.AtomArrayStack, start=0, stop=None, stride=1):
+    """
+    Compute SHP from a stack of atoms
+    """
+    seqs_3di = []
+    if stop is None: stop = len(aa_stack)
+    for i in range(start, stop, stride):
+        structure = aa_stack[i]
+        i3d = str(to_3di(structure)[0][0]).upper()
+        seqs_3di.append(i3d)
+    preshp = seq_list_to_tensor(seqs_3di)
+    shp = convert_to_normalized_shp(preshp)
+
+    return shp
 
 def frame_to_chain(F):
     with tempfile.NamedTemporaryFile(suffix=".pdb") as tmp:
