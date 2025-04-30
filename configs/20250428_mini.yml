@@ -1,0 +1,37 @@
+random_seed: 0
+
+# Data definitions
+num_data_workers: 31
+crop_size: 512
+shuffle: True
+train_pct: 0.8
+val_pct: 0.1
+
+# Model definitions
+embedding_dim: 1536
+output_dim: 1
+d_model: 128
+n_heads: 4
+n_layers: 4
+seq_features: true
+struct_features: true
+struct_stage: "encoded"
+struct_dim: 1024
+
+# Training definitions
+batch_size: 16
+lr: 0.00005
+max_epochs: 75
+epoch_scale: -1
+precision: "medium"
+square_loss: false
+variance_norm: false
+grad_norm: false
+
+# Targets
+rmsf_alpha: 1.0
+ca_dist_alpha: 1.0
+dyn_corr_alpha: 0.0
+autocorr_alpha: 0.0
+gcc_lmi_alpha: 1.0
+shp_alpha: 0.01
