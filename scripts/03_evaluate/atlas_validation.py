@@ -42,12 +42,15 @@ plt.rcParams.update({
     })
 
 # %% Script inputs
-EVAL_KEY = "cadist_20250427"
+EVAL_KEY = "large_model_20250427"
 
-CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
+# CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
+CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
+
 
 # CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
-CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt"
+# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt"
+CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/big_model/model-epoch=50-val_loss=1.00.pt.ckpt"
 
 OUTPUT_DIRECTORY = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY
 FIGURES_DIRECTORY = config.REPORTS_DIR / EVAL_KEY / "figures"
@@ -65,6 +68,7 @@ adl = ATLASDataModule(
     seq_features=True,
     struct_features=True,
     batch_size=1,
+    crop_size=2048,
     num_workers=PARAMS.num_data_workers,
     train_pct=PARAMS.train_pct,
     val_pct=PARAMS.val_pct,
@@ -254,20 +258,25 @@ def compute_metrics(labels, predictions, save_path=None):
     return all_metrics
 
 # %% Compute metrics
-logger.info("Computing validation metrics...")
-valid_metrics = compute_metrics(valid_labels, valid_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl")
-logger.info("Computing test metrics...")
-test_metrics = compute_metrics(test_labels, test_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl")
+valid_met_path = OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl"
+test_met_path = OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl"
+
+if not valid_met_path.exists():
+    logger.info("Computing validation metrics...")
+    valid_metrics = compute_metrics(valid_labels, valid_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl")
+if not test_met_path.exists():
+    logger.info("Computing test metrics...")
+    test_metrics = compute_metrics(test_labels, test_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl")
 
 # %% Load metrics
-with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl", "rb") as f:
+with open(valid_met_path, "rb") as f:
     valid_metrics = pk.load(f)
-with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl", "rb") as f:
+with open(test_met_path, "rb") as f:
     test_metrics = pk.load(f)
 
 # %% Plot just RocketSHP results
 logger.info("Plotting metrics...")
-fig, ax = plt.subplots(1, 4, figsize=(28, 8))
+fig, ax = plt.subplots(figsize=(8,8))
 plot_metrics = valid_metrics
 
 sns.boxplot(
@@ -276,7 +285,7 @@ sns.boxplot(
     y="rmsf_mse",
     color="white",
     linecolor="black",
-    ax=ax[0],
+    ax=ax,
     legend=False,
     showfliers=False,
     order=[b[0] for b in bins]
@@ -288,32 +297,42 @@ sns.stripplot(
     x="Sequence Length",
     y="rmsf_mse",
     hue="Sequence Length",
-    ax=ax[0],
+    ax=ax,
     legend=False,
     order=[b[0] for b in bins]
 )
 
-ax[0].set_ylabel("Mean Squared Error of RMSF")
-ax[0].set_xticklabels(ax[0].get_xticklabels(), rotation=45, ha="right")
-ax[0].set_yscale("log")
+ax.set_ylabel("Mean Squared Error of RMSF")
+ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+ax.set_yscale("log")
 
+plt.tight_layout()
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_mse.svg")
+
+#%% 
+fig, ax = plt.subplots(figsize=(8,8))
 sns.scatterplot(
     data=plot_metrics,
     x="rmsf_spearman_r",
     y=-np.log10(plot_metrics["rmsf_spearman_p"]),
-    ax=ax[1],
+    ax=ax,
     hue="Sequence Length",
     s=8,
     legend=True,
     hue_order=[b[0] for b in bins]
 )
+ax.set_xlabel("Spearman Correlation of RMSF")
+ax.set_ylabel("-log10(p)")
 
-ax[1].set_xlabel("Spearman Correlation of RMSF")
-ax[1].set_ylabel("-log10(p)")
+plt.tight_layout()
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_spearman.svg")
+
+#%% 
+fig, ax = plt.subplots(figsize=(8,8))
 
 sns.boxplot(
     data=plot_metrics, y="gcc_im_dist", x="Sequence Length",
-    ax=ax[2],
+    ax=ax,
     color="white",
     linecolor="black",
     legend=False,
@@ -322,33 +341,37 @@ sns.boxplot(
 )
 
 sns.stripplot(
-    data=plot_metrics, y="gcc_im_dist", x="Sequence Length", hue="Sequence Length", ax=ax[2],
+    data=plot_metrics, y="gcc_im_dist", x="Sequence Length", hue="Sequence Length", ax=ax,
     order=[b[0] for b in bins], hue_order=[b[0] for b in bins]
 )
-ax[2].set_xticklabels(ax[2].get_xticklabels(), rotation=45, ha="right")
-ax[2].set_xlabel("")
-ax[2].set_ylabel("Ipsen-Mikhailov Distance of GCC")
+ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+ax.set_xlabel("")
+ax.set_ylabel("Ipsen-Mikhailov Distance of GCC")
 
+plt.tight_layout()
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_gcc_im_dist.svg")
+
+#%%
+fig, ax = plt.subplots(figsize=(8,8))
 sns.boxplot(data=plot_metrics, y="shp_kl_div", x="Sequence Length",
-            ax=ax[3],
+            ax=ax,
             color="white",
             linecolor="black",
             legend=False,
             showfliers=False,
             order=[b[0] for b in bins], hue_order=[b[0] for b in bins])
 
-sns.stripplot(data=plot_metrics, y="shp_kl_div", x="Sequence Length", hue="Sequence Length",ax=ax[3],
+sns.stripplot(data=plot_metrics, y="shp_kl_div", x="Sequence Length", hue="Sequence Length",ax=ax,
             order=[b[0] for b in bins], hue_order=[b[0] for b in bins])
 
-ax[3].set_xticklabels(ax[3].get_xticklabels(), rotation=45, ha="right")
-ax[3].set_xlabel("")
-ax[3].set_ylabel("KL Divergence of SHP")
-sns.despine()
+ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+ax.set_xlabel("")
+ax.set_ylabel("KL Divergence of SHP")
+
 plt.tight_layout()
 plt.savefig(
-    FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_metrics.svg",
+    FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_shp_kl_div.svg",
     dpi=300,
     bbox_inches="tight",
 )
-plt.show()
 # %%
