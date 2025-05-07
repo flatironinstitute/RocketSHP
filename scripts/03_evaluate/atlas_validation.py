@@ -1,5 +1,6 @@
 # %% Load packages
 import os
+import argparse
 import pickle as pk
 
 import h5py
@@ -42,15 +43,25 @@ plt.rcParams.update({
     })
 
 # %% Script inputs
-EVAL_KEY = "large_model_20250427"
 
+parser = argparse.ArgumentParser(description="Evaluate RocketSHP model")
+parser.add_argument("eval_key", type=str, help="Key for the evaluation")
+parser.add_argument("model", type=str, help="Path to the model checkpoint")
+parser.add_argument("config_file", type=str, help="Path to the config file")
+parser.add_argument("--split", choices=["valid", "test"], default="valid", help="Split to evaluate")
+parser.add_argument("--device", type=str, default="cuda:0", help="Device to use for inference")
+args = parser.parse_args()
+
+EVAL_KEY = args.eval_key
+CONFIG_FILE = args.config_file
+CHECKPOINT_FILE = args.model
+
+# EVAL_KEY = "large_model_20250427"
 # CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
-CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
-
-
+# CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
 # CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
 # CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt"
-CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/big_model/model-epoch=50-val_loss=1.00.pt.ckpt"
+# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/big_model/model-epoch=50-val_loss=1.00.pt.ckpt"
 
 OUTPUT_DIRECTORY = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY
 FIGURES_DIRECTORY = config.REPORTS_DIR / EVAL_KEY / "figures"
@@ -60,7 +71,7 @@ PARAMS = config.DEFAULT_PARAMETERS
 PARAMS.update(OmegaConf.load(CONFIG_FILE))
 
 # %% Load data
-device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
+device = torch.device(args.device if torch.cuda.is_available() else "cpu")
 
 logger.info("Loading data...")
 adl = ATLASDataModule(
@@ -277,7 +288,10 @@ with open(test_met_path, "rb") as f:
 # %% Plot just RocketSHP results
 logger.info("Plotting metrics...")
 fig, ax = plt.subplots(figsize=(8,8))
-plot_metrics = valid_metrics
+if args.split == "valid":
+    plot_metrics = valid_metrics
+else:
+    plot_metrics = test_metrics
 
 sns.boxplot(
     data=plot_metrics,

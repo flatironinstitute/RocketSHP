@@ -48,18 +48,23 @@ supp5_readme = pd.read_excel(
     sheet_name="README",
     header=0,
 )
+
+supp5["variance_kcal/mol"] = supp5["std_kcal/mol"] ** 2
+
 # %% Plots
 raf1_ddg = supp5[supp5["assay"] == "RAF1"]
 raf1_ddg["abs_mean_kcal/mol"] = abs(raf1_ddg["mean_kcal/mol"])
 
-fig, ax = plt.subplots(figsize=(12, 6))
-sns.scatterplot(data=raf1_ddg, x="Pos_real", y="abs_mean_kcal/mol", hue="std_kcal/mol", palette="magma", ax=ax)
+fig, ax = plt.subplots(figsize=(18, 6))
+sns.scatterplot(data=raf1_ddg, x="Pos_real", y="abs_mean_kcal/mol", hue="variance_kcal/mol", palette="magma", ax=ax)
 plt.show()
 
 # %%
 folding_ddg = supp5[supp5["assay"] == "folding"]
 folding_ddg["abs_mean_kcal/mol"] = abs(folding_ddg["mean_kcal/mol"])
 
-fig, ax = plt.subplots(figsize=(12, 6))
-sns.scatterplot(data=folding_ddg, x="Pos_real", y="abs_mean_kcal/mol", hue="std_kcal/mol", palette="magma", ax=ax)
+fig, ax = plt.subplots(figsize=(18, 6))
+sns.scatterplot(data=folding_ddg, x="Pos_real", y="abs_mean_kcal/mol", hue="variance_kcal/mol", palette="magma", ax=ax)
 plt.show()
+
+# %%

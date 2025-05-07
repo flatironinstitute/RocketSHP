@@ -12,8 +12,9 @@ from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 
+from functools import partial
 from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
-# from rocketshp.data.mdcath import MDCathDataModule
+from rocketshp.data.mdcath import MDCathDataModule
 from rocketshp.data.atlas import ATLASDataModule
 from rocketshp.modeling.architectures import (
     RocketSHPModel,
@@ -42,8 +43,10 @@ app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @app.command()
-def main(run_id: str, config: str | None = None, debug: bool = False):
+def main(run_id: str, config: str | None = None, debug: bool = False, dataset: str = "atlas"):
     dotenv.load_dotenv()
+
+    assert dataset in ["atlas", "mdcath"], "Dataset must be either 'atlas' or 'mdcath'"
 
     PARAMS = DEFAULT_PARAMETERS
     if config:
@@ -105,9 +108,14 @@ def main(run_id: str, config: str | None = None, debug: bool = False):
         neptune_logger.log_hyperparams(params=PARAMS.__dict__)
     torch.set_float32_matmul_precision(PARAMS.precision)
 
-    datamod = ATLASDataModule(
-        processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
-    # datamod = MDCathDataModule(
+    if dataset == "atlas":
+        dmodule = partial(ATLASDataModule, processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5")
+    elif dataset == "mdcath":
+        dmodule = partial(MDCathDataModule,processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5")
+
+    datamod = dmodule(
+        # processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
+        # datamod = MDCathDataModule(
         # processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
         seq_features=PARAMS.seq_features,
         struct_features=PARAMS.struct_features,
@@ -125,7 +133,7 @@ def main(run_id: str, config: str | None = None, debug: bool = False):
     checkpoint_callback = ModelCheckpoint(
         dirpath="models",
         filename=run_id
-        + "/model-{epoch:02d}-{val_loss:.2f}.pt",  # Using exact metric name
+        + "/model-{epoch:02d}-{val_loss:.5f}.pt",  # Using exact metric name
         monitor="val_loss",  # Matches the exact metric name used in log_metrics
         mode="min",
         save_top_k=3,

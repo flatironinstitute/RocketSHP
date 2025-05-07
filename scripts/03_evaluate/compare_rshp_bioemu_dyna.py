@@ -1,6 +1,7 @@
 #%% Imports
 from pathlib import Path
 import h5py
+import argparse
 import pandas as pd
 import numpy as np
 import matplotlib.pyplot as plt
@@ -8,6 +9,7 @@ import seaborn as sns
 import pickle as pk
 import mdtraj as md
 from biotite.structure.io import xtc, pdb
+from scipy.stats import spearmanr
 
 from rocketshp import config
 from rocketshp.trajectory import compute_rmsf, compute_generalized_correlation_lmi, compute_shp
@@ -33,22 +35,26 @@ plt.rcParams.update({
 from statannotations.stats.StatTest import StatTest
 from scipy.stats import ttest_rel
 
-custom_long_name = 't-test paired one-sided'
-custom_short_name = 'ttest_pos'
-custom_func = lambda a,b: ttest_rel(a, b, alternative='less')
-ttest_rel_oneside = StatTest(custom_func, custom_long_name, custom_short_name)
 #%% Paths
 
-EVAL_KEY = "large_model_20250427"
+parser = argparse.ArgumentParser(description="Compare RocketSHP, Dyna-1, and BioEMU results")
+parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
+parser.add_argument("--split", choices=["valid", "test"], default="valid", help="Split to evaluate")
+args = parser.parse_args()
+EVAL_KEY = args.eval_key
+split = args.split
+
+# EVAL_KEY = "large_model_20250427"
+# split = "test"
 
 reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
 dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/")
 bioemu_results_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results/")
 rshp_results_pickle = config.EVALUATION_DATA_DIR / "evaluations/fs_shp_pred_kl_reweighted2/inference_results.pkl"
-rshp_results_pickle = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY / f"{EVAL_KEY}_valid_inference_results.pkl"
+rshp_results_pickle = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY / f"{EVAL_KEY}_{split}_inference_results.pkl"
 FIGURES_DIRECTORY = config.REPORTS_DIR / EVAL_KEY / "figures"
 FIGURES_DIRECTORY.mkdir(parents=True, exist_ok=True)
-log_file = config.REPORTS_DIR / EVAL_KEY / f"{EVAL_KEY}_evaluation.log"
+log_file = config.REPORTS_DIR / EVAL_KEY / f"{EVAL_KEY}_{split}_evaluation.log"
 
 # configure logger to write to log file
 logger.add(log_file, level="INFO", format="{message}", encoding="utf-8")
@@ -125,6 +131,7 @@ with h5py.File(ATLAS_H5, "r") as h5fi:
         reference_gcc[k] = h5fi[k]["R1"]["gcc_lmi"][:]
         reference_shp[k] = h5fi[k]["R1"]["shp"][:]
         system_sizes[k] = len(reference_rmsf[k])
+
 # reference_rmsf = {}
 # system_sizes = {}
 
@@ -166,36 +173,36 @@ calibration_offset = model.intercept_  # Offset
 logger.info(f"Scaling factor: {calibration_scale}, Offset: {calibration_offset}")
 
 #%% Plot calibrated data
-system = "CRABP2"
-dyna_calibration_sim = f"/mnt/home/ssledzieski/Projects/rocketshp/data/processed/relaxdb_sims/{system}"
-dyna_calibration_pred = pd.read_csv(f"/mnt/home/ssledzieski/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/{system}/{system}_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000-Dyna1.csv").p_exchange
-calibration_scaled = calibration_scale * dyna_calibration_pred + calibration_offset
+# system = "CRABP2"
+# dyna_calibration_sim = f"/mnt/home/ssledzieski/Projects/rocketshp/data/processed/relaxdb_sims/{system}"
+# dyna_calibration_pred = pd.read_csv(f"/mnt/home/ssledzieski/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/{system}/{system}_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000-Dyna1.csv").p_exchange
+# calibration_scaled = calibration_scale * dyna_calibration_pred + calibration_offset
 
-dyna_calibration_traj = md.load(f"{dyna_calibration_sim}/{system}_traj.xtc", top=f"{dyna_calibration_sim}/{system}_top.pdb")
-dyna_calibration_rmsf = compute_rmsf(dyna_calibration_traj)
+# dyna_calibration_traj = md.load(f"{dyna_calibration_sim}/{system}_traj.xtc", top=f"{dyna_calibration_sim}/{system}_top.pdb")
+# dyna_calibration_rmsf = compute_rmsf(dyna_calibration_traj)
 
-rxdb = pd.read_json("~/GitHub/Dyna-1/data/RelaxDB_datasets/RelaxDB_with_other_metrics_22jan2025.json")
-rxdb_label = rxdb.loc[f"{system}"]["label"]
+# rxdb = pd.read_json("~/GitHub/Dyna-1/data/RelaxDB_datasets/RelaxDB_with_other_metrics_22jan2025.json")
+# rxdb_label = rxdb.loc[f"{system}"]["label"]
 
-rxdb_map = {
-    "p": ".",
-    ".": ".",
-    "x": "-",
-    "v": "v",
-    "^": "^",
-    "b": "^",
-    "A": "-"
-}
+# rxdb_map = {
+#     "p": ".",
+#     ".": ".",
+#     "x": "-",
+#     "v": "v",
+#     "^": "^",
+#     "b": "^",
+#     "A": "-"
+# }
 
-plt.figure(figsize=(10, 6))
-plt.plot(dyna_calibration_pred, label="Dyna Pred")
-plt.plot(calibration_scaled, label="Dyna Pred (scaled)")
-for i, c in enumerate(rxdb_label):
-    c = rxdb_map.get(c, c)
-    plt.annotate(c, xy=(i, dyna_calibration_rmsf[i]), xytext=(i, dyna_calibration_rmsf[i]), ha="center", fontsize=10)
-plt.ylim(0, 1)
-plt.legend()
-plt.show()
+# plt.figure(figsize=(10, 6))
+# plt.plot(dyna_calibration_pred, label="Dyna Pred")
+# plt.plot(calibration_scaled, label="Dyna Pred (scaled)")
+# for i, c in enumerate(rxdb_label):
+#     c = rxdb_map.get(c, c)
+#     plt.annotate(c, xy=(i, dyna_calibration_rmsf[i]), xytext=(i, dyna_calibration_rmsf[i]), ha="center", fontsize=10)
+# plt.ylim(0, 1)
+# plt.legend()
+# plt.show()
 
 # %% Calibrate RMSF
 dyna_rmsf = {}
@@ -228,133 +235,192 @@ rmsf_df = rmsf_df.melt(id_vars=["System"], var_name="Method", value_name="RMSF")
 system = "4ayg_B"
 # system = "1ab1_A"
 # system = "1tzw_A"
-fig, ax = plt.subplots(figsize=(8, 8))
+if system not in rmsf_df["System"].values:
+    logger.warning(f"System {system} not found in RMSF results")
+else:
+    fig, ax = plt.subplots(figsize=(12,8))
 
-for method in methods:
-    ax.plot(rmsf_df[rmsf_df["System"] == system].loc[rmsf_df["Method"] == method, "RMSF"].values[0], label=method)
+    for method in methods:
+        ax.plot(rmsf_df[rmsf_df["System"] == system].loc[rmsf_df["Method"] == method, "RMSF"].values[0], label=method)
 
-ax.set_title(f"{system} ({system_sizes[system]} residues)")
-ax.set_xlabel("Residue Index")
-ax.set_ylabel("RMSF (Angstroms)")
-ax.legend(title="Method", loc="upper right")
-plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY/ f"rmsf_comparison_{system}.svg")
+    ax.set_title(f"{system} ({system_sizes[system]} residues)")
+    ax.set_xlabel("Residue Index")
+    ax.set_ylabel("RMSF (Angstroms)")
+    ax.legend(title="Method", loc="upper right")
+    plt.tight_layout()
+    plt.savefig(FIGURES_DIRECTORY/ f"{split}_rmsf_comparison_{system}.svg")
 # plt.show()
 
-# %% Compute MSE for all systems
+# %% Compute RMSE and spearman correlation for all systems
 mean_sq_error = {}
+spearman = {}
 for method in methods:
     if method == "Reference":
         continue
     mean_sq_error[method] = []
-    for k in tqdm(rmsf_results.keys(), desc="Compute MSE"):
+    spearman[method] = []
+    for k in tqdm(rmsf_results.keys(), desc=f"Compute RMSF metrics for {method}"):
         mse = np.mean((rmsf_results[k][method] - rmsf_results[k]["Reference"]) ** 2)
-        mean_sq_error[method].append(mse)
+        rmse = np.sqrt(mse)
+        sp_stat, sp_p = spearmanr(rmsf_results[k][method], rmsf_results[k]["Reference"]) 
+        mean_sq_error[method].append(rmse)
+        spearman[method].append(sp_stat)
+
 mean_sq_error_df = pd.DataFrame(mean_sq_error)
 mean_sq_error_df = mean_sq_error_df.rename_axis("System").reset_index()
-mean_sq_error_df = mean_sq_error_df.melt(id_vars=["System"], var_name="Method", value_name="MSE")
+mean_sq_error_df = mean_sq_error_df.melt(id_vars=["System"], var_name="Method", value_name="RMSE")
+
+spearman_df = pd.DataFrame(spearman)
+spearman_df = spearman_df.rename_axis("System").reset_index()
+spearman_df = spearman_df.melt(id_vars=["System"], var_name="Method", value_name="RMSE")
+
 # mean_sq_error_df = mean_sq_error_df.groupby("Method").mean().reset_index()
 # mean_sq_error_df = mean_sq_error_df.sort_values("MSE", ascending=False)
 
-# %% Plot MSE
-fig, ax = plt.subplots(figsize=(8, 8))
+# %% Plot RMSE
+fig, ax = plt.subplots(figsize=(12,8))
 
 order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 for i in order:
-    logger.info(f"Mean {i} MSE: {mean_sq_error_df[mean_sq_error_df['Method'] == i]['MSE'].mean()}")
+    logger.info(f"Mean {i} RMSE: {mean_sq_error_df[mean_sq_error_df['Method'] == i]['RMSE'].mean()}")
 
-sns.barplot(data=mean_sq_error_df, x="Method", y="MSE", ax=ax,
+sns.barplot(data=mean_sq_error_df, x="Method", y="RMSE", ax=ax,
             errorbar="se",
             order=order
             )
-ax.set_title("Mean Squared Error (MSE) of RMSF")
+ax.set_title("Root Mean Squared Error (RMSE) of RMSF")
 ax.set_xlabel("Method")
-ax.set_ylabel("MSE")
+ax.set_ylabel("RMSE (Angstroms)")
 ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / "rmsf_mse_comparison.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_rmse_comparison.svg")
 # plt.show()
 
+# %% Plot Spearman correlation
+fig, ax = plt.subplots(figsize=(12,8))
+
+order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+for i in order:
+    logger.info(f"Mean {i} Spearman: {spearman_df[spearman_df['Method'] == i]['RMSE'].mean()}")
+
+sns.barplot(data=spearman_df, x="Method", y="RMSE", ax=ax,
+            errorbar="se",
+            order=order
+            )
+ax.set_title("Spearman Correlation of RMSF")
+ax.set_xlabel("Method")
+ax.set_ylabel("Spearman Correlation")
+ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
+plt.tight_layout()
+plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_spearman_comparison.svg")
+              
 # %% Plot MSE in several bins by system size
 mean_sq_error_by_size = []
+spearman_by_size = []
 for method in methods:
     if method == "Reference":
         continue
-    for k in tqdm(rmsf_results.keys()):
+    for k in tqdm(rmsf_results.keys(), desc=f"Compute RMSF metrics for {method} by size"):
         mse = np.mean((rmsf_results[k][method] - rmsf_results[k]["Reference"]) ** 2)
-        mean_sq_error_by_size.append([k, system_sizes[k], method, mse])
+        rmse = np.sqrt(mse)
+        sp_stat, sp_p = spearmanr(rmsf_results[k][method], rmsf_results[k]["Reference"])
+        mean_sq_error_by_size.append([k, system_sizes[k], method, rmse])
+        spearman_by_size.append([k, system_sizes[k], method, sp_stat])
 
 mean_sq_error_by_size_df = pd.DataFrame(mean_sq_error_by_size)
-mean_sq_error_by_size_df.columns = ["System", "Size", "Method", "MSE"]
+mean_sq_error_by_size_df.columns = ["System", "Size", "Method", "RMSE"]
+
+spearman_by_size_df = pd.DataFrame(spearman_by_size)
+spearman_by_size_df.columns = ["System", "Size", "Method", "Spearman"]
 
 # assign size group by quartiles
-mean_sq_error_by_size_df["Size Group"] = pd.qcut(mean_sq_error_by_size_df["Size"], q=4, labels=["Small", "Medium", "Large", "Extra Large"])
-quartile_boundaries = mean_sq_error_by_size_df["Size"].quantile([0, 0.25, 0.5, 0.75, 1]).values
+# mean_sq_error_by_size_df["Size Group"] = pd.qcut(mean_sq_error_by_size_df["Size"], q=4, labels=["Small", "Medium", "Large", "Extra Large"])
+# spearman_by_size_df["Size Group"] = pd.qcut(spearman_by_size_df["Size"], q=4, labels=["Small", "Medium", "Large", "Extra Large"])
+# quartile_boundaries = mean_sq_error_by_size_df["Size"].quantile([0, 0.25, 0.5, 0.75, 1]).values
 
 # assign size groups by manual binning
 quartile_boundaries = np.array([0, 100, 150, 250, 350, 1050])
 mean_sq_error_by_size_df["Size Group"] = pd.cut(mean_sq_error_by_size_df["Size"], bins=quartile_boundaries, labels=["Small", "Small-Medium", "Medium", "Large", "Extra Large"], include_lowest=True)
+spearman_by_size_df["Size Group"] = pd.cut(spearman_by_size_df["Size"], bins=quartile_boundaries, labels=["Small", "Small-Medium", "Medium", "Large", "Extra Large"], include_lowest=True)
 
 # # size group labels should be the min and max of each bin
 size_group_labels = []
 for i in range(len(quartile_boundaries) - 1):
     size_group_labels.append(f"{int(quartile_boundaries[i])} - {int(quartile_boundaries[i + 1]-1)}")
 mean_sq_error_by_size_df["Size Group"] = mean_sq_error_by_size_df["Size Group"].cat.rename_categories(size_group_labels)
+spearman_by_size_df["Size Group"] = spearman_by_size_df["Size Group"].cat.rename_categories(size_group_labels)
 size_group_df = mean_sq_error_by_size_df[["System","Size", "Size Group"]].drop_duplicates()
 
 # %% Boxplot
 
 fig, ax = plt.subplots(figsize=(12, 8))
+pairs = [("RocketSHP", "Dyna-1 (Calibrated)"), ("RocketSHP", "BioEmu (100)")]
 
-ax = sns.boxplot(x='Method', y='MSE', hue='Size Group', data=mean_sq_error_by_size_df,
+ax = sns.boxplot(x='Method', y='RMSE', hue='Size Group', data=mean_sq_error_by_size_df,
                  linewidth=1.5, fliersize=0, order=order,
                  fill=False,legend=False, color="black")  # Set fill=False for outline-only boxes
 
-sns.stripplot(x='Method', y='MSE', hue='Size Group', data=mean_sq_error_by_size_df,
+sns.stripplot(x='Method', y='RMSE', hue='Size Group', data=mean_sq_error_by_size_df,
               size=6, dodge=True, order=order,
               jitter=True, alpha=0.7, ax=ax)
 
 ax.set_yscale('log')
+ax.set_ylabel("RMSE (Angstroms)")
 
 # add annotations
-Annotator(ax, pairs=[("RocketSHP", "Dyna-1 (Calibrated)"), ("RocketSHP", "BioEmu (100)")],
-                            data=mean_sq_error_by_size_df, x="Method", y="MSE", order=order).configure(test="t-test_paired",
-                            loc="inside", verbose=2).apply_and_annotate()
+annotator = Annotator(ax, pairs=pairs, data=mean_sq_error_by_size_df, x="Method", y="RMSE", order=order)
+annotator.configure(test="t-test_paired", loc="inside", verbose=2)
+_, test_results = annotator.apply_and_annotate()
 
 # ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
-plt.savefig(FIGURES_DIRECTORY / "rmsf_mse_method_box_by_method.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_rmse_method_box_by_method.svg")
 
-#%% Plot MSE by size group then method
-fig, ax = plt.subplots(figsize=(8,8))
+for pair, stats in zip(pairs, test_results):
+    stat_val = stats.data.stat_value
+    p_val = stats.data.pvalue
+    
+    logger.info(f"RMSE Comparison: {pair[0]} vs {pair[1]}, t-statistic: {stat_val:.4f}, p-value: {p_val:.4e}")
 
-# Create the boxplot with outlined boxes and no fill
-ax = sns.boxplot(x='Size Group', y='MSE', hue='Method', data=mean_sq_error_by_size_df,
-                 linewidth=1.5, fliersize=0, hue_order=order,
+# %% Plot Spearman
+fig, ax = plt.subplots(figsize=(12, 8))
+pairs = [("RocketSHP", "Dyna-1 (Calibrated)"), ("RocketSHP", "BioEmu (100)")]
+
+ax = sns.boxplot(x='Method', y='Spearman', hue='Size Group', data=spearman_by_size_df,
+                 linewidth=1.5, fliersize=0, order=order,
                  fill=False,legend=False, color="black")  # Set fill=False for outline-only boxes
 
-# Add a stripplot to show all individual data points
-sns.stripplot(x='Size Group', y='MSE', hue='Method', data=mean_sq_error_by_size_df,
-              size=6, dodge=True, hue_order=order,
+sns.stripplot(x='Method', y='Spearman', hue='Size Group', data=spearman_by_size_df,
+              size=6, dodge=True, order=order,
               jitter=True, alpha=0.7, ax=ax)
 
-ax.set_title("Mean Squared Error (MSE) of RMSF by System Size")
-ax.set_xlabel("Number of Amino Acids")
-ax.set_ylabel("MSE")
-ax.set_yscale("log")
+# ax.set_yscale('log')
+ax.set_ylabel("Spearman (Angstroms)")
+ax.set_ylim(-0.5, 1)
+
+# add annotations
+annotator = Annotator(ax, pairs=pairs, data=spearman_by_size_df, x="Method", y="Spearman", order=order)
+annotator.configure(test="t-test_paired", loc="inside", verbose=2)
+_, test_results = annotator.apply_and_annotate()
+
 # ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
-plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / "rmsf_mse_method_comparison_by_size.svg")
-# plt.show()
+plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_spearman_method_box_by_method.svg")
+
+for pair, stats in zip(pairs, test_results):
+    stat_val = stats.data.stat_value
+    p_val = stats.data.pvalue
+    
+    logger.info(f"Spearman Comparison: {pair[0]} vs {pair[1]}, t-statistic: {stat_val:.4f}, p-value: {p_val:.4e}")
 
 #%% Compute GCC metrics
 
 gcc_results = []
 for k, v in tqdm(rshp_gcc.items()):
-    rshp_gdd = graph_diffusion_distance(v, reference_gcc[k], beta = 1/500)
+    network_size = v.shape[0]
+    rshp_gdd = graph_diffusion_distance(v, reference_gcc[k], beta = 1/network_size)
     rshp_imsd = ipsen_mikhailov_distance(v, reference_gcc[k])
-    bioemu_gdd = graph_diffusion_distance(bioemu_gcc[k], reference_gcc[k], beta = 1/500)
+    bioemu_gdd = graph_diffusion_distance(bioemu_gcc[k], reference_gcc[k], beta = 1/network_size)
     bioemu_imsd = ipsen_mikhailov_distance(bioemu_gcc[k], reference_gcc[k])
-    bioemu_100_gdd = graph_diffusion_distance(bioemu_100_gcc[k], reference_gcc[k], beta = 1/500)
+    bioemu_100_gdd = graph_diffusion_distance(bioemu_100_gcc[k], reference_gcc[k], beta = 1/network_size)
     bioemu_100_imsd = ipsen_mikhailov_distance(bioemu_100_gcc[k], reference_gcc[k])
     gcc_results.append([k, rshp_gdd, rshp_imsd, bioemu_gdd, bioemu_imsd, bioemu_100_gdd, bioemu_100_imsd])
 gcc_results_df = pd.DataFrame(gcc_results)
@@ -378,8 +444,9 @@ imsd_results_df["Method"] = imsd_results_df["Method"].replace({
 
 # %% Boxplot GDD
 
-fig, ax = plt.subplots(figsize=(8,8))
+fig, ax = plt.subplots(figsize=(12,8))
 order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
+pairs=[("RocketSHP", "BioEmu (100)"), ("RocketSHP", "BioEmu (10)")]
 
 for i in order:
     logger.info(f"Mean {i} GDD: {gdd_results_df[gdd_results_df['Method'] == i]['GDD'].mean()}")
@@ -393,16 +460,24 @@ sns.stripplot(data=gdd_results_df, x="Method", y="GDD", ax=ax,
 ax.set_yscale("log")
 
 # Add statistical annotations
-Annotator(ax, pairs=[("RocketSHP", "BioEmu (100)"), ("RocketSHP", "BioEmu (10)")],
-                            data=gdd_results_df, x="Method", y="GDD", order=order).configure(test="t-test_paired",
-                            loc="inside", verbose=2).apply_and_annotate()
+annotator = Annotator(ax, pairs=pairs, data=gdd_results_df, x="Method", y="GDD", order=order)
+annotator.configure(test="t-test_paired", loc="inside", verbose=2)
+_, test_results = annotator.apply_and_annotate()
+
 ax.set_title("Graph Diffusion Distance (GDD) of GCC-LMI")
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / "gdd_boxplot.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{split}_gdd_boxplot.svg")
+
+for pair, stats in zip(pairs, test_results):
+    stat_val = stats.data.stat_value
+    p_val = stats.data.pvalue
+    
+    logger.info(f"GDD Comparison: {pair[0]} vs {pair[1]}, t-statistic: {stat_val:.4f}, p-value: {p_val:.4e}")
 
 # %% Boxplot IMSD
-fig, ax = plt.subplots(figsize=(8,8))
+fig, ax = plt.subplots(figsize=(12,8))
 order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
 
 for i in order:
     logger.info(f"Mean {i} IMSD: {imsd_results_df[imsd_results_df['Method'] == i]['IMSD'].mean()}")
@@ -416,38 +491,42 @@ sns.stripplot(data=imsd_results_df, x="Method", y="IMSD", ax=ax,
 ax.set_yscale("log")
 
 # Add statistical annotations
-Annotator(ax, pairs=[("RocketSHP", "BioEmu (100)"), ("RocketSHP", "BioEmu (10)")],
-                            data=imsd_results_df, x="Method", y="IMSD", order=order).configure(test="t-test_paired",
-                            loc="inside", verbose=2).apply_and_annotate()
+annotator = Annotator(ax, pairs=pairs, data=imsd_results_df, x="Method", y="IMSD", order=order)
+annotator.configure(test="t-test_paired", loc="inside", verbose=2)
+_, test_results = annotator.apply_and_annotate()
+
 ax.set_title("Ipsen-Mikhailov Distance (IMSD) of GCC-LMI")
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / "imsd_boxplot.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{split}_imsd_boxplot.svg")
 
+for pair, stats in zip(pairs, test_results):
+    stat_val = stats.data.stat_value
+    p_val = stats.data.pvalue
+    
+    logger.info(f"IMSD Comparison: {pair[0]} vs {pair[1]}, t-statistic: {stat_val:.4f}, p-value: {p_val:.4e}")
 
 # %% GDD Scatter Plot
 gdd_scatter_data = gcc_results_df[["System", "Size Group", "RocketSHP GDD", "BioEmu GDD", "BioEmu 100 GDD"]]
-fig, ax = plt.subplots(figsize=(8,8))
+fig, ax = plt.subplots(figsize=(12,8))
 sns.scatterplot(data=gdd_scatter_data, x="BioEmu 100 GDD", y="RocketSHP GDD", ax=ax,
                 hue="Size Group", alpha=0.95)
-# add x=y line
 mmax = gdd_scatter_data.drop(["System","Size Group"],axis=1).max().max()
 ax.plot([0, mmax], [0, mmax], color="gray", linestyle="--")
-# ax.set_xlim(0, mmax)
-# ax.set_ylim(0, mmax)
+
 ax.set_xscale("log")
 ax.set_yscale("log")
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / "gdd_scatter.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{split}_gdd_scatter.svg")
 
 # %% IMSD Scatter Plot
 imsd_scatter_data = gcc_results_df[["System", "Size Group", "RocketSHP IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]]
-fig, ax = plt.subplots(figsize=(8,8))
+fig, ax = plt.subplots(figsize=(12,8))
 sns.scatterplot(data=imsd_scatter_data, x="BioEmu 100 IMSD", y="RocketSHP IMSD", ax=ax,
                 hue="Size Group", alpha=0.95)
 # add x=y line
 ax.plot([0, 5], [0, 5], color="gray", linestyle="--")
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / "imsd_scatter.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{split}_imsd_scatter.svg")
 
 # %% Compute SHP metrics
 import torch
@@ -466,8 +545,9 @@ shp_results_df = pd.merge(size_group_df, shp_results_df, left_on="System", right
 # %% Boxplots
 kldiv_results_df = shp_results_df.melt(id_vars=["System", "Size Group"], var_name="Method", value_name="KL-Div")
 
-fig, ax = plt.subplots(figsize=(8,8))
+fig, ax = plt.subplots(figsize=(12,8))
 order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
 
 for i in order:
     logger.info(f"Mean {i} KL-Div: {shp_results_df[i].mean()}")
@@ -478,12 +558,18 @@ sns.boxplot(data=kldiv_results_df, x="Method", y="KL-Div", ax=ax,
 sns.stripplot(data=kldiv_results_df, x="Method", y="KL-Div", ax=ax,
               order=order, hue="Size Group",
               size=6, dodge=True, jitter=True, alpha=0.7)
-# ax.set_yscale("log")
-# Add statistical annotations
-Annotator(ax, pairs=[("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")],
-                            data=kldiv_results_df, x="Method", y="KL-Div", order=order).configure(test="t-test_paired",
-                            loc="inside", verbose=2).apply_and_annotate()
+
+annotator = Annotator(ax, pairs=pairs, data=kldiv_results_df, x="Method", y="KL-Div", order=order)
+annotator.configure(test="t-test_paired", loc="inside", verbose=2)
+_, test_results = annotator.apply_and_annotate()
+
 ax.set_title("KL-Divergence of SHP")
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / "shp_kl_boxplot.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{split}_shp_kl_boxplot.svg")
+
+for pair, stats in zip(pairs, test_results):
+    stat_val = stats.data.stat_value
+    p_val = stats.data.pvalue
+    
+    logger.info(f"KL-Div Comparison: {pair[0]} vs {pair[1]}, t-statistic: {stat_val:.4f}, p-value: {p_val:.4e}")
 # %%

@@ -252,7 +252,7 @@ def get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     return get_esm3_model_tokenizers(model)
 
 
-def get_structure_vae() -> tuple:
+def get_structure_vae() -> torch.nn.Module:
     """
     Get the ESM-3 structure encoder.
 

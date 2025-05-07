@@ -286,8 +286,13 @@ class RocketSHPModel(nn.Module):
         struct_dim: int = None,
         # n_shp_tokens: int = ESM_CONSTANTS.VQVAE_CODEBOOK_SIZE,
         n_shp_tokens: int = 20,
+        default_temp: float = 300.0
     ):
         super().__init__()
+
+        self.default_temp = nn.Parameter(
+            torch.tensor(default_temp), requires_grad=False
+        )
 
         self.encoder = JointStructAndSequenceEncoder(
             embedding_dim,
@@ -356,7 +361,7 @@ class RocketSHPModel(nn.Module):
         if "temp" in x:
             temperature = x["temp"]
         else:
-            temperature = torch.ones(x["seq_feats"].shape[0], device=x["seq_feats"].device) * 300.0
+            temperature = torch.ones(x["seq_feats"].shape[0], device=x["seq_feats"].device) * self.default_temp
 
         x = self._transform(x)
         feats_with_temp = torch.cat([x, temperature.unsqueeze(-1)], dim=-1)

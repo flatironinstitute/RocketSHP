@@ -67,7 +67,9 @@ class PARAMETER_STRUCT:
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
 
 PRETRAINED_MODELS = {
-    "latest": "rocketshp_pretrained_20250215_v0.ckpt",
+    "latest": "rocketshp_pretrained_20250505_v1.ckpt",
     "v0": "rocketshp_pretrained_20250215_v0.ckpt",
-    "v0_seq": "rocketshp_pretrained_20250215_seqonly_v0.ckpt"
+    "v0_seq": "rocketshp_pretrained_20250215_seqonly_v0.ckpt",
+    "v1": "rocketshp_pretrained_20250505_v1.ckpt",
+    "v1_mini": "rocketshp_pretrained_20250505_v1_mini.ckpt"
 }

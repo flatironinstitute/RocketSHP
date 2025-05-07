@@ -86,8 +86,19 @@ def esm3_sequence_OLD(chain: ProteinChain, esm_model, esm_tokenizer):
     return result["representations"]["mean"].detach()[1:-1]
 
 
-def esm3_sequence(
+def esm3_chain_sequence(
     chain: ProteinChain,
+    model,
+    tokenizers,
+) -> torch.Tensor:
+   return esm3_sequence(
+        sequence=chain.sequence,
+        model=model,
+        tokenizers=tokenizers,
+    ) 
+
+def esm3_sequence(
+    sequence: str,
     model,
     tokenizers,
 ) -> torch.Tensor:
@@ -108,7 +119,7 @@ def esm3_sequence(
     """
     d = model.device
 
-    esmprots = [ESMProtein(sequence=chain.sequence)]
+    esmprots = [ESMProtein(sequence=sequence)]
     tokens = [model.encode(i) for i in esmprots]
     lengths = [len(i) for i in tokens]
     batch = _stack_protein_tensors(tokens, lengths, tokenizers, d)
