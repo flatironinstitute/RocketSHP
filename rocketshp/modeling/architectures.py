@@ -5,6 +5,7 @@ from safetensors import safe_open
 from safetensors.torch import save_file
 from torch import nn
 from pathlib import Path
+from loguru import logger
 
 
 class StructEncoder(nn.Module):
@@ -18,6 +19,10 @@ class StructEncoder(nn.Module):
         """
         x \\in [1, n_tokens]^{batch_size \times N})
         """
+        logger.debug(f"StructEncoder input shape: {x.shape}")
+        logger.debug(f"Token max: {x.max()}")
+        logger.debug(f"n tokens: {self.n_tokens}")
+        logger.debug(f"embedding dim: {self.embedding.weight.shape}")
         return self.embedding(x)
 
 
@@ -74,6 +79,8 @@ class JointStructAndSequenceEncoder(nn.Module):
             seq_embeddings, struct_tokens = x["seq_feats"], x["struct_feats"]
             seq_embeddings = self.seq_emb(seq_embeddings)
             struct_tokens = self.struct_emb(struct_tokens)
+            logger.debug(f"seq_embeddings: {seq_embeddings.shape}")
+            logger.debug(f"struct_tokens: {struct_tokens.shape}")
             return seq_embeddings + struct_tokens
 
 
@@ -284,7 +291,7 @@ class RocketSHPModel(nn.Module):
         seq_only: bool = False,
         struct_stage: str = "quantized",
         struct_dim: int = None,
-        # n_shp_tokens: int = ESM_CONSTANTS.VQVAE_CODEBOOK_SIZE,
+        n_input_tokens: int = ESM_CONSTANTS.VQVAE_CODEBOOK_SIZE,
         n_shp_tokens: int = 20,
         default_temp: float = 300.0
     ):
@@ -297,7 +304,7 @@ class RocketSHPModel(nn.Module):
         self.encoder = JointStructAndSequenceEncoder(
             embedding_dim,
             d_model,
-            n_tokens=n_shp_tokens,
+            n_tokens=n_input_tokens,
             seq_only=seq_only,
             struct_stage=struct_stage,
             struct_dim=struct_dim,
@@ -316,7 +323,7 @@ class RocketSHPModel(nn.Module):
         # for name, module in self.OUTPUT_HEADS.items():
         #     setattr(self, f"{name}_head", module)
 
-        self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
+        # self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
         # self.grad_norm.task_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
 
     def _transform(self, x):
