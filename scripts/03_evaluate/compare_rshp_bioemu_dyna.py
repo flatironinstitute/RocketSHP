@@ -37,15 +37,15 @@ from scipy.stats import ttest_rel
 
 #%% Paths
 
-parser = argparse.ArgumentParser(description="Compare RocketSHP, Dyna-1, and BioEMU results")
-parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
-parser.add_argument("--split", choices=["valid", "test"], default="valid", help="Split to evaluate")
-args = parser.parse_args()
-EVAL_KEY = args.eval_key
-split = args.split
+# parser = argparse.ArgumentParser(description="Compare RocketSHP, Dyna-1, and BioEMU results")
+# parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
+# parser.add_argument("--split", choices=["valid", "test"], default="valid", help="Split to evaluate")
+# args = parser.parse_args()
+# EVAL_KEY = args.eval_key
+# split = args.split
 
-# EVAL_KEY = "large_model_20250427"
-# split = "test"
+EVAL_KEY = "large_model_20250427"
+split = "test"
 
 reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
 dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/")
@@ -113,6 +113,19 @@ for k in tqdm(rshp_results.keys(), desc="Load BioEMU Results"):
     bs_100_xtc = xtc.XTCFile.read(str(bioemu_100_path / "samples.xtc")).get_structure(bs_100_top)
     bioemu_100_shp[k] = compute_shp(bs_100_xtc)
 
+# %% Load GNM results
+GNM_ROOT = Path(
+    "/mnt/home/ssledzieski/Projects/rocketshp/data/processed/atlas/gaussian_net_models"
+)
+gnm_gcc = {}
+for k in tqdm(rshp_results.keys(), total=len(rshp_results), desc="Load GNM Results"):
+    gnm_path = GNM_ROOT / f"{k[:2]}/{k}_gnm.npz"
+    gnm_data = np.load(gnm_path)
+    gnm_covar = gnm_data["covar"]
+    # min-max scale between 0 and 1
+    gnm_covar = (gnm_covar - np.min(gnm_covar)) / (np.max(gnm_covar) - np.min(gnm_covar))
+    gnm_gcc[k] = gnm_covar
+    
 # %% Load reference results
 
 ATLAS_H5 = config.PROCESSED_DATA_DIR / "atlas" / "atlas_processed.h5"
@@ -351,6 +364,29 @@ mean_sq_error_by_size_df["Size Group"] = mean_sq_error_by_size_df["Size Group"].
 spearman_by_size_df["Size Group"] = spearman_by_size_df["Size Group"].cat.rename_categories(size_group_labels)
 size_group_df = mean_sq_error_by_size_df[["System","Size", "Size Group"]].drop_duplicates()
 
+# %% Check overall performance difference and in largest size group
+
+mean_rshp_rmse = mean_sq_error_by_size_df[mean_sq_error_by_size_df["Method"] == "RocketSHP"]["RMSE"].mean()
+mean_bioemu_100_rmse = mean_sq_error_by_size_df[mean_sq_error_by_size_df["Method"] == "BioEmu (100)"]["RMSE"].mean()
+mean_dyna_1_rmse = mean_sq_error_by_size_df[mean_sq_error_by_size_df["Method"] == "Dyna-1 (Calibrated)"]["RMSE"].mean()
+logger.info(f"Mean RocketSHP RMSE: {mean_rshp_rmse}")
+logger.info(f"Mean BioEmu (100) RMSE: {mean_bioemu_100_rmse}")
+logger.info(f"Mean Dyna-1 (Calibrated) RMSE: {mean_dyna_1_rmse}")
+# log % difference over other methods
+logger.info(f"RocketSHP RMSE % difference to BioEmu (100): {(mean_rshp_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%")
+logger.info(f"RocketSHP RMSE % difference to Dyna-1 (Calibrated): {(mean_rshp_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%")
+
+# only in largest size group
+mean_rshp_rmse = mean_sq_error_by_size_df[(mean_sq_error_by_size_df["Method"] == "RocketSHP") & (mean_sq_error_by_size_df["Size"] >= 500)]["RMSE"].mean()
+mean_bioemu_100_rmse = mean_sq_error_by_size_df[(mean_sq_error_by_size_df["Method"] == "BioEmu (10)") & (mean_sq_error_by_size_df["Size"] >= 500)]["RMSE"].mean()
+mean_dyna_1_rmse = mean_sq_error_by_size_df[(mean_sq_error_by_size_df["Method"] == "Dyna-1 (Calibrated)") & (mean_sq_error_by_size_df["Size"] >= 500)]["RMSE"].mean()
+logger.info(f"Mean RocketSHP RMSE (Extra Large): {mean_rshp_rmse}")
+logger.info(f"Mean BioEmu (100) RMSE (Extra Large): {mean_bioemu_100_rmse}")
+logger.info(f"Mean Dyna-1 (Calibrated) RMSE (Extra Large): {mean_dyna_1_rmse}")
+# log % difference over other methods
+logger.info(f"RocketSHP RMSE % difference to BioEmu (100) (Extra Large): {(mean_rshp_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%")
+logger.info(f"RocketSHP RMSE % difference to Dyna-1 (Calibrated) (Extra Large): {(mean_rshp_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%")
+
 # %% Boxplot
 
 fig, ax = plt.subplots(figsize=(12, 8))
@@ -422,9 +458,11 @@ for k, v in tqdm(rshp_gcc.items()):
     bioemu_imsd = ipsen_mikhailov_distance(bioemu_gcc[k], reference_gcc[k])
     bioemu_100_gdd = graph_diffusion_distance(bioemu_100_gcc[k], reference_gcc[k], beta = 1/network_size)
     bioemu_100_imsd = ipsen_mikhailov_distance(bioemu_100_gcc[k], reference_gcc[k])
-    gcc_results.append([k, rshp_gdd, rshp_imsd, bioemu_gdd, bioemu_imsd, bioemu_100_gdd, bioemu_100_imsd])
+    gnm_gdd = graph_diffusion_distance(gnm_gcc[k], reference_gcc[k], beta = 1/network_size)
+    gnm_imsd = ipsen_mikhailov_distance(gnm_gcc[k], reference_gcc[k])
+    gcc_results.append([k, rshp_gdd, rshp_imsd, bioemu_gdd, bioemu_imsd, bioemu_100_gdd, bioemu_100_imsd, gnm_gdd, gnm_imsd])
 gcc_results_df = pd.DataFrame(gcc_results)
-gcc_results_df.columns = ["System", "RocketSHP GDD", "RocketSHP IMSD", "BioEmu GDD", "BioEmu IMSD", "BioEmu 100 GDD", "BioEmu 100 IMSD"]
+gcc_results_df.columns = ["System", "RocketSHP GDD", "RocketSHP IMSD", "BioEmu GDD", "BioEmu IMSD", "BioEmu 100 GDD", "BioEmu 100 IMSD", "GNM GDD", "GNM IMSD"]
 gcc_results_df = pd.merge(size_group_df, gcc_results_df, left_on="System", right_on="System", how="inner") 
 # %% Separate by metric
 

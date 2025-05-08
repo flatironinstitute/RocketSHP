@@ -39,13 +39,14 @@ plt.rcParams.update({
 # parser.add_argument("--savefig", action="store_true", help="Save figures")
 # args = parser.parse_args()
 # key = args.key
+# savefig = args.savefig
 
 ### UNCOMMENT IF RUNNING AS NOTEBOOK
 key = "1tzw_A/R1"
 savefig = False
 
 # %%
-config_file = "/mnt/home/ssledzieski/Projects/rocketshp/configs/rocketshp_pretrained_20250215_v0.yml"
+config_file = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
 
 PARAMS = config.DEFAULT_PARAMETERS
 PARAMS.update(OmegaConf.load(config_file))
@@ -60,6 +61,7 @@ adl = ATLASDataModule(
     seq_features=True,
     struct_features=True,
     batch_size=8,
+    crop_size=2048,
     num_workers=PARAMS.num_data_workers,
     train_pct=PARAMS.train_pct,
     val_pct=PARAMS.val_pct,
@@ -132,7 +134,7 @@ plt.ylabel("RMSF")
 plt.xlabel("Residue")
 plt.title(f"Protein: {key}")
 plt.legend()
-if args.savefig:
+if savefig:
     plt.savefig( 
         config.FIGURES_DIR / "atlas_single" / f"{pdb_code_save}_rmsf_comparison.svg",
     )
@@ -177,7 +179,7 @@ with plt.rc_context({"font.size": 30}):
     cbar = fig.colorbar(im2, cax=cbar_ax)
     cbar.ax.set_ylabel("CA Distances", rotation=-90, va="bottom")
 
-    if args.savefig:
+    if savefig:
         plt.savefig(
         config.FIGURES_DIR / "atlas_single" / f"{pdb_code_save}_ca_dist_comparison.svg",
         bbox_inches="tight",
@@ -187,9 +189,9 @@ with plt.rc_context({"font.size": 30}):
 
 # %%
 
-# Autocorrelation
+# GCC-LMI
 # fig, ax = plt.subplots(1, 2, figsize=(15, 10))
-squared_label_type = "autocorr"
+squared_label_type = "gcc_lmi"
 
 true_sqform = labels[squared_label_type].squeeze().T
 predicted_sqform = both_result[squared_label_type].cpu().squeeze().T
@@ -203,10 +205,10 @@ predicted_sqform = both_result[squared_label_type].cpu().squeeze().T
 # increase font size
 with plt.rc_context({"font.size": 30}):
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(22, 10))
-    im1 = axes[0].imshow(1 - true_sqform, vmin=0, vmax=1, aspect="auto", cmap="coolwarm")
+    im1 = axes[0].imshow(true_sqform, vmin=0, vmax=1, aspect="auto", cmap="coolwarm")
     axes[0].set_xlabel("True")
     im2 = axes[1].imshow(
-        1 - predicted_sqform, vmin=0, vmax=1, aspect="auto", cmap="coolwarm"
+        predicted_sqform, vmin=0, vmax=1, aspect="auto", cmap="coolwarm"
     )
     axes[1].set_xlabel("Predicted")
 
@@ -216,7 +218,7 @@ with plt.rc_context({"font.size": 30}):
     cbar = fig.colorbar(im2, cax=cbar_ax)
     cbar.ax.set_ylabel("Autocorrelation of Distances", rotation=-90, va="bottom")
 
-    if args.savefig:
+    if savefig:
         plt.savefig(
             config.FIGURES_DIR / "atlas_single" / f"{pdb_code_save}_autocorr_comparison.svg",
             bbox_inches="tight",
@@ -249,7 +251,7 @@ with plt.rc_context({"font.size": 18}):
     ax[1].set_xlabel("Residue")
     ax[1].set_ylim(21, -1)
 
-    if args.savefig:
+    if savefig:
         plt.savefig(
             config.FIGURES_DIR / "atlas_single" / f"{pdb_code_save}_shp_comparison.svg",
             bbox_inches="tight",
@@ -277,7 +279,11 @@ GNM_ROOT = (
 gnm_covar = f"{GNM_ROOT}/{pdb_code[:2]}/{pdb_code}_gnm.npz"
 gnm_data = np.load(gnm_covar)
 gnm_covar = gnm_data["covar"]
-plt.imshow(gnm_covar)
-# plt.show()
+fig, ax = plt.subplots(1, 1, figsize=(5, 5))
+ax.imshow(
+        gnm_covar, vmin=0, vmax=1, aspect="auto", cmap="coolwarm"
+    )
 
 # ---
+
+# %%

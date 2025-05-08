@@ -323,7 +323,7 @@ class RocketSHPModel(nn.Module):
         # for name, module in self.OUTPUT_HEADS.items():
         #     setattr(self, f"{name}_head", module)
 
-        # self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
+        self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
         # self.grad_norm.task_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
 
     def _transform(self, x):
