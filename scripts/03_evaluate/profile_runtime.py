@@ -1,4 +1,5 @@
 import time
+import numpy as np
 
 import torch
 from esm.utils.structure.protein_chain import ProteinChain
@@ -30,13 +31,12 @@ esm_model = esm_model.eval().to(device)
 tokenizers = get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
-config_file = "/mnt/home/ssledzieski/Projects/rocketshp/configs/default_config.yml"
-checkpoint_file = "/mnt/home/ssledzieski/Projects/rocketshp/models/grad_norm_alpha0.12_lr1e-5/model-epoch=19-train_loss=0.55.pt.ckpt"
-
-model = RocketSHPModel.load_from_checkpoint(checkpoint_file, strict=False)
+EVAL_KEY = "rshp_mini"
+model = RocketSHPModel.load_from_checkpoint("v1_mini", strict=False)
 model = model.to(device)
 
 PARAMS = config.DEFAULT_PARAMETERS
+config_file = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
 PARAMS.update(OmegaConf.load(config_file))
 
 logger.info("Loading data...")
@@ -45,6 +45,7 @@ adl = ATLASDataModule(
     seq_features=True,
     struct_features=True,
     batch_size=8,
+    crop_size=PARAMS.crop_size,
     num_workers=PARAMS.num_data_workers,
     train_pct=PARAMS.train_pct,
     val_pct=PARAMS.val_pct,
@@ -58,72 +59,94 @@ all_pdb_chains = adl.dataset._get_keys()
 results = {}
 precomputed_feats = {}
 
-start = time.time()
+DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
+
+def run_inference(seq, struct, model, esm_m, esm_s, esm_t, device=DEVICE, structure_stage="encoded"):
+
+    with torch.inference_mode():
+        feats = {}
+        feats["seq_feats"] = esm3_sequence(seq, esm_m, esm_t).squeeze()
+        if struct is not None:
+            feats["struct_feats"] = esm3_vqvae(struct, esm_s, stage=structure_stage).squeeze()
+            # print(feats["struct_feats"])
+        else:
+            feats["struct_feats"] = torch.zeros_like(feats["seq_feats"])
+        feats["temp"] = torch.ones(feats["seq_feats"].shape[0]) * 300.0
+
+        result = model({k: v.to(device).unsqueeze(0) for k, v in feats.items()})
+        result = {k: v.squeeze().cpu() for k, v in result.items()}
+
+    return result
+
+rshp_times = []
 for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
     pdb_file_path = config.RAW_DATA_DIR / f"atlas/{pdb_id[:2]}/{pdb_id}.pdb"
     esm_chain = ProteinChain.from_pdb(pdb_file_path)
 
     # Tokenize structure
     with torch.inference_mode():
-        struct_feats = esm3_vqvae(esm_chain, struct_encoder, stage="quantized")
-        embeddings = esm3_sequence(esm_chain, esm_model, tokenizers).squeeze()[1:-1]
+        start_time = time.time()
+        struct_feats = esm3_vqvae(esm_chain, struct_encoder, stage="encoded")
+        embeddings = esm3_sequence(esm_chain.sequence, esm_model, tokenizers).squeeze()[1:-1]
         temp = torch.ones(embeddings.shape[0]) * 300
 
         # logger.info(f"struct_shape: {struct_feats.shape} seq_shape: {embeddings.shape}")
         tmp_feats = {
-            "struct_feats": struct_feats.to("cpu").squeeze(),
-            "seq_feats": embeddings.to("cpu").squeeze(),
-            "temp": temp,
+            "struct_feats": struct_feats.squeeze().to(device),
+            "seq_feats": embeddings.squeeze().to(device),
+            "temp": temp.to(device),
         }
-        precomputed_feats[pdb_id] = tmp_feats
-end = time.time()
-logger.info(f"Num samples: {len(all_pdb_chains)}")
-logger.info(f"Embedding and tokenizing: {end - start:.3f} seconds")
-logger.info(f"Per sample: {(end - start) / len(all_pdb_chains):.4f} seconds")
 
-start_time = time.time()
-for pdb_id in tqdm(all_pdb_chains, desc="Running inference..."):
-    with torch.inference_mode():
-        both_result = model(
-            {k: v.to(device).unsqueeze(0) for k, v in precomputed_feats[pdb_id].items()}
+        result = model(
+            {k: v.unsqueeze(0) for k, v in tmp_feats.items()}
         )
-        results[pdb_id] = both_result
-
-end_time = time.time()
+        end_time = time.time()
+        rshp_times.append(end_time - start_time)
 
 logger.info(f"Num samples: {len(all_pdb_chains)}")
-logger.info(f"RocketSHP only: {end_time - start_time:.5f} s")
-logger.info(f"Time per sample: {(end_time - start_time) / len(all_pdb_chains):.5f} s")
+# logger.info(f"RocketSHP only: {end_time - start_time:.5f} s")
+logger.info(f"Time per sample: {np.mean(rshp_times):.5f} s")
 
-# start_time = time.time()
-# for pdb_id in tqdm(all_pdb_chains):
+results_dir = config.PROCESSED_DATA_DIR / "runtime_profile" / EVAL_KEY
+results_dir.mkdir(parents=True, exist_ok=True)
+
+for pdb_id, time in zip(all_pdb_chains, rshp_times):
+    with open(results_dir / f"{pdb_id}.runtime.txt", "w") as f:
+        f.write(f"Model inference time: {time:.5f}\n")
+
+# start = time.time()
+# for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
 #     pdb_file_path = config.RAW_DATA_DIR / f"atlas/{pdb_id[:2]}/{pdb_id}.pdb"
 #     esm_chain = ProteinChain.from_pdb(pdb_file_path)
 
 #     # Tokenize structure
 #     with torch.inference_mode():
-#         _, plddt, struct_tokens = tokenize_structure(
-#             torch.from_numpy(esm_chain.atom37_positions),
-#             structure_encoder=struct_encoder,
-#             structure_tokenizer=struct_tokenizer,
-#             reference_sequence=esm_chain.sequence,
-#         )
-#         struct_tokens = struct_tokens[1:-1]
+#         struct_feats = esm3_vqvae(esm_chain, struct_encoder, stage="encoded")
+#         embeddings = esm3_sequence(esm_chain.sequence, esm_model, tokenizers).squeeze()[1:-1]
+#         temp = torch.ones(embeddings.shape[0]) * 300
 
-#         # Embed sequence
-#         embeddings = sequence_encode([esm_chain.sequence], esm_model, tokenizers, device=device).squeeze()
-#         embeddings = embeddings[1:-1]
-
+#         # logger.info(f"struct_shape: {struct_feats.shape} seq_shape: {embeddings.shape}")
 #         tmp_feats = {
-#             "seq_feats": embeddings,
-#             "struct_feats": struct_tokens,
-#             "temp": torch.tensor(300 * torch.ones_like(struct_tokens))
+#             "struct_feats": struct_feats.to("cpu").squeeze(),
+#             "seq_feats": embeddings.to("cpu").squeeze(),
+#             "temp": temp,
 #         }
-#         both_result = model({k: v.to(device).unsqueeze(0) for k, v in tmp_feats.items()})
+#         precomputed_feats[pdb_id] = tmp_feats
+# end = time.time()
+# logger.info(f"Num samples: {len(all_pdb_chains)}")
+# logger.info(f"Embedding and tokenizing: {end - start:.3f} seconds")
+# logger.info(f"Per sample: {(end - start) / len(all_pdb_chains):.4f} seconds")
 
+# start_time = time.time()
+# for pdb_id in tqdm(all_pdb_chains, desc="Running inference..."):
+#     with torch.inference_mode():
+#         both_result = model(
+#             {k: v.to(device).unsqueeze(0) for k, v in precomputed_feats[pdb_id].items()}
+#         )
 #         results[pdb_id] = both_result
 
 # end_time = time.time()
+
 # logger.info(f"Num samples: {len(all_pdb_chains)}")
-# logger.info(f"End-to-end: {end_time - start_time:.3f} s")
-# logger.info(f"Time per sample: {(end_time - start_time) / len(all_pdb_chains):.4f} s")
+# logger.info(f"RocketSHP only: {end_time - start_time:.5f} s")
+# logger.info(f"Time per sample: {(end_time - start_time) / len(all_pdb_chains):.5f} s")

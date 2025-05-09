@@ -79,7 +79,7 @@ rshp_model = RocketSHPModel.load_from_checkpoint(checkpoint, strict=False)
 rshp_model = rshp_model.to(DEVICE)
 
 #%% Run inference function
-def run_inference(seq, struct, model, esm_m, esm_s, esm_t, device=DEVICE):
+def run_inference(seq, struct, model, esm_m, esm_s, esm_t, device=DEVICE, structure_stage="encoded"):
 
     with torch.inference_mode():
         feats = {}
@@ -141,7 +141,7 @@ def iter_mutants(wt):
 
 #%% Run inference on wildtype sequence
 logger.info("Running inference on wildtype sequence")
-wt_result = run_inference(wt_sequence, kras_struct, rshp_model, esm_model, esm_structure_model, esm_tokenizers)
+wt_result = run_inference(wt_sequence, kras_struct, rshp_model, esm_model, esm_structure_model, esm_tokenizers, structure_stage=structure_stage)
 for k, v in wt_result.items():
     logger.info(f"{k}: {v.shape}")
 
