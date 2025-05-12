@@ -119,7 +119,7 @@ with torch.no_grad():
 ## 🕸️ Building an Allosteric Network
 
 ```python
-from rocketshp.network import build_allosteric_network, cluster_network, calculate_centrality
+from rocketshp.network import build_allosteric_network, cluster_network, calculate_centrality, plot_network_clusters
 
 # Build network from GCC-LMI predictions and distance mask
 gcc_lmi = dynamics_pred["gcc_lmi"].squeeze().cpu().numpy()
