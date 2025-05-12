@@ -1,33 +1,35 @@
 #!/usr/bin/env python
-# coding: utf-8
 
 # %%
+
 import matplotlib.pyplot as plt
 import mdtraj as md
-import seaborn as sns
-import torch
-import pandas as pd
 import numpy as np
+import pandas as pd
+import torch
 from loguru import logger
 from omegaconf import OmegaConf
-from scipy.stats import entropy
-from argparse import ArgumentParser
+from scipy.stats import entropy, pearsonr, spearmanr
+from torch.nn.functional import softmax
 
 from rocketshp import config
 from rocketshp.data.atlas import ATLASDataModule
 from rocketshp.modeling.architectures import RocketSHPModel
+from rocketshp.trajectory import compute_rmsf
 
-plt.rcParams.update({
-    # "axes.prop_cycle": "cycler('color', ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9'])",
-    "axes.prop_cycle": "cycler('color', ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#1D2954', '#FFD53E'])", # simons foundation    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "axes.spines.top": False,
-    "font.size": 16,
-    "figure.autolayout": False,
-    "savefig.bbox": "tight",
-    "savefig.dpi": 300,
-    "svg.fonttype": "none",
-    })
+plt.rcParams.update(
+    {
+        # "axes.prop_cycle": "cycler('color', ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9'])",
+        "axes.prop_cycle": "cycler('color', ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#1D2954', '#FFD53E'])",  # simons foundation    "axes.spines.top": False,
+        "axes.spines.right": False,
+        "axes.spines.top": False,
+        "font.size": 16,
+        "figure.autolayout": False,
+        "savefig.bbox": "tight",
+        "savefig.dpi": 300,
+        "svg.fonttype": "none",
+    }
+)
 
 
 # %%
@@ -83,12 +85,9 @@ model = model.eval()
 
 
 # %%
-
-
-from scipy.stats import pearsonr, spearmanr
-
 def get_idx_name(name):
     return adl.dataset.samples.index(name)
+
 
 feats, labels = adl.dataset[get_idx_name(key)]
 
@@ -97,8 +96,10 @@ pdb_code_save = pdb_code
 logger.info(f"Key: {key}")
 logger.info(f"Sequence length: {len(labels['rmsf'])}")
 
+
 def normalize(x):
     return (x - x.mean()) / x.std()
+
 
 with torch.no_grad():
     both_result = model({k: v.to(device).unsqueeze(0) for k, v in feats.items()})
@@ -108,7 +109,9 @@ with torch.no_grad():
 DYNA_CALIBRATION_SCALE = 0.40668870885911723
 DYNA_CALIBRATION_OFFSET = -0.02243122548498261
 
-dyna1_path = f"/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/{pdb_code}/{pdb_code}-Dyna1.csv"
+dyna1_path = (
+    f"/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/{pdb_code}/{pdb_code}-Dyna1.csv"
+)
 dyna1_df = pd.read_csv(dyna1_path)
 dyna1_proba = dyna1_df.iloc[:, 2].values
 dyna1_result = (DYNA_CALIBRATION_SCALE * dyna1_proba) + DYNA_CALIBRATION_OFFSET
@@ -116,8 +119,6 @@ sequence = "".join(dyna1_df.iloc[:, 1].values)
 
 
 # %%
-
-from rocketshp.trajectory import compute_rmsf
 bioemu_path = f"/mnt/home/ssledzieski/GitHub/bioemu/rshp_results/{pdb_code}_10"
 bioemu_traj = md.load(f"{bioemu_path}/samples.xtc", top=f"{bioemu_path}/topology.pdb")
 bioemu_rmsf = compute_rmsf(bioemu_traj)
@@ -135,7 +136,7 @@ plt.xlabel("Residue")
 plt.title(f"Protein: {key}")
 plt.legend()
 if savefig:
-    plt.savefig( 
+    plt.savefig(
         config.FIGURES_DIR / "atlas_single" / f"{pdb_code_save}_rmsf_comparison.svg",
     )
 # plt.show()
@@ -166,7 +167,9 @@ predicted_sqform = both_result[squared_label_type].cpu().squeeze().T
 # increase font size
 with plt.rc_context({"font.size": 30}):
     fig, axes = plt.subplots(nrows=1, ncols=2, figsize=(22, 10))
-    im1 = axes[0].imshow(1 - true_sqform, vmin=0, vmax=1, aspect="auto", cmap="coolwarm")
+    im1 = axes[0].imshow(
+        1 - true_sqform, vmin=0, vmax=1, aspect="auto", cmap="coolwarm"
+    )
     axes[0].set_xlabel("True")
     im2 = axes[1].imshow(
         1 - predicted_sqform, vmin=0, vmax=1, aspect="auto", cmap="coolwarm"
@@ -181,8 +184,10 @@ with plt.rc_context({"font.size": 30}):
 
     if savefig:
         plt.savefig(
-        config.FIGURES_DIR / "atlas_single" / f"{pdb_code_save}_ca_dist_comparison.svg",
-        bbox_inches="tight",
+            config.FIGURES_DIR
+            / "atlas_single"
+            / f"{pdb_code_save}_ca_dist_comparison.svg",
+            bbox_inches="tight",
         )
     # plt.show()
 
@@ -220,7 +225,9 @@ with plt.rc_context({"font.size": 30}):
 
     if savefig:
         plt.savefig(
-            config.FIGURES_DIR / "atlas_single" / f"{pdb_code_save}_autocorr_comparison.svg",
+            config.FIGURES_DIR
+            / "atlas_single"
+            / f"{pdb_code_save}_autocorr_comparison.svg",
             bbox_inches="tight",
         )
     # plt.show()
@@ -231,7 +238,6 @@ with plt.rc_context({"font.size": 30}):
 
 # Foldseek Structure Heterogeneity Profile
 fig, ax = plt.subplots(2, 1, figsize=(15, 9))
-from torch.nn.functional import softmax
 
 true_shp = labels["shp"].squeeze().T
 predicted_shp = both_result["shp"].cpu().squeeze().T
@@ -280,9 +286,7 @@ gnm_covar = f"{GNM_ROOT}/{pdb_code[:2]}/{pdb_code}_gnm.npz"
 gnm_data = np.load(gnm_covar)
 gnm_covar = gnm_data["covar"]
 fig, ax = plt.subplots(1, 1, figsize=(5, 5))
-ax.imshow(
-        gnm_covar, vmin=0, vmax=1, aspect="auto", cmap="coolwarm"
-    )
+ax.imshow(gnm_covar, vmin=0, vmax=1, aspect="auto", cmap="coolwarm")
 
 # ---
 

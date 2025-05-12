@@ -1,13 +1,11 @@
 # %% Imports
-import mdtraj as md
-import numpy as np
-import matplotlib.pyplot as plt
 import pickle as pk
 from pathlib import Path
-from rocketshp.trajectory import compute_rmsf
-from rocketshp import config
-from tqdm import tqdm
 
+import matplotlib.pyplot as plt
+import numpy as np
+
+from rocketshp import config
 
 # %% Paths
 bioemu_results_dir = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results_100")
@@ -43,6 +41,7 @@ bioemu_files = {
 with open(config.PROCESSED_DATA_DIR / "atlas" / "bioemu_rmsf_samples.npy", "rb") as f:
     rmsf_samples = pk.load(f)
 
+
 # %% Plot
 def plot_rmsf(rmsf_samples):
     _, ax = plt.subplots(1, 2, figsize=(12, 6))
@@ -51,15 +50,27 @@ def plot_rmsf(rmsf_samples):
     plt.ylabel("RMSF")
     plt.show()
 
-    plt.plot(np.arange(rmsf_samples.shape[1]), rmsf_samples.mean(axis=0), label="mean", ax=ax[1])
-    plt.plot(np.arange(rmsf_samples.shape[1]), rmsf_samples.std(axis=0), label="std", ax=ax[1])
+    plt.plot(
+        np.arange(rmsf_samples.shape[1]),
+        rmsf_samples.mean(axis=0),
+        label="mean",
+        ax=ax[1],
+    )
+    plt.plot(
+        np.arange(rmsf_samples.shape[1]),
+        rmsf_samples.std(axis=0),
+        label="std",
+        ax=ax[1],
+    )
     plt.plot(
         np.arange(rmsf_samples.shape[1]),
         rmsf_samples.std(axis=0) / (rmsf_samples.mean(axis=0) ** 2),
         label="std/mean**2",
-        ax=ax[1]
+        ax=ax[1],
     )
 
     plt.legend()
     plt.show()
+
+
 # %%

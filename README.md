@@ -3,6 +3,7 @@
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
+[![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
 > [!WARNING]
 > While RocketSHP is under review, on AnonymousGitub the HuggingFace `repo_id` will be removed, so automatic checkpoint loading will not work. If you are a reviewer that wants to try the model, you can download the `latest` checkpoint from `models/rocketshp_pretrained_20250505_v1.ckpt` and explicitly pass this path into the `RocketSHP.load_from_checkpoint()` function.

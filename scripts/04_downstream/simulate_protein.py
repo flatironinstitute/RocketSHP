@@ -1,21 +1,28 @@
 #!/usr/bin/env python
-# coding: utf-8
 # python -m openmm.testInstallation
 # %% Imports
-from openmm.app import (
-   Simulation, 
-   Modeller,
-   ForceField,
-   StateDataReporter,
-   CheckpointReporter,
-   PME,
-   HBonds,
-   PDBFile,
-)
+# %% Define inputs
+import argparse
+from pathlib import Path
+from sys import stdout
+
+import matplotlib.pyplot as plt
+import numpy as np
+from loguru import logger
 from openmm import (
-    Platform,
     LangevinMiddleIntegrator,
     MonteCarloBarostat,
+    Platform,
+)
+from openmm.app import (
+    PME,
+    CheckpointReporter,
+    ForceField,
+    HBonds,
+    Modeller,
+    PDBFile,
+    Simulation,
+    StateDataReporter,
 )
 from openmm.unit import (
     bar,
@@ -27,26 +34,14 @@ from openmm.unit import (
 from pdbfixer import PDBFixer
 from subset_xtc_reporter import XTCReporter
 
-from sys import stdout
-import numpy as np
-import matplotlib.pyplot as plt
-from loguru import logger
-from pathlib import Path
-
-import biotite.structure as bs
-from biotite.structure.io.pdb import PDBFile as bsPDBFile
-from biotite.database import rcsb
-from biotite.interface import openmm as omm_if
-
-# %% Define inputs
-import argparse
-
 platforms = []
 num_platforms = Platform.getNumPlatforms()
 for i in range(num_platforms):
     platforms.append(Platform.getPlatform(i).getName())
 
-parser = argparse.ArgumentParser(description="Run OpenMM simulation on a protein structure")
+parser = argparse.ArgumentParser(
+    description="Run OpenMM simulation on a protein structure"
+)
 parser.add_argument(
     "--pdb-path",
     type=Path,
@@ -66,13 +61,15 @@ parser.add_argument(
     help="Run ID for the simulation [simulation]",
 )
 parser.add_argument(
-    "--temperature","-T",
+    "--temperature",
+    "-T",
     type=float,
     default=300,
     help="Temperature in Kelvin [300]",
 )
 parser.add_argument(
-    "--pressure","-p",
+    "--pressure",
+    "-p",
     type=float,
     default=1,
     help="Pressure in bar [1]",
@@ -84,7 +81,8 @@ parser.add_argument(
     help="Total simulation time in nanoseconds [100]",
 )
 parser.add_argument(
-    "--step-size","-s",
+    "--step-size",
+    "-s",
     type=float,
     default=0.002,
     help="Step size in picoseconds [0.002]",
@@ -93,7 +91,7 @@ parser.add_argument(
     "--save-every",
     type=int,
     default=10,
-    help="Save trajectory every N picoseconds [10]"
+    help="Save trajectory every N picoseconds [10]",
 )
 parser.add_argument(
     "--checkpoint-scale",
@@ -117,7 +115,8 @@ parser.add_argument(
     help="Do not plot results",
 )
 parser.add_argument(
-    "--device", "-d",
+    "--device",
+    "-d",
     type=str,
     default="CUDA",
     choices=platforms,
@@ -155,7 +154,9 @@ save_steps = int(save_every / step_size)
 NVT_EQ_TIME = 200 * picosecond
 NPT_EQ_TIME = 1 * nanosecond
 
-logger.info(f"Running simulation on {pdb_path} at {temperature} and {pressure} for {total_time}.")
+logger.info(
+    f"Running simulation on {pdb_path} at {temperature} and {pressure} for {total_time}."
+)
 
 # %% Derive parameters
 # Convert time to steps
@@ -165,9 +166,9 @@ nvt_steps = 0
 npt_steps = 0
 
 if args.nvt_eq:
-    nvt_steps = int(NVT_EQ_TIME / step_size) # 10 ns
+    nvt_steps = int(NVT_EQ_TIME / step_size)  # 10 ns
 if args.npt_eq:
-    npt_steps = int(NPT_EQ_TIME / step_size) # 90 ns
+    npt_steps = int(NPT_EQ_TIME / step_size)  # 90 ns
 
 # %% Load structure and topology and fix
 
@@ -181,16 +182,18 @@ fixer.addMissingAtoms()
 fixer.addMissingHydrogens(7.0)
 
 # Write topology to a file called top.pdb
-PDBFile.writeFile(fixer.topology, fixer.positions, file=str(output_dir / f"{run_id}_top.pdb"))
+PDBFile.writeFile(
+    fixer.topology, fixer.positions, file=str(output_dir / f"{run_id}_top.pdb")
+)
 
 # pdb_fi = PDBFile(str(pdb_path))
 
 # %% Use Modeller to Fix Structure
 
 # Specify the forcefield
-forcefield = ForceField('amber14-all.xml', 'amber14/tip3pfb.xml')
+forcefield = ForceField("amber14-all.xml", "amber14/tip3pfb.xml")
 
-#Preprocessing the pdb file.
+# Preprocessing the pdb file.
 # modeller = Modeller(omm_top, omm_pos)
 modeller = Modeller(fixer.topology, fixer.positions)
 modeller.deleteWater()
@@ -200,27 +203,42 @@ for atom in modeller.topology.atoms():
     if atom.residue.name in PDBFile._standardResidues:
         protein_atoms.append(atom.index)
 
-residues=modeller.addHydrogens(forcefield)
-modeller.addSolvent(forcefield, padding=1.0*nanometer)
+residues = modeller.addHydrogens(forcefield)
+modeller.addSolvent(forcefield, padding=1.0 * nanometer)
 
 # %% Create the simulation
 # Here we define some forcefield settings such as the nonbonded method
-system = forcefield.createSystem(modeller.topology, nonbondedMethod=PME, nonbondedCutoff=1.0*nanometer, constraints=HBonds)
+system = forcefield.createSystem(
+    modeller.topology,
+    nonbondedMethod=PME,
+    nonbondedCutoff=1.0 * nanometer,
+    constraints=HBonds,
+)
 
 # Define the integrator. The Langevin integrator is also a thermostat
-integrator = LangevinMiddleIntegrator(temperature, 1/picosecond, step_size)
+integrator = LangevinMiddleIntegrator(temperature, 1 / picosecond, step_size)
 if seed != -1:
     integrator.setRandomNumberSeed(seed)
 
-platform = Platform.getPlatformByName(device) 
+platform = Platform.getPlatformByName(device)
 logger.info(f"Using platform: {platform.getName()}")
 simulation = Simulation(modeller.topology, system, integrator, platform)
 simulation.context.setPositions(modeller.positions)
 
 # Print state information to the screen every 1000 steps
-simulation.reporters.append(StateDataReporter(stdout, 1000, step=True,
-        potentialEnergy=True, temperature=True, volume=True,
-        elapsedTime=True, remainingTime=True, totalSteps=nvt_steps+npt_steps+total_steps))
+simulation.reporters.append(
+    StateDataReporter(
+        stdout,
+        1000,
+        step=True,
+        potentialEnergy=True,
+        temperature=True,
+        volume=True,
+        elapsedTime=True,
+        remainingTime=True,
+        totalSteps=nvt_steps + npt_steps + total_steps,
+    )
+)
 
 # %% Minimize energy
 logger.info("Minimizing energy...")
@@ -228,13 +246,17 @@ simulation.minimizeEnergy()
 
 # %% NVT Equilibration
 if args.nvt_eq:
-    logger.info(f"Running NVT equilibration for {NVT_EQ_TIME / nanosecond} nanoseconds ({nvt_steps} steps)")
+    logger.info(
+        f"Running NVT equilibration for {NVT_EQ_TIME / nanosecond} nanoseconds ({nvt_steps} steps)"
+    )
     simulation.step(nvt_steps)
 
 
 # %% NPT Equilibiration
 if args.npt_eq:
-    logger.info(f"Running NPT equilibration for {NPT_EQ_TIME / nanosecond} nanoseconds ({npt_steps} steps)")
+    logger.info(
+        f"Running NPT equilibration for {NPT_EQ_TIME / nanosecond} nanoseconds ({npt_steps} steps)"
+    )
     system.addForce(MonteCarloBarostat(pressure, temperature))
     simulation.context.reinitialize(preserveState=True)
     simulation.step(npt_steps)
@@ -242,8 +264,10 @@ if args.npt_eq:
 # %% Set up reporters
 
 # Write trajectory to a file called traj.xtc
-logger.warning(f"Only writing protein atoms to the trajectory.")
-xtc_reporter = XTCReporter(str(output_dir / f"{run_id}_traj.xtc"), save_steps, atomSubset=protein_atoms)
+logger.warning("Only writing protein atoms to the trajectory.")
+xtc_reporter = XTCReporter(
+    str(output_dir / f"{run_id}_traj.xtc"), save_steps, atomSubset=protein_atoms
+)
 simulation.reporters.append(xtc_reporter)
 
 # Print the same info to a log file
@@ -253,44 +277,48 @@ state_data_reporter = StateDataReporter(
     step=True,
     potentialEnergy=True,
     temperature=True,
-    volume=True
+    volume=True,
 )
 simulation.reporters.append(state_data_reporter)
 
 # Save checkpoint every 100x save steps
-checkpoint_reporter = CheckpointReporter(str(output_dir / f"{run_id}_checkpoint.chk"), checkpoint_scale*save_steps)
+checkpoint_reporter = CheckpointReporter(
+    str(output_dir / f"{run_id}_checkpoint.chk"), checkpoint_scale * save_steps
+)
 simulation.reporters.append(checkpoint_reporter)
 
 # %% Production run
-logger.info(f"Running production run for {total_time / nanosecond} nanoseconds ({total_steps} steps)")
+logger.info(
+    f"Running production run for {total_time / nanosecond} nanoseconds ({total_steps} steps)"
+)
 simulation.context.reinitialize(preserveState=True)
 simulation.step(total_steps)
 
 # %% Plot results
 if not args.no_plot:
     logger.info("Plotting results...")
-    data = np.loadtxt(output_dir / f"{run_id}_log.txt", delimiter=',')
-    step = data[:,0]
-    potential_energy = data[:,1]
-    temperature = data[:,2]
-    volume = data[:,3]
+    data = np.loadtxt(output_dir / f"{run_id}_log.txt", delimiter=",")
+    step = data[:, 0]
+    potential_energy = data[:, 1]
+    temperature = data[:, 2]
+    volume = data[:, 3]
 
     # Potential Energy
-    plt.figure(figsize=(10, 10)) 
-    plt.subplot(3, 1, 1) 
-    plt.plot(step, potential_energy, color='b', linewidth=1.5)
+    plt.figure(figsize=(10, 10))
+    plt.subplot(3, 1, 1)
+    plt.plot(step, potential_energy, color="b", linewidth=1.5)
     plt.xlabel("Step")
     plt.ylabel("Potential Energy (kJ/mol)")
 
     # Temperature
-    plt.subplot(3, 1, 2) 
-    plt.plot(step, temperature, color='r', linewidth=1.5)
+    plt.subplot(3, 1, 2)
+    plt.plot(step, temperature, color="r", linewidth=1.5)
     plt.xlabel("Step")
     plt.ylabel("Temperature (K)")
 
     # Volume
-    plt.subplot(3, 1, 3) 
-    plt.plot(step, volume, color='g', linewidth=1.5)
+    plt.subplot(3, 1, 3)
+    plt.plot(step, volume, color="g", linewidth=1.5)
     plt.xlabel("Step")
     plt.ylabel("Volume (nm³)")
     plt.tight_layout()

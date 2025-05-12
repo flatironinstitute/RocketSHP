@@ -119,7 +119,7 @@ class LightningWrapper(L.LightningModule):
         self.gcc_lmi_alpha = params.gcc_lmi_alpha
         self.shp_alpha = params.shp_alpha
         self.variance_norm = params.variance_norm
-        
+
         self.crop_size = 512
 
     def forward(self, x):
@@ -137,7 +137,9 @@ class LightningWrapper(L.LightningModule):
         if self.norm_grad and stage == "train":
             rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
             ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-            autocorr_loss = self.autocorr_loss_fn(y_hat["autocorr"], y["autocorr"], mask)
+            autocorr_loss = self.autocorr_loss_fn(
+                y_hat["autocorr"], y["autocorr"], mask
+            )
             gcc_loss = self.gcc_loss_fn(y_hat["gcc_lmi"], y["gcc_lmi"], mask)
             shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
 
@@ -193,7 +195,7 @@ class LightningWrapper(L.LightningModule):
         total_loss = loss_dict["batch_loss"]
 
         self.log_dict(loss_dict, on_step=True, on_epoch=False)
-        
+
         self.log_dict(
             {"train_loss": loss_dict["batch_loss"]}, on_step=False, on_epoch=True
         )

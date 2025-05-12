@@ -1,17 +1,15 @@
 from pathlib import Path
 
-import nglview as nv
+import matplotlib.pyplot as plt
 import numpy as np
 import typer
 from loguru import logger
 from tqdm import tqdm
 
-import matplotlib.pyplot as plt
-import seaborn as sns
-
 from rocketshp.config import FIGURES_DIR, PROCESSED_DATA_DIR
 
 app = typer.Typer()
+
 
 def plot_predictions(
     rmsf: np.ndarray,
@@ -47,6 +45,7 @@ def plot_predictions(
 
     plt.tight_layout()
     plt.savefig(output_path)
+
 
 @app.command()
 def main(

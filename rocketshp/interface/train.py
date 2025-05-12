@@ -1,6 +1,7 @@
 import logging
 import os
 import warnings
+from functools import partial
 
 import dotenv
 import neptune
@@ -12,10 +13,9 @@ from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 
-from functools import partial
 from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
-from rocketshp.data.mdcath import MDCathDataModule
 from rocketshp.data.atlas import ATLASDataModule
+from rocketshp.data.mdcath import MDCathDataModule
 from rocketshp.modeling.architectures import (
     RocketSHPModel,
 )
@@ -43,7 +43,9 @@ app = typer.Typer(pretty_exceptions_enable=False)
 
 
 @app.command()
-def main(run_id: str, config: str | None = None, debug: bool = False, dataset: str = "atlas"):
+def main(
+    run_id: str, config: str | None = None, debug: bool = False, dataset: str = "atlas"
+):
     dotenv.load_dotenv()
 
     assert dataset in ["atlas", "mdcath"], "Dataset must be either 'atlas' or 'mdcath'"
@@ -109,9 +111,15 @@ def main(run_id: str, config: str | None = None, debug: bool = False, dataset: s
     torch.set_float32_matmul_precision(PARAMS.precision)
 
     if dataset == "atlas":
-        dmodule = partial(ATLASDataModule, processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5")
+        dmodule = partial(
+            ATLASDataModule,
+            processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",
+        )
     elif dataset == "mdcath":
-        dmodule = partial(MDCathDataModule,processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5")
+        dmodule = partial(
+            MDCathDataModule,
+            processed_h5=PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
+        )
 
     datamod = dmodule(
         # processed_h5=PROCESSED_DATA_DIR / "atlas/atlas_processed.h5",

@@ -1,11 +1,12 @@
+from pathlib import Path
+
 import torch
 from esm.layers.transformer_stack import TransformerStack
 from esm.utils.constants import esm3 as ESM_CONSTANTS
+from loguru import logger
 from safetensors import safe_open
 from safetensors.torch import save_file
 from torch import nn
-from pathlib import Path
-from loguru import logger
 
 
 class StructEncoder(nn.Module):
@@ -237,6 +238,7 @@ def RegressionHead(
         nn.Linear(hidden_dim, output_dim),
     )
 
+
 def PairwiseDistanceHead(
     d_model: int, kernel_size: int, hidden_dim: int | None = None, output_dim: int = 1
 ) -> nn.Module:
@@ -257,6 +259,7 @@ def PairwiseDistanceHead(
         nn.Conv2d(hidden_dim, output_dim, kernel_size=kernel_size, stride=1),
         nn.ReLU(),
     )
+
 
 def PairwiseProbabilityHead(
     d_model: int, kernel_size: int, hidden_dim: int | None = None, output_dim: int = 1
@@ -279,6 +282,7 @@ def PairwiseProbabilityHead(
         nn.Sigmoid(),
     )
 
+
 class RocketSHPModel(nn.Module):
     def __init__(
         self,
@@ -293,7 +297,7 @@ class RocketSHPModel(nn.Module):
         struct_dim: int = None,
         n_input_tokens: int = ESM_CONSTANTS.VQVAE_CODEBOOK_SIZE,
         n_shp_tokens: int = 20,
-        default_temp: float = 300.0
+        default_temp: float = 300.0,
     ):
         super().__init__()
 
@@ -368,7 +372,12 @@ class RocketSHPModel(nn.Module):
         if "temp" in x:
             temperature = x["temp"]
         else:
-            temperature = torch.ones(x["seq_feats"].shape[1], device=x["seq_feats"].device).unsqueeze(0) * self.default_temp
+            temperature = (
+                torch.ones(
+                    x["seq_feats"].shape[1], device=x["seq_feats"].device
+                ).unsqueeze(0)
+                * self.default_temp
+            )
 
         x = self._transform(x)
         feats_with_temp = torch.cat([x, temperature.unsqueeze(-1)], dim=-1)
@@ -396,10 +405,10 @@ class RocketSHPModel(nn.Module):
 
     @classmethod
     def load_from_checkpoint(cls, checkpoint_path: str = "latest", strict: bool = True):
-        """Load a model from a checkpoint."
-        """
-        from rocketshp.config import PRETRAINED_MODELS
+        """Load a model from a checkpoint." """
         from huggingface_hub import hf_hub_download
+
+        from rocketshp.config import PRETRAINED_MODELS
 
         if checkpoint_path in PRETRAINED_MODELS:
             checkpoint_path = hf_hub_download(
@@ -412,11 +421,11 @@ class RocketSHPModel(nn.Module):
                 f"Checkpoint path {checkpoint_path} does not exist."
             )
         elif not checkpoint_path.endswith(".ckpt"):
-            raise ValueError(
-                f"Checkpoint path {checkpoint_path} must end with .ckpt."
-            )
+            raise ValueError(f"Checkpoint path {checkpoint_path} must end with .ckpt.")
         else:
-            logger.error(f"If you are trying to download from HuggingFace, available models are: {PRETRAINED_MODELS.keys()}")
+            logger.error(
+                f"If you are trying to download from HuggingFace, available models are: {PRETRAINED_MODELS.keys()}"
+            )
             raise FileNotFoundError(
                 f"Checkpoint path {checkpoint_path} does not exist."
             )

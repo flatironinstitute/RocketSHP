@@ -1,11 +1,13 @@
-#%%
+# %%
 import re
 import time
-import mdtraj as md
-from tqdm import tqdm
 from pathlib import Path
+
+import mdtraj as md
 from bioemu.sample import main as sample
+from biotite.sequence import ProteinSequence
 from loguru import logger
+from tqdm import tqdm
 
 num_samples = 100
 data_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data")
@@ -13,20 +15,21 @@ output_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_atlas_results_100")
 atlas_data = data_root / "raw/atlas"
 
 
-#%% Get all atlas pdb files
+# %% Get all atlas pdb files
 logger.info("Getting all atlas pdbs...")
-pdb_files = [f for f in atlas_data.glob("**/*.pdb") if f.is_file() and re.search(r"...._.\.pdb", f.name)]
+pdb_files = [
+    f
+    for f in atlas_data.glob("**/*.pdb")
+    if f.is_file() and re.search(r"...._.\.pdb", f.name)
+]
 logger.info(f"Found {len(pdb_files)} pdbs.")
 
 # %% Get all sequences from the pdb files
-from biotite.sequence import ProteinSequence
-
 sequences = []
 
 if (output_root / "sequences.fasta").exists():
-
     # Read sequences from the file
-    with open(output_root / "sequences.fasta", "r") as f:
+    with open(output_root / "sequences.fasta") as f:
         for line in f:
             if line.startswith(">"):
                 pdb_key = line[1:].strip()
@@ -43,7 +46,9 @@ else:
         residue_names = [residue.name for residue in t.topology.residues]
 
         # Convert 3-letter codes to 1-letter amino acid codes
-        aa_sequence = ''.join([ProteinSequence.convert_letter_3to1(res) for res in residue_names])
+        aa_sequence = "".join(
+            [ProteinSequence.convert_letter_3to1(res) for res in residue_names]
+        )
         sequences.append(aa_sequence)
 
     # Write sequences to a file
@@ -57,13 +62,15 @@ cache_dir.mkdir(parents=True, exist_ok=True)
 
 logger.info("Running bioemu for each sequence...")
 for pdb_fi, seq in tqdm(zip(pdb_files, sequences)):
-    time.sleep(0.1) # to avoid spamming the MSA server-- not counted in running time
-    
+    time.sleep(0.1)  # to avoid spamming the MSA server-- not counted in running time
+
     pdb_key = pdb_fi.stem
-    if Path(f"{output_root}/{pdb_key}_{num_samples}/time_log.txt",).exists():
+    if Path(
+        f"{output_root}/{pdb_key}_{num_samples}/time_log.txt",
+    ).exists():
         logger.info(f"Already processed {pdb_fi.stem} with {num_samples} samples.")
         continue
-    
+
     start_time = time.time()
     try:
         sample(
@@ -83,5 +90,5 @@ for pdb_fi, seq in tqdm(zip(pdb_files, sequences)):
         with open(f"{output_root}/{pdb_key}_{num_samples}/error.txt", "w") as f:
             f.write(f"Error: {e}\n")
         continue
-    
+
 # %%

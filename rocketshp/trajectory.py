@@ -3,11 +3,11 @@ from io import StringIO
 from itertools import combinations
 from pathlib import Path
 
-import mdtraj as md
-import numpy as np
-import nglview as nv
-import torch
 import biotite.structure as bs
+import mdtraj as md
+import nglview as nv
+import numpy as np
+import torch
 from biotite.structure.alphabet import to_3di
 from statsmodels.tsa.stattools import acf
 
@@ -82,6 +82,7 @@ def display_trajectory(
             f"Coloring scheme {coloring} not supported: valid options {nv.color.COLOR_SCHEMES}"
         )
 
+
 def normalize(traj: md.Trajectory, ca_only: bool = True):
     traj.superpose(traj)
     traj.center_coordinates()
@@ -120,25 +121,34 @@ def compute_contacts(
         )
     )
 
+
 def compute_generalized_correlation_lmi(
     top_file: str | Path,
     traj_file: str | Path,
     stride: int = 1,
     verbose: bool = False,
 ):
-    from mdigest.core.parsetrajectory import MDS
     from mdigest.core.correlation import DynCorr
+    from mdigest.core.parsetrajectory import MDS
 
     mds = MDS()
     mds.set_num_replicas(1)
     mds.load_system(top_file, traj_file)
-    mds.align_traj(selection='name CA')
-    mds.set_selection('protein and name CA', 'protein')
+    mds.align_traj(selection="name CA")
+    mds.set_selection("protein and name CA", "protein")
     mds.stride_trajectory(initial=0, final=-1, step=stride)
 
     dyncorr = DynCorr(mds)
-    dyncorr.parse_dynamics(scale=True, normalize=True, LMI="gaussian", MI="None", CENTRALITY=False, VERBOSE=verbose)
+    dyncorr.parse_dynamics(
+        scale=True,
+        normalize=True,
+        LMI="gaussian",
+        MI="None",
+        CENTRALITY=False,
+        VERBOSE=verbose,
+    )
     return dyncorr.gcc_allreplicas["rep_0"]["gcc_lmi"]
+
 
 def compute_autocorrelation_DEPRECATED(
     traj: md.Trajectory,
@@ -158,6 +168,7 @@ def compute_autocorrelation_DEPRECATED(
         correlations[c_i, c_j] = corrs_[lag]
         correlations[c_j, c_i] = corrs_[lag]
     return correlations
+
 
 FS_3DI_LIST = [
     "L",
@@ -182,6 +193,7 @@ FS_3DI_LIST = [
     "C",
 ]
 
+
 def seq_list_to_tensor(seq_list):
     max_len = max([len(i) for i in seq_list])
     seq_tensor = torch.zeros(len(seq_list), max_len, dtype=torch.long)
@@ -190,18 +202,21 @@ def seq_list_to_tensor(seq_list):
         seq_tensor[i] = torch.tensor(exploded)
     return seq_tensor
 
+
 def convert_to_normalized_shp(preshp, max_dim=20):
-        preshp = torch.tensor(preshp).squeeze()
-        shp = torch.stack([torch.bincount(i, minlength=max_dim) for i in preshp.T])
-        shp = shp.T / shp.sum(axis=1)
-        return shp.T
+    preshp = torch.tensor(preshp).squeeze()
+    shp = torch.stack([torch.bincount(i, minlength=max_dim) for i in preshp.T])
+    shp = shp.T / shp.sum(axis=1)
+    return shp.T
+
 
 def compute_shp(aa_stack: bs.AtomArrayStack, start=0, stop=None, stride=1):
     """
     Compute SHP from a stack of atoms
     """
     seqs_3di = []
-    if stop is None: stop = len(aa_stack)
+    if stop is None:
+        stop = len(aa_stack)
     for i in range(start, stop, stride):
         structure = aa_stack[i]
         i3d = str(to_3di(structure)[0][0]).upper()
@@ -210,6 +225,7 @@ def compute_shp(aa_stack: bs.AtomArrayStack, start=0, stop=None, stride=1):
     shp = convert_to_normalized_shp(preshp)
 
     return shp
+
 
 def frame_to_chain(F):
     with tempfile.NamedTemporaryFile(suffix=".pdb") as tmp:

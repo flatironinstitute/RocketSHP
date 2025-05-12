@@ -1,9 +1,8 @@
 # %% Load packages
-import os
 import argparse
+import os
 import pickle as pk
 
-import h5py
 import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
@@ -11,36 +10,34 @@ import seaborn as sns
 import torch
 from loguru import logger
 from omegaconf import OmegaConf
-from scipy.stats import pearsonr, spearmanr
-from torch.nn.functional import kl_div, log_softmax, softmax
 from tqdm import tqdm
-from multiprocessing import Pool
 
 from rocketshp import config
 from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.data.utils import train_test_split_foldseek
-from rocketshp.modeling.architectures import RocketSHPModel
 from rocketshp.metrics import (
     ipsen_mikhailov_distance,
+    kl_divergence_2d,
+    mae,
+    mse,
     pearson,
     spearman,
-    mse,
-    mae,
-    kl_divergence_2d,
     wasserstein_2d,
 )
+from rocketshp.modeling.architectures import RocketSHPModel
 
-plt.rcParams.update({
-    # "axes.prop_cycle": "cycler('color', ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#537eba', '#56B4E9'])",
-    "axes.prop_cycle": "cycler('color', ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#1D2954', '#FFD53E'])", # simons foundation
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "font.size": 16,
-    # "figure.autolayout": False,
-    "savefig.bbox": "tight",
-    "savefig.dpi": 300,
-    "svg.fonttype": "none",
-    })
+plt.rcParams.update(
+    {
+        # "axes.prop_cycle": "cycler('color', ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#537eba', '#56B4E9'])",
+        "axes.prop_cycle": "cycler('color', ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#1D2954', '#FFD53E'])",  # simons foundation
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "font.size": 16,
+        # "figure.autolayout": False,
+        "savefig.bbox": "tight",
+        "savefig.dpi": 300,
+        "svg.fonttype": "none",
+    }
+)
 
 # %% Script inputs
 
@@ -48,8 +45,12 @@ parser = argparse.ArgumentParser(description="Evaluate RocketSHP model")
 parser.add_argument("eval_key", type=str, help="Key for the evaluation")
 parser.add_argument("model", type=str, help="Path to the model checkpoint")
 parser.add_argument("config_file", type=str, help="Path to the config file")
-parser.add_argument("--split", choices=["valid", "test"], default="valid", help="Split to evaluate")
-parser.add_argument("--device", type=str, default="cuda:0", help="Device to use for inference")
+parser.add_argument(
+    "--split", choices=["valid", "test"], default="valid", help="Split to evaluate"
+)
+parser.add_argument(
+    "--device", type=str, default="cuda:0", help="Device to use for inference"
+)
 args = parser.parse_args()
 
 EVAL_KEY = args.eval_key
@@ -94,6 +95,7 @@ logger.info("Loading model...")
 model = RocketSHPModel.load_from_checkpoint(CHECKPOINT_FILE, strict=True)
 model = model.to(device)
 
+
 def run_inference(model, feats, device="cuda:0"):
     """
     Run a forward pass of the model
@@ -106,6 +108,7 @@ def run_inference(model, feats, device="cuda:0"):
     # Move to cpu and squeeze
     y_hat = {k: v.detach().cpu().squeeze() for k, v in y_hat.items()}
     return y_hat
+
 
 # %% Run inference in loop
 
@@ -123,16 +126,13 @@ for i, (feats, labels) in enumerate(
     valid_results[key] = rdict
     valid_labels[key] = labels
 
-for i, (feats, labels) in enumerate(
-    tqdm(adl.test_data, desc="Evaluating test set...")
-):
+for i, (feats, labels) in enumerate(tqdm(adl.test_data, desc="Evaluating test set...")):
     key = adl.dataset.samples[adl.test_data.indices[i]]
     key_under = key.replace("/", "_")
     rdict = run_inference(model, feats)
     test_results[key] = rdict
     test_labels[key] = labels
 
-import pickle as pk
 logger.info("Saving results...")
 with open(OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_inference_results.pkl", "wb") as f:
     pk.dump(valid_results, f)
@@ -160,9 +160,7 @@ for i, f in enumerate(adl.train_data):
     k = adl.dataset.samples[adl.train_data.indices[i]]
     seq_lengths.append((k, "train", f[1]["rmsf"].shape[0]))
 
-seq_lengths = pd.DataFrame(
-    seq_lengths, columns=["key", "split", "length"]
-)
+seq_lengths = pd.DataFrame(seq_lengths, columns=["key", "split", "length"])
 
 # %% Assign sequences to length bins
 
@@ -193,20 +191,48 @@ seq_lengths_unique = seq_lengths_unique.drop_duplicates()
 
 plt.figure(figsize=(10, 5))
 plt_bins = np.arange(0, 2100, 50)
-plt.hist(seq_lengths_unique[seq_lengths_unique["split"] == "train"]["length"], bins=plt_bins, alpha=0.8, label="Train")
-plt.hist(seq_lengths_unique[seq_lengths_unique["split"] == "valid"]["length"], bins=plt_bins, alpha=0.8, label="Valid")
-plt.hist(seq_lengths_unique[seq_lengths_unique["split"] == "test"]["length"],  bins=plt_bins, alpha=0.8, label="Test")
+plt.hist(
+    seq_lengths_unique[seq_lengths_unique["split"] == "train"]["length"],
+    bins=plt_bins,
+    alpha=0.8,
+    label="Train",
+)
+plt.hist(
+    seq_lengths_unique[seq_lengths_unique["split"] == "valid"]["length"],
+    bins=plt_bins,
+    alpha=0.8,
+    label="Valid",
+)
+plt.hist(
+    seq_lengths_unique[seq_lengths_unique["split"] == "test"]["length"],
+    bins=plt_bins,
+    alpha=0.8,
+    label="Test",
+)
 for b in bins:
     b_min, b_max = b[1]
     plt.axvline(x=b_min, color="black", linestyle="--")
-    plt.text(((b_min + b_max) // 2) - 5, 275, b[0], rotation=45, ha="left", va="center", fontsize=10)
+    plt.text(
+        ((b_min + b_max) // 2) - 5,
+        275,
+        b[0],
+        rotation=45,
+        ha="left",
+        va="center",
+        fontsize=10,
+    )
 plt.xlabel("Sequence Length")
 plt.ylabel("Number of Proteins")
-plt.savefig(config.FIGURES_DIR / "atlas_all" / "seq_length_histogram.svg", dpi=300, bbox_inches="tight")
+plt.savefig(
+    config.FIGURES_DIR / "atlas_all" / "seq_length_histogram.svg",
+    dpi=300,
+    bbox_inches="tight",
+)
 plt.legend()
 plt.show()
 
 # %% Performance
+
 
 def compute_metric_single(key, target, pred):
     metrics = {}
@@ -218,47 +244,60 @@ def compute_metric_single(key, target, pred):
     # Compute RMSF metrics
     pearson_corr, pearson_p = pearson(target["rmsf"], pred["rmsf"])
     spearman_corr, spearman_p = spearman(target["rmsf"], pred["rmsf"])
-    metrics.update({
-        "rmsf_pearson_r": pearson_corr,
-        "rmsf_pearson_p": pearson_p,
-        "rmsf_spearman_r": spearman_corr,
-        "rmsf_spearman_p": spearman_p,
-        "rmsf_mse": mse(target["rmsf"], pred["rmsf"])
-    })
+    metrics.update(
+        {
+            "rmsf_pearson_r": pearson_corr,
+            "rmsf_pearson_p": pearson_p,
+            "rmsf_spearman_r": spearman_corr,
+            "rmsf_spearman_p": spearman_p,
+            "rmsf_mse": mse(target["rmsf"], pred["rmsf"]),
+        }
+    )
 
     # Compute GCC LMI metrics
-    metrics.update({
-        "gcc_mse": mse(target["gcc_lmi"], pred["gcc_lmi"]),
-        "gcc_mae": mae(target["gcc_lmi"], pred["gcc_lmi"]),
-        "gcc_im_dist": ipsen_mikhailov_distance(target["gcc_lmi"], pred["gcc_lmi"]),
-    })
+    metrics.update(
+        {
+            "gcc_mse": mse(target["gcc_lmi"], pred["gcc_lmi"]),
+            "gcc_mae": mae(target["gcc_lmi"], pred["gcc_lmi"]),
+            "gcc_im_dist": ipsen_mikhailov_distance(target["gcc_lmi"], pred["gcc_lmi"]),
+        }
+    )
 
     # Compute SHP metrics
-    metrics.update({
-        "shp_mse": mse(target["shp"], pred["shp"]),
-        "shp_mae": mae(target["shp"], pred["shp"]),
-        "shp_kl_div": kl_divergence_2d(torch.from_numpy(target["shp"]), torch.from_numpy(pred["shp"])),
-        "shp_wasserstein": wasserstein_2d(target["shp"], pred["shp"]),
-    })
+    metrics.update(
+        {
+            "shp_mse": mse(target["shp"], pred["shp"]),
+            "shp_mae": mae(target["shp"], pred["shp"]),
+            "shp_kl_div": kl_divergence_2d(
+                torch.from_numpy(target["shp"]), torch.from_numpy(pred["shp"])
+            ),
+            "shp_wasserstein": wasserstein_2d(target["shp"], pred["shp"]),
+        }
+    )
 
     return metrics
+
 
 def compute_metrics(labels, predictions, save_path=None):
     all_metrics = {}
 
-    zip_iterator = tqdm(zip(labels.keys(), labels.values(), predictions.values()),total=len(labels))
+    zip_iterator = tqdm(
+        zip(labels.keys(), labels.values(), predictions.values()), total=len(labels)
+    )
 
     # with Pool(16) as p:
-        # metric_list = p.starmap(compute_metric_single, zip_iterator)
+    # metric_list = p.starmap(compute_metric_single, zip_iterator)
     # for k, m in zip(labels.keys(), metric_list):
-        # all_metrics[k] = m
+    # all_metrics[k] = m
 
-    for (key, target, pred) in zip_iterator:
+    for key, target, pred in zip_iterator:
         all_metrics[key] = compute_metric_single(key, target, pred)
 
     all_metrics = pd.DataFrame(all_metrics).T
     all_metrics = all_metrics.reset_index()
-    all_metrics = pd.merge(all_metrics, seq_lengths, left_on="index", right_on="key", how="inner")
+    all_metrics = pd.merge(
+        all_metrics, seq_lengths, left_on="index", right_on="key", how="inner"
+    )
     all_metrics = all_metrics.rename({"bin": "Sequence Length"}, axis=1)
 
     if save_path is not None:
@@ -268,16 +307,25 @@ def compute_metrics(labels, predictions, save_path=None):
 
     return all_metrics
 
+
 # %% Compute metrics
 valid_met_path = OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl"
 test_met_path = OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl"
 
 if not valid_met_path.exists():
     logger.info("Computing validation metrics...")
-    valid_metrics = compute_metrics(valid_labels, valid_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl")
+    valid_metrics = compute_metrics(
+        valid_labels,
+        valid_results,
+        save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.pkl",
+    )
 if not test_met_path.exists():
     logger.info("Computing test metrics...")
-    test_metrics = compute_metrics(test_labels, test_results, save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl")
+    test_metrics = compute_metrics(
+        test_labels,
+        test_results,
+        save_path=OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.pkl",
+    )
 
 # %% Load metrics
 with open(valid_met_path, "rb") as f:
@@ -287,7 +335,7 @@ with open(test_met_path, "rb") as f:
 
 # %% Plot just RocketSHP results
 logger.info("Plotting metrics...")
-fig, ax = plt.subplots(figsize=(8,8))
+fig, ax = plt.subplots(figsize=(8, 8))
 if args.split == "valid":
     plot_metrics = valid_metrics
 else:
@@ -302,7 +350,7 @@ sns.boxplot(
     ax=ax,
     legend=False,
     showfliers=False,
-    order=[b[0] for b in bins]
+    order=[b[0] for b in bins],
 )
 
 
@@ -313,7 +361,7 @@ sns.stripplot(
     hue="Sequence Length",
     ax=ax,
     legend=False,
-    order=[b[0] for b in bins]
+    order=[b[0] for b in bins],
 )
 
 ax.set_ylabel("Mean Squared Error of RMSF")
@@ -323,8 +371,8 @@ ax.set_yscale("log")
 plt.tight_layout()
 plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_mse.svg")
 
-#%% 
-fig, ax = plt.subplots(figsize=(8,8))
+# %%
+fig, ax = plt.subplots(figsize=(8, 8))
 sns.scatterplot(
     data=plot_metrics,
     x="rmsf_spearman_r",
@@ -333,7 +381,7 @@ sns.scatterplot(
     hue="Sequence Length",
     s=8,
     legend=True,
-    hue_order=[b[0] for b in bins]
+    hue_order=[b[0] for b in bins],
 )
 ax.set_xlabel("Spearman Correlation of RMSF")
 ax.set_ylabel("-log10(p)")
@@ -341,22 +389,30 @@ ax.set_ylabel("-log10(p)")
 plt.tight_layout()
 plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_spearman.svg")
 
-#%% 
-fig, ax = plt.subplots(figsize=(8,8))
+# %%
+fig, ax = plt.subplots(figsize=(8, 8))
 
 sns.boxplot(
-    data=plot_metrics, y="gcc_im_dist", x="Sequence Length",
+    data=plot_metrics,
+    y="gcc_im_dist",
+    x="Sequence Length",
     ax=ax,
     color="white",
     linecolor="black",
     legend=False,
     showfliers=False,
-    order=[b[0] for b in bins], hue_order=[b[0] for b in bins]
+    order=[b[0] for b in bins],
+    hue_order=[b[0] for b in bins],
 )
 
 sns.stripplot(
-    data=plot_metrics, y="gcc_im_dist", x="Sequence Length", hue="Sequence Length", ax=ax,
-    order=[b[0] for b in bins], hue_order=[b[0] for b in bins]
+    data=plot_metrics,
+    y="gcc_im_dist",
+    x="Sequence Length",
+    hue="Sequence Length",
+    ax=ax,
+    order=[b[0] for b in bins],
+    hue_order=[b[0] for b in bins],
 )
 ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 ax.set_xlabel("")
@@ -365,18 +421,30 @@ ax.set_ylabel("Ipsen-Mikhailov Distance of GCC")
 plt.tight_layout()
 plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_gcc_im_dist.svg")
 
-#%%
-fig, ax = plt.subplots(figsize=(8,8))
-sns.boxplot(data=plot_metrics, y="shp_kl_div", x="Sequence Length",
-            ax=ax,
-            color="white",
-            linecolor="black",
-            legend=False,
-            showfliers=False,
-            order=[b[0] for b in bins], hue_order=[b[0] for b in bins])
+# %%
+fig, ax = plt.subplots(figsize=(8, 8))
+sns.boxplot(
+    data=plot_metrics,
+    y="shp_kl_div",
+    x="Sequence Length",
+    ax=ax,
+    color="white",
+    linecolor="black",
+    legend=False,
+    showfliers=False,
+    order=[b[0] for b in bins],
+    hue_order=[b[0] for b in bins],
+)
 
-sns.stripplot(data=plot_metrics, y="shp_kl_div", x="Sequence Length", hue="Sequence Length",ax=ax,
-            order=[b[0] for b in bins], hue_order=[b[0] for b in bins])
+sns.stripplot(
+    data=plot_metrics,
+    y="shp_kl_div",
+    x="Sequence Length",
+    hue="Sequence Length",
+    ax=ax,
+    order=[b[0] for b in bins],
+    hue_order=[b[0] for b in bins],
+)
 
 ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 ax.set_xlabel("")

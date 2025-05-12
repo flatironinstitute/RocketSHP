@@ -72,5 +72,5 @@ PRETRAINED_MODELS = {
     "v0_seq": "rocketshp_pretrained_20250215_seqonly_v0.ckpt",
     "v1": "rocketshp_pretrained_20250505_v1.ckpt",
     "v1_seq": "rocketshp_pretrained_20250507_v1_seq.ckpt",
-    "v1_mini": "rocketshp_pretrained_20250505_v1_mini.ckpt"
+    "v1_mini": "rocketshp_pretrained_20250505_v1_mini.ckpt",
 }

@@ -124,17 +124,12 @@ def train_test_split_foldseek(clusters, train_pct, val_pct, random_seed):
     val_subset = shuffled_entities[train_size : train_size + val_size]
     test_subset = shuffled_entities[train_size + val_size :]
 
-    train_subset_pdb = clusters[clusters[0].isin(train_subset)][
-        1
-    ].unique()
-    val_subset_pdb = clusters[clusters[0].isin(val_subset)][
-        1
-    ].unique()
-    test_subset_pdb = clusters[clusters[0].isin(test_subset)][
-        1
-    ].unique()
+    train_subset_pdb = clusters[clusters[0].isin(train_subset)][1].unique()
+    val_subset_pdb = clusters[clusters[0].isin(val_subset)][1].unique()
+    test_subset_pdb = clusters[clusters[0].isin(test_subset)][1].unique()
 
     return train_subset_pdb, val_subset_pdb, test_subset_pdb
+
 
 class MDDataset(Dataset):
     def __init__(
@@ -189,13 +184,15 @@ class MDDataset(Dataset):
                     seq_features = self._handle[
                         f"{self._handle_path(pdb_code, rep, temp, False)}/embedding"
                     ][:]
-                    features["seq_feats"] = torch.from_numpy(seq_features)[:self.crop_size]
+                    features["seq_feats"] = torch.from_numpy(seq_features)[
+                        : self.crop_size
+                    ]
                 except KeyError:
                     pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
                     seq_features = esm3_sequence(
                         pc, self.seq_encoder, self.tokenizers
                     ).squeeze()
-                    features["seq_feats"] = seq_features[:self.crop_size]
+                    features["seq_feats"] = seq_features[: self.crop_size]
 
                 features["temp"] = torch.ones(features["seq_feats"].shape[0]) * temp
 
@@ -204,14 +201,18 @@ class MDDataset(Dataset):
                     struct_features = self._handle[
                         f"{self._handle_path(pdb_code, rep, temp, False)}/struct_embedding/{self.struct_stage}"
                     ][:]
-                    features["struct_feats"] = torch.from_numpy(struct_features)[:self.crop_size]
+                    features["struct_feats"] = torch.from_numpy(struct_features)[
+                        : self.crop_size
+                    ]
                 except KeyError:
                     ###### ALTERNATE STRUCT FEATURES HERE #########
                     # struct_features = self._handle[f"{self._handle_path(pdb_code, rep, temp, False)}/struct_tokens"][:]
                     # features["struct_feats"] = torch.from_numpy(struct_features)
                     pc = ProteinChain.from_pdb(self._pdb_file_map[pdb_code])
                     if self.struct_stage == "ramachandran":
-                        features["struct_feats"] = ramachandran_angles(pc).squeeze()[:self.crop_size]
+                        features["struct_feats"] = ramachandran_angles(pc).squeeze()[
+                            : self.crop_size
+                        ]
                     else:
                         with torch.inference_mode():
                             struct_features = (
@@ -221,7 +222,7 @@ class MDDataset(Dataset):
                                 .detach()
                                 .squeeze()
                             )
-                        features["struct_feats"] = struct_features[:self.crop_size]
+                        features["struct_feats"] = struct_features[: self.crop_size]
                     ###############################################
 
                 features["temp"] = torch.ones(features["struct_feats"].shape[0]) * temp
@@ -234,10 +235,10 @@ class MDDataset(Dataset):
                             f"{self._handle_path(pdb_code, rep, temp, True)}/{key}"
                         ][:]
                     ).float()
-                    if key in  ["rmsf", "shp"]:
-                        lk = lk[:self.crop_size]
+                    if key in ["rmsf", "shp"]:
+                        lk = lk[: self.crop_size]
                     else:
-                        lk = lk[:self.crop_size, :self.crop_size]
+                        lk = lk[: self.crop_size, : self.crop_size]
                     labels[key] = lk
                 except KeyError:
                     pass
@@ -299,7 +300,7 @@ class MDDataModule(L.LightningDataModule):
             seq_features=self._seq_features,
             struct_features=self._struct_features,
             struct_stage=self._struct_stage,
-            crop_size=self.crop_size
+            crop_size=self.crop_size,
         )
 
         all_clusters = self.clusters[0].unique()

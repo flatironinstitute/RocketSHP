@@ -1,18 +1,12 @@
 # %% # Load packages
-import gc
-import sys
 
-import mdtraj as md
+import h5py
 from loguru import logger
 from tqdm import tqdm
-import h5py
 
 from rocketshp import config
 from rocketshp.data.utils import update_h5_dataset
-from rocketshp.trajectory import (
-    compute_generalized_correlation_lmi,
-    normalize
-)
+from rocketshp.trajectory import compute_generalized_correlation_lmi
 
 # %% Define file paths
 logger.info("Defining file paths")
@@ -30,9 +24,9 @@ OVERWRITE_H5 = False
 # %% Compute derivatives and store
 
 # build file
-with h5py.File(ATLAS_H5,"r+") as h5file:
+with h5py.File(ATLAS_H5, "r+") as h5file:
     # Generalized Dynamic Correlation
-    for i, pdb_f in enumerate(tqdm(pdb_files,desc="Computing GCC-LMI")):
+    for i, pdb_f in enumerate(tqdm(pdb_files, desc="Computing GCC-LMI")):
         pdb_code = pdb_f.stem
         for rep in range(1, N_REPS + 1):
             xtc_f = ATLAS_DATA_DIR / pdb_code[:2] / f"{pdb_code}_prod_R{rep}_fit.xtc"
@@ -43,4 +37,6 @@ with h5py.File(ATLAS_H5,"r+") as h5file:
                 xtc_f,
             )
 
-            update_h5_dataset(h5file, f"{pdb_code}/R{rep}/gcc_lmi", gcorr, overwrite=True)
+            update_h5_dataset(
+                h5file, f"{pdb_code}/R{rep}/gcc_lmi", gcorr, overwrite=True
+            )

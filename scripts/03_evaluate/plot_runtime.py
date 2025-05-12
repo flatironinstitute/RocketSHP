@@ -1,31 +1,31 @@
 # %%
 import re
-import matplotlib.pyplot as plt
-import numpy as np
-import seaborn as sns
-
-from rocketshp.config import PROJ_ROOT
-from rocketshp import config
 from pathlib import Path
 
+import matplotlib.pyplot as plt
+import numpy as np
+import pandas as pd
+import seaborn as sns
 from loguru import logger
 
-#%% Define constants
-reg = re.compile(
-    r"Model inference time: (\d+.\d+)"
-)
+from rocketshp import config
 
-plt.rcParams.update({
-    # "axes.prop_cycle": "cycler('color', ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9'])",
-    "axes.prop_cycle": "cycler('color', ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#FFD53E', '#1D2954'])", # simons foundation
-    "axes.spines.top": False,
-    "axes.spines.right": False,
-    "font.size": 16,
-    "figure.autolayout": False,
-    "savefig.bbox": "tight",
-    "savefig.dpi": 300,
-    "svg.fonttype": "none",
-    })
+# %% Define constants
+reg = re.compile(r"Model inference time: (\d+.\d+)")
+
+plt.rcParams.update(
+    {
+        # "axes.prop_cycle": "cycler('color', ['#0072B2', '#D55E00', '#009E73', '#CC79A7', '#F0E442', '#56B4E9'])",
+        "axes.prop_cycle": "cycler('color', ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#FFD53E', '#1D2954'])",  # simons foundation
+        "axes.spines.top": False,
+        "axes.spines.right": False,
+        "font.size": 16,
+        "figure.autolayout": False,
+        "savefig.bbox": "tight",
+        "savefig.dpi": 300,
+        "svg.fonttype": "none",
+    }
+)
 
 # Units
 seconds = 1
@@ -41,12 +41,12 @@ PROTEOME_SIZE = 25_000
 SWISSPROT_SIZE = 500_000
 AFDB_SIZE = 200_000_000
 
-#%% RSHP TIMES
+# %% RSHP TIMES
 
 rshp_runtime_root = config.PROCESSED_DATA_DIR / "runtime_profile" / "20250427_large"
 rshp_times = []
 for p in sorted(rshp_runtime_root.glob("*runtime.txt")):
-    with open(p, "r") as f:
+    with open(p) as f:
         lines = f.read()
         time_sec = float(reg.search(lines).group(1))
         rshp_times.append(time_sec)
@@ -60,26 +60,26 @@ logger.info(f"RocketSHP time: {RSHP_TIME:.5f} seconds")
 rshp_mini_runtime_root = config.PROCESSED_DATA_DIR / "runtime_profile" / "rshp_mini"
 rshp_mini_times = []
 for p in sorted(rshp_mini_runtime_root.glob("*runtime.txt")):
-    with open(p, "r") as f:
+    with open(p) as f:
         lines = f.read()
         time_sec = float(reg.search(lines).group(1))
         rshp_mini_times.append(time_sec)
 RSHP_MINI_TIME = np.mean(rshp_mini_times) * seconds
 logger.info(f"RocketSHP-mini time: {RSHP_MINI_TIME:.5f} seconds")
 
-#%% DYNA-1 TIME
+# %% DYNA-1 TIME
 
 dyna_runtime_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results")
 dyna_times = []
 for p in sorted(dyna_runtime_root.glob("*/*runtime.txt")):
-    with open(p, "r") as f:
+    with open(p) as f:
         lines = f.read()
         time_sec = float(reg.search(lines).group(1))
         dyna_times.append(time_sec)
 DYNA_TIME = np.mean(dyna_times) * seconds
 logger.info(f"Dyna-1 time: {DYNA_TIME:.5f} seconds")
 
-#%%
+# %%
 # BIOEMU TIME
 
 # bioemu_runtime_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results_100/bioemu_100_time_results.txt")
@@ -87,7 +87,7 @@ bioemu_runtime_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_atlas_resul
 
 bioemu_times = []
 for p in bioemu_runtime_root.glob("*/time_log.txt"):
-    with open(p, "r") as f:
+    with open(p) as f:
         lines = f.read()
         time_sec = float(reg.search(lines).group(1))
         bioemu_times.append(time_sec)
@@ -101,17 +101,19 @@ for p in bioemu_runtime_root.glob("*/time_log.txt"):
 BIOEMU_TIME = np.mean(bioemu_times) * seconds  # from conclusion of bioemu paper
 logger.info(f"BioEmu (100) time: {BIOEMU_TIME:.5f} seconds")
 
-#%%
-bioemu_10_runtime_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results/bioemu_time_results.txt")
+# %%
+bioemu_10_runtime_root = Path(
+    "/mnt/home/ssledzieski/GitHub/bioemu/rshp_results/bioemu_time_results.txt"
+)
 bioemu_10_times = []
-with open(bioemu_10_runtime_root, "r") as f:
+with open(bioemu_10_runtime_root) as f:
     for line in f:
         time_sec = float(line.split()[2])
         bioemu_10_times.append(time_sec)
 BIOEMU_10_TIME = np.mean(bioemu_10_times) * seconds  # from conclusion of bioemu paper
 logger.info(f"BioEmu (10 samples) time: {BIOEMU_10_TIME:.5f} seconds")
 
-#%% AF CLUSTER TIME
+# %% AF CLUSTER TIME
 AF_CLUSTER_TIME = (
     15 * minutes
 )  # from sample on https://colab.research.google.com/github/HWaymentSteele/AF_Cluster/blob/main/AF_cluster_in_colabdesign.ipynb
@@ -130,31 +132,40 @@ COLOR_MAP = {
     "All-Atom Simulation": "black",
 }
 
-#%% Distribution of times
+# %% Distribution of times
 
 # build dataframe
-import pandas as pd
-
 time_df = pd.DataFrame(
     {
-        "RocketSHP": rshp_times[:len(bioemu_times)],
-        "RocketSHP-mini": rshp_mini_times[:len(bioemu_times)],
-        "Dyna-1": dyna_times[:len(bioemu_times)],
-        "BioEmu (100 samples)": bioemu_times[:len(bioemu_times)],
-        "BioEmu (10 samples)": bioemu_10_times[:len(bioemu_times)],
+        "RocketSHP": rshp_times[: len(bioemu_times)],
+        "RocketSHP-mini": rshp_mini_times[: len(bioemu_times)],
+        "Dyna-1": dyna_times[: len(bioemu_times)],
+        "BioEmu (100 samples)": bioemu_times[: len(bioemu_times)],
+        "BioEmu (10 samples)": bioemu_10_times[: len(bioemu_times)],
     }
 )
 
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP-mini", "RocketSHP", "Dyna-1", "BioEmu (10 samples)", "BioEmu (100 samples)"]
+order = [
+    "RocketSHP-mini",
+    "RocketSHP",
+    "Dyna-1",
+    "BioEmu (10 samples)",
+    "BioEmu (100 samples)",
+]
 sns.set_style("whitegrid")
-sns.stripplot(data=time_df.melt(),
-              x="value", y="variable",
-              hue="variable", size=3, alpha=0.5,
-              order = order, hue_order = order,
-              palette = [COLOR_MAP[name] for name in order],
-              orient="h"
-              )
+sns.stripplot(
+    data=time_df.melt(),
+    x="value",
+    y="variable",
+    hue="variable",
+    size=3,
+    alpha=0.5,
+    order=order,
+    hue_order=order,
+    palette=[COLOR_MAP[name] for name in order],
+    orient="h",
+)
 # sns.boxplot(data=time_df.melt(), x="value", hue="variable", orient="h")
 plt.xscale("log")
 plt.xlabel("Time (seconds)")
@@ -163,7 +174,7 @@ plt.title("ATLAS Inference Times")
 plt.tight_layout()
 # plt.savefig(config.REPORTS_DIR / "figures" / "20250508_runtime_distribution.svg")
 
-#%% 
+# %%
 TIME_PER_DICT = {
     "RocketSHP": RSHP_TIME,
     "RocketSHP-mini": RSHP_MINI_TIME,
@@ -177,13 +188,16 @@ TIME_PER_DICT = {
 # %%
 # Plotting
 fig, ax = plt.subplots(figsize=(12, 8))
-x_range = np.logspace(0, np.log10(AFDB_SIZE+1))
+x_range = np.logspace(0, np.log10(AFDB_SIZE + 1))
 
 sns.set_style("white")
 for name, time in TIME_PER_DICT.items():
     plt.plot(x_range, x_range * time / days, label=name, c=COLOR_MAP[name])
 
-for name, point in zip(["atlas", "proteome", "swissprot", "afdb"], [ATLAS_SIZE, PROTEOME_SIZE, SWISSPROT_SIZE, AFDB_SIZE]):
+for name, point in zip(
+    ["atlas", "proteome", "swissprot", "afdb"],
+    [ATLAS_SIZE, PROTEOME_SIZE, SWISSPROT_SIZE, AFDB_SIZE],
+):
     print(point)
     plt.axvline(point, color="grey", linestyle="--")
 
@@ -252,23 +266,23 @@ plt.show()
 # # Draw circles for each method
 # for i, (method, time) in enumerate(sorted_methods.items()):
 #     radius = min_radius + time * scale_factor
-#     circle = Circle((x_position, y_positions[i]), radius, 
-#                    facecolor=colors[i % len(colors)], alpha=0.7, 
+#     circle = Circle((x_position, y_positions[i]), radius,
+#                    facecolor=colors[i % len(colors)], alpha=0.7,
 #                    edgecolor='black', linewidth=1.5)
 #     ax.add_patch(circle)
-    
+
 #     # Add method name
-#     plt.text(x_position - radius - 2.5, y_positions[i], method, 
+#     plt.text(x_position - radius - 2.5, y_positions[i], method,
 #              ha='right', va='center', fontsize=12, fontweight='bold')
-    
+
 #     # Add time value and relative speedup
 #     if method == 'RocketSHP':
 #         time_text = f"baseline"
 #     else:
 #         speedup = time / rshp_rel
 #         time_text = f"{speedup:.1f}x slower"
-    
-#     plt.text(x_position + radius + 0.5, y_positions[i], time_text, 
+
+#     plt.text(x_position + radius + 0.5, y_positions[i], time_text,
 #              ha='left', va='center', fontsize=12)
 
 # # Set plot limits and remove axes
@@ -278,11 +292,11 @@ plt.show()
 
 # # Add title and subtitle
 # plt.title('Relative Runtime Comparison', fontsize=18, fontweight='bold', y=0.95)
-# plt.figtext(0.5, 0.9, 'Circle size represents relative computational time (smaller is better)', 
+# plt.figtext(0.5, 0.9, 'Circle size represents relative computational time (smaller is better)',
 #             ha='center', fontsize=14, style='italic')
 
 # # Add a note about RSHP being the baseline
-# plt.figtext(0.5, 0.05, 'Note: RSHP (our method) is set as the baseline (1 unit of time)', 
+# plt.figtext(0.5, 0.05, 'Note: RSHP (our method) is set as the baseline (1 unit of time)',
 #             ha='center', fontsize=12)
 
 # plt.tight_layout()

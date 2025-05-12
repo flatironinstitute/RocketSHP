@@ -1,15 +1,24 @@
 # %% Defines
 import itertools
-import numpy as np
-import networkx as nx
+
 import matplotlib.pyplot as plt
+import networkx as nx
+import numpy as np
 
 from rocketshp.metrics import graph_diffusion_distance, ipsen_mikhailov_distance
 
-def display_network(A: np.ndarray, title: str = "Network", node_color: str = 'lightblue', edge_color: str = 'gray', seed: int = 42, ax=None):
+
+def display_network(
+    A: np.ndarray,
+    title: str = "Network",
+    node_color: str = "lightblue",
+    edge_color: str = "gray",
+    seed: int = 42,
+    ax=None,
+):
     """
     Plot a network represented by an adjacency matrix.
-    
+
     Parameters:
     -----------
     A : numpy.ndarray
@@ -23,14 +32,19 @@ def display_network(A: np.ndarray, title: str = "Network", node_color: str = 'li
     """
     G = nx.from_numpy_array(A)
     pos = nx.spring_layout(G, seed=seed)  # positions for all nodes
-    nx.draw(G, pos, with_labels=True, node_color=node_color, edge_color=edge_color, ax=ax)
+    nx.draw(
+        G, pos, with_labels=True, node_color=node_color, edge_color=edge_color, ax=ax
+    )
     if ax is not None:
         ax.set_title(title)
     else:
         plt.title(title)
         plt.show()
 
-def pairwise_correlation_to_network(A: np.ndarray, thresh: float = 0.5, title: str = "Network", seed: int = 42, ax=None):
+
+def pairwise_correlation_to_network(
+    A: np.ndarray, thresh: float = 0.5, title: str = "Network", seed: int = 42, ax=None
+):
     """
     Convert a pairwise correlation matrix to a network and plot it.
 
@@ -46,17 +60,23 @@ def pairwise_correlation_to_network(A: np.ndarray, thresh: float = 0.5, title: s
     node_color = node_color[:, :3]  # Keep only RGB channels
     node_color = node_color.tolist()
 
-    display_network(sparse, title=title, node_color=node_color, edge_color="gray", seed=seed, ax=ax)
+    display_network(
+        sparse, title=title, node_color=node_color, edge_color="gray", seed=seed, ax=ax
+    )
 
-def build_allosteric_network(gcc_lmi: np.ndarray, ca_dist: np.ndarray, distance_cutoff: float = 8.0):
+
+def build_allosteric_network(
+    gcc_lmi: np.ndarray, ca_dist: np.ndarray, distance_cutoff: float = 8.0
+):
     dist_thresh_nm = distance_cutoff / 10.0
 
-    mask = (ca_dist < dist_thresh_nm)
+    mask = ca_dist < dist_thresh_nm
     masked_net = gcc_lmi * mask
-    np.fill_diagonal(masked_net, 0) # remove self-edges
+    np.fill_diagonal(masked_net, 0)  # remove self-edges
     G = nx.from_numpy_array(masked_net)
 
     return G
+
 
 def cluster_network(G: nx.Graph, k: int = 5):
     """
@@ -68,6 +88,7 @@ def cluster_network(G: nx.Graph, k: int = 5):
         clusts = tuple(sorted(c) for c in communities)
     return clusts
 
+
 def calculate_centrality(G: nx.Graph):
     """
     Calculate centrality measures for the network.
@@ -78,13 +99,19 @@ def calculate_centrality(G: nx.Graph):
 
     return betweenness, closeness, degree
 
-def plot_network_clusters(G: nx.Graph, clusters: list, title: str = "Network Clusters", output_path: str = "network_clusters.png"):
+
+def plot_network_clusters(
+    G: nx.Graph,
+    clusters: list,
+    title: str = "Network Clusters",
+    output_path: str = "network_clusters.png",
+):
     """
     Plot the network with clusters highlighted.
     """
     pos = nx.spring_layout(G)
     fig, ax = plt.subplots(figsize=(10, 8))
-    
+
     node_color = []
     for i, cluster in enumerate(clusters):
         node_color.extend([i] * len(cluster))
@@ -98,11 +125,14 @@ def plot_network_clusters(G: nx.Graph, clusters: list, title: str = "Network Clu
     plt.tight_layout()
     plt.savefig(output_path)
 
+
 # Example usage:
 # %% Create two sample weighted matrices
 if __name__ == "__main__":
     A = np.array([[0, 0.5, 0.2, 0], [0.5, 0, 0.7, 1], [0.2, 0.7, 0, 0], [0, 1, 0, 0]])
-    B = np.array([[0, 0.4, 0.3, 0], [0.4, 0, 0.5, 0], [0.3, 0.5, 0, 3.4], [0, 0, 3.4, 0]])
+    B = np.array(
+        [[0, 0.4, 0.3, 0], [0.4, 0, 0.5, 0], [0.3, 0.5, 0, 3.4], [0, 0, 3.4, 0]]
+    )
 
     # Plot each network
     display_network(A, title="Network A")

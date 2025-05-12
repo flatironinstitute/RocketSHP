@@ -1,23 +1,12 @@
-#%% Imports
-import torch
-import glob
-import gzip
-from loguru import logger
-from tqdm import tqdm
+# %% Imports
 
 from rocketshp import config
-from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.data.utils import train_test_split_foldseek
-from rocketshp.modeling.architectures import RocketSHPModel
-from rocketshp.structure.protein_chain import ProteinChain
-from rocketshp.esm3 import get_model, get_tokenizers, get_structure_vae
-from rocketshp.features import esm3_sequence, esm3_vqvae
 
 # DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-#%%
+# %%
 result_dir = config.PROCESSED_DATA_DIR / "rocketshp_afdb_human"
-subdirectories = list(result_dir.iterdir()) 
+subdirectories = list(result_dir.iterdir())
 
 # %%
 

@@ -91,11 +91,12 @@ def esm3_chain_sequence(
     model,
     tokenizers,
 ) -> torch.Tensor:
-   return esm3_sequence(
+    return esm3_sequence(
         sequence=chain.sequence,
         model=model,
         tokenizers=tokenizers,
-    ) 
+    )
+
 
 def esm3_sequence(
     sequence: str,
@@ -135,11 +136,13 @@ def esm3_sequence(
     logits = model.logits(batch, cfg)
     return logits.embeddings
 
+
 def load_sequence(sequence: str, device: torch.device = torch.device("cuda:0")):
     """
     Load default model and tokenizer and get sequence features
     """
     from rocketshp.esm3 import get_model, get_tokenizers
+
     device = torch.device(device)
 
     # Load the model and tokenizer
@@ -155,12 +158,18 @@ def load_sequence(sequence: str, device: torch.device = torch.device("cuda:0")):
 
     return sequence_features
 
-def load_structure(structure: bs.AtomArray, device: torch.device = torch.device("cuda:0"), stage: str = "encoded"):
+
+def load_structure(
+    structure: bs.AtomArray,
+    device: torch.device = torch.device("cuda:0"),
+    stage: str = "encoded",
+):
     """
     Load default model and tokenizer and get structure features
     """
     from rocketshp.esm3 import get_structure_vae
     from rocketshp.structure.protein_chain import ProteinChain
+
     device = torch.device(device)
 
     # Load the model and tokenizer
@@ -176,6 +185,7 @@ def load_structure(structure: bs.AtomArray, device: torch.device = torch.device(
     )
 
     return structure_features
+
 
 @app.command()
 def main(

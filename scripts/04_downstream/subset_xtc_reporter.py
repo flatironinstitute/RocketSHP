@@ -28,16 +28,25 @@ DAMAGES OR OTHER LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR
 OTHERWISE, ARISING FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE
 USE OR OTHER DEALINGS IN THE SOFTWARE.
 """
+
 __author__ = "Raul P. Pelaez"
 from openmm.app import Topology, XTCFile
 
-class XTCReporter(object):
+
+class XTCReporter:
     """XTCReporter outputs a series of frames from a Simulation to a XTC file.
 
     To use it, create a XTCReporter, then add it to the Simulation's list of reporters.
     """
 
-    def __init__(self, file, reportInterval, append=False, enforcePeriodicBox=None, atomSubset=None):
+    def __init__(
+        self,
+        file,
+        reportInterval,
+        append=False,
+        enforcePeriodicBox=None,
+        atomSubset=None,
+    ):
         """Create a XTCReporter.
 
         Parameters
@@ -63,7 +72,7 @@ class XTCReporter(object):
         self._fileName = file
         self._xtc = None
         if not append:
-            open(file, 'wb').close()
+            open(file, "wb").close()
 
     def describeNextReport(self, simulation):
         """Get information about the next report this object will generate.
@@ -78,8 +87,12 @@ class XTCReporter(object):
         dict
             A dictionary describing the required information for the next report
         """
-        steps = self._reportInterval - simulation.currentStep%self._reportInterval
-        return {'steps':steps, 'periodic':self._enforcePeriodicBox, 'include':['positions']}
+        steps = self._reportInterval - simulation.currentStep % self._reportInterval
+        return {
+            "steps": steps,
+            "periodic": self._enforcePeriodicBox,
+            "include": ["positions"],
+        }
 
     def report(self, simulation, state):
         """Generate a report.
@@ -97,10 +110,12 @@ class XTCReporter(object):
                 topology = simulation.topology
             else:
                 topology = Topology()
-                topology.setPeriodicBoxVectors(simulation.topology.getPeriodicBoxVectors())
+                topology.setPeriodicBoxVectors(
+                    simulation.topology.getPeriodicBoxVectors()
+                )
                 atoms = list(simulation.topology.atoms())
                 chain = topology.addChain()
-                residue = topology.addResidue('', chain)
+                residue = topology.addResidue("", chain)
                 for i in self._atomSubset:
                     topology.addAtom(atoms[i].name, atoms[i].element, residue)
             self._xtc = XTCFile(
@@ -114,4 +129,6 @@ class XTCReporter(object):
         positions = state.getPositions(asNumpy=True)
         if self._atomSubset is not None:
             positions = [positions[i] for i in self._atomSubset]
-        self._xtc.writeModel(positions, periodicBoxVectors=state.getPeriodicBoxVectors())
+        self._xtc.writeModel(
+            positions, periodicBoxVectors=state.getPeriodicBoxVectors()
+        )

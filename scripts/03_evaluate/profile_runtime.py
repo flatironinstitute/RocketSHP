@@ -1,6 +1,6 @@
 import time
-import numpy as np
 
+import numpy as np
 import torch
 from esm.utils.structure.protein_chain import ProteinChain
 from loguru import logger
@@ -61,13 +61,17 @@ precomputed_feats = {}
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-def run_inference(seq, struct, model, esm_m, esm_s, esm_t, device=DEVICE, structure_stage="encoded"):
 
+def run_inference(
+    seq, struct, model, esm_m, esm_s, esm_t, device=DEVICE, structure_stage="encoded"
+):
     with torch.inference_mode():
         feats = {}
         feats["seq_feats"] = esm3_sequence(seq, esm_m, esm_t).squeeze()
         if struct is not None:
-            feats["struct_feats"] = esm3_vqvae(struct, esm_s, stage=structure_stage).squeeze()
+            feats["struct_feats"] = esm3_vqvae(
+                struct, esm_s, stage=structure_stage
+            ).squeeze()
             # print(feats["struct_feats"])
         else:
             feats["struct_feats"] = torch.zeros_like(feats["seq_feats"])
@@ -78,6 +82,7 @@ def run_inference(seq, struct, model, esm_m, esm_s, esm_t, device=DEVICE, struct
 
     return result
 
+
 rshp_times = []
 for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
     pdb_file_path = config.RAW_DATA_DIR / f"atlas/{pdb_id[:2]}/{pdb_id}.pdb"
@@ -87,7 +92,9 @@ for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
     with torch.inference_mode():
         start_time = time.time()
         struct_feats = esm3_vqvae(esm_chain, struct_encoder, stage="encoded")
-        embeddings = esm3_sequence(esm_chain.sequence, esm_model, tokenizers).squeeze()[1:-1]
+        embeddings = esm3_sequence(esm_chain.sequence, esm_model, tokenizers).squeeze()[
+            1:-1
+        ]
         temp = torch.ones(embeddings.shape[0]) * 300
 
         # logger.info(f"struct_shape: {struct_feats.shape} seq_shape: {embeddings.shape}")
@@ -97,9 +104,7 @@ for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
             "temp": temp.to(device),
         }
 
-        result = model(
-            {k: v.unsqueeze(0) for k, v in tmp_feats.items()}
-        )
+        result = model({k: v.unsqueeze(0) for k, v in tmp_feats.items()})
         end_time = time.time()
         rshp_times.append(end_time - start_time)
 
@@ -110,9 +115,9 @@ logger.info(f"Time per sample: {np.mean(rshp_times):.5f} s")
 results_dir = config.PROCESSED_DATA_DIR / "runtime_profile" / EVAL_KEY
 results_dir.mkdir(parents=True, exist_ok=True)
 
-for pdb_id, time in zip(all_pdb_chains, rshp_times):
+for pdb_id, t in zip(all_pdb_chains, rshp_times):
     with open(results_dir / f"{pdb_id}.runtime.txt", "w") as f:
-        f.write(f"Model inference time: {time:.5f}\n")
+        f.write(f"Model inference time: {t:.5f}\n")
 
 # start = time.time()
 # for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
