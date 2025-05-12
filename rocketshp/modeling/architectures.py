@@ -368,7 +368,7 @@ class RocketSHPModel(nn.Module):
         if "temp" in x:
             temperature = x["temp"]
         else:
-            temperature = torch.ones(x["seq_feats"].shape[0], device=x["seq_feats"].device) * self.default_temp
+            temperature = torch.ones(x["seq_feats"].shape[1], device=x["seq_feats"].device).unsqueeze(0) * self.default_temp
 
         x = self._transform(x)
         feats_with_temp = torch.cat([x, temperature.unsqueeze(-1)], dim=-1)
@@ -414,6 +414,11 @@ class RocketSHPModel(nn.Module):
         elif not checkpoint_path.endswith(".ckpt"):
             raise ValueError(
                 f"Checkpoint path {checkpoint_path} must end with .ckpt."
+            )
+        else:
+            logger.error(f"If you are trying to download from HuggingFace, available models are: {PRETRAINED_MODELS.keys()}")
+            raise FileNotFoundError(
+                f"Checkpoint path {checkpoint_path} does not exist."
             )
 
         chk = torch.load(checkpoint_path, weights_only=True)

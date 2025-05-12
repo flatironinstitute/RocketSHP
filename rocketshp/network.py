@@ -1,4 +1,5 @@
 # %% Defines
+import itertools
 import numpy as np
 import networkx as nx
 import matplotlib.pyplot as plt
@@ -47,6 +48,55 @@ def pairwise_correlation_to_network(A: np.ndarray, thresh: float = 0.5, title: s
 
     display_network(sparse, title=title, node_color=node_color, edge_color="gray", seed=seed, ax=ax)
 
+def build_allosteric_network(gcc_lmi: np.ndarray, ca_dist: np.ndarray, distance_cutoff: float = 8.0):
+    dist_thresh_nm = distance_cutoff / 10.0
+
+    mask = (ca_dist < dist_thresh_nm)
+    masked_net = gcc_lmi * mask
+    np.fill_diagonal(masked_net, 0) # remove self-edges
+    G = nx.from_numpy_array(masked_net)
+
+    return G
+
+def cluster_network(G: nx.Graph, k: int = 5):
+    """
+    Cluster the network using Girvan-Newman algorithm.
+    """
+    comp = nx.community.girvan_newman(G)
+    limited = itertools.takewhile(lambda c: len(c) <= k, comp)
+    for communities in limited:
+        clusts = tuple(sorted(c) for c in communities)
+    return clusts
+
+def calculate_centrality(G: nx.Graph):
+    """
+    Calculate centrality measures for the network.
+    """
+    betweenness = nx.betweenness_centrality(G)
+    closeness = nx.closeness_centrality(G)
+    degree = nx.degree_centrality(G)
+
+    return betweenness, closeness, degree
+
+def plot_network_clusters(G: nx.Graph, clusters: list, title: str = "Network Clusters", output_path: str = "network_clusters.png"):
+    """
+    Plot the network with clusters highlighted.
+    """
+    pos = nx.spring_layout(G)
+    fig, ax = plt.subplots(figsize=(10, 8))
+    
+    node_color = []
+    for i, cluster in enumerate(clusters):
+        node_color.extend([i] * len(cluster))
+        # nx.draw_networkx_nodes(G, pos, nodelist=cluster, node_color=node_color, label=f"Cluster {i+1}")
+
+    # display_network(sparse, title=title, node_color=node_color, edge_color="gray", seed=seed, ax=ax)
+
+    nx.draw(G, pos, with_labels=True, node_color=node_color, edge_color="gray", ax=ax)
+    plt.title(title)
+    plt.legend()
+    plt.tight_layout()
+    plt.savefig(output_path)
 
 # Example usage:
 # %% Create two sample weighted matrices
