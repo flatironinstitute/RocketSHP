@@ -79,7 +79,7 @@ RocketSHP comes in three variants:
 
 ```python
 # Load different model variants
-full_model = RocketSHP.load_from_checkpoint("latest")  # Default is also 'v1'
+full_model = RocketSHP.load_from_checkpoint("latest")  # Latest is also 'v1'
 seq_model = RocketSHP.load_from_checkpoint("v1_seq")
 mini_model = RocketSHP.load_from_checkpoint("v1_mini")
 ```
@@ -169,4 +169,4 @@ Coming soon
 
 ## ⚖️ License
 
-This project is licensed under the MIT License - see the [LICENSE.md] file for details.
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/samsledje/RocketSHP?tab=MIT-1-ov-file#readme) file for details.
