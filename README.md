@@ -12,15 +12,6 @@ RocketSHP enables ultra-fast prediction of protein dynamics and flexibility from
 
 This approach bridges the gap between static structural biology and dynamic functional understanding, providing a computational tool that complements experimental approaches at unprecedented speed and scale.
 
-## Table of Contents
-- [Installation](#installation)
-- [Quick Start](#quick-start)
-- [Model Variants](#model-variants)
-- [Allosteric Network](#building-an-allosteric-network)
-- [Model Details](#model-details)
-- [Citation](#citation)
-- [License](#license)
-
 ## 🛠️ Installation
 
 ```bash
@@ -79,7 +70,7 @@ RocketSHP comes in three variants:
 
 ```python
 # Load different model variants
-full_model = RocketSHP.load_from_checkpoint("latest")  # Default is also 'v1'
+full_model = RocketSHP.load_from_checkpoint("latest")  # Latest is also 'v1'
 seq_model = RocketSHP.load_from_checkpoint("v1_seq")
 mini_model = RocketSHP.load_from_checkpoint("v1_mini")
 ```
@@ -119,7 +110,7 @@ with torch.no_grad():
 ## 🕸️ Building an Allosteric Network
 
 ```python
-from rocketshp.network import build_allosteric_network, cluster_network, calculate_centrality
+from rocketshp.network import build_allosteric_network, cluster_network, calculate_centrality, plot_network_clusters
 
 # Build network from GCC-LMI predictions and distance mask
 gcc_lmi = dynamics_pred["gcc_lmi"].squeeze().cpu().numpy()
@@ -169,4 +160,4 @@ Coming soon
 
 ## ⚖️ License
 
-This project is licensed under the MIT License - see the [[LICENSE.md]] file for details.
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/samsledje/RocketSHP?tab=MIT-1-ov-file#readme) file for details.
