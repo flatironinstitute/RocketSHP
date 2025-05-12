@@ -14,7 +14,7 @@ PYTHON_INTERPRETER = python
 ## Install Python Dependencies
 .PHONY: requirements
 requirements:
-	conda env update --name $(PROJECT_NAME) --file environment.yml --prune
+	mamba env update --name $(PROJECT_NAME) --file environment.yml --prune
 
 ## Install project locally
 .PHONY: install
@@ -43,7 +43,7 @@ format:
 create_environment:
 	mamba env create --name $(PROJECT_NAME) -f environment.yml
 	
-	@echo ">>> conda env created. Activate with:\nconda activate $(PROJECT_NAME)"
+	@echo ">>> conda env created. Activate with:\nmamba activate $(PROJECT_NAME)"
 
 
 #################################################################################

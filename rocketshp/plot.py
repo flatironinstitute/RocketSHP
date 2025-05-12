@@ -18,12 +18,11 @@ def plot_predictions(
     title: str = "RocketSHP Predictions",
     output_path: Path = "rocketshp_predictions.png",
 ):
-    # RMSF and GCC LMI on top, SHP wide on bottom
-    fig = plt.figure(figsize=(10, 8))
+    fig = plt.figure(figsize=(6, 6))
     gs = fig.add_gridspec(2, 2)
-    ax1 = fig.add_subplot(gs[0, 0])  # Top left
-    ax2 = fig.add_subplot(gs[0, 1])  # Top right
-    ax3 = fig.add_subplot(gs[1, :])  # Bottom (spans both columns)
+    ax1 = fig.add_subplot(gs[0, 0])
+    ax2 = fig.add_subplot(gs[0, 1])
+    ax3 = fig.add_subplot(gs[1, :])
 
     fig.suptitle(title)
 
@@ -31,8 +30,10 @@ def plot_predictions(
     ax1.set_title("RMSF")
     ax1.set_xlabel("Residue Index")
     ax1.set_ylabel("RMSF (Å)")
+    ax1.spines["top"].set_visible(False)
+    ax1.spines["right"].set_visible(False)
 
-    ax2.imshow(gcc_lmi, cmap="viridis", aspect="auto", vmin=0, vmax=1)
+    ax2.imshow(gcc_lmi, cmap="viridis", aspect="equal", vmin=0, vmax=1)
     ax2.set_title("GCC-LMI")
     ax2.set_xlabel("Residue Index")
     ax2.set_ylabel("Residue Index")

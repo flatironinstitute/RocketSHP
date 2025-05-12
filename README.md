@@ -36,6 +36,14 @@ python -c "import rocketshp; print('Success!')"
 
 ## 🚀 Quick Start
 
+With a `.pdb` file from the command line:
+
+```bash
+rocketshp_predict example/kras_afdb.pdb RocketSHP_KRAS_Predictions
+```
+
+Python interface:
+
 ```python
 import torch
 from torch.nn.functional import softmax

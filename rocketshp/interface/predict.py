@@ -1,124 +1,59 @@
-from pathlib import Path
-
-import matplotlib.pyplot as plt
-import numpy as np
 import torch
 import typer
-from loguru import logger
-from omegaconf import OmegaConf
+from pathlib import Path
 from torch.nn.functional import softmax
-
-from rocketshp.esm3 import (
-    get_model,
-    get_structure_vae,
-    get_tokenizers,
-)
-from rocketshp.features import esm3_sequence, esm3_vqvae, ramachandran_angles
-from rocketshp.modeling.architectures import RocketSHPModel
-from rocketshp.structure.protein_chain import ProteinChain
+from rocketshp import RocketSHP, load_sequence, load_structure
+from rocketshp.plot import plot_predictions
+from biotite.structure.io import pdb
+from biotite.structure import to_sequence
 
 app = typer.Typer(pretty_exceptions_enable=False)
-
-# DEFAULT_SEQUENCE = "MEDGHSKTVEQSLNFFGTDPERGLTLDQIKANQKKYGPNELPTEEGKSIWQLVLEQFDDLLVKILLLAAIISFVLALFEEHEETFTAFVEPLVILLILIANAVVGVWQERNAESAIEALKEYEPEMGKVVRQDKSGIQKVRAKEIVPGDLVEVSVGDKIPADIRITHIYSTTLRIDQSILTGESVSVIKHTDAIPDPRAVNQDKKNILFSGTNVAAGKARGVVIGTGLSTAIGKIRTEMSETEEIKTPLQQKLDEFGEQLSKVISVICVAVWAINIGHFNDPAHGGSWIKGAIYYFKIAVALAVAAIPEGLPAVITTCLALGTRRMAKKNAIVRSLPSVETLGCTSVICSDKTGTLTTNQMSVSRMFIFDKVEGNDSSFLEFEMTGSTYEPIGEVFLNGQRIKAADYDTLQELSTICIMCNDSAIDYNEFKQAFEKVGEATETALIVLAEKLNSFSVNKSGLDRRSAAIACRGEIETKWKKEFTLEFSRDRKSMSSYCTPLKASRLGTGPKLFVKGAPEGVLERCTHARVGTTKVPLTSALKAKILALTGQYGTGRDTLRCLALAVADSPMKPDEMDLGDSTKFYQYEVNLTFVGVVGMLDPPRKEVFDSIVRCRAAGIRVIVITGDNKATAEAICRRIGVFAEDEDTTGKSYSGREFDDLSPTEQKAAVARSRLFSRVEPQHKSKIVEFLQSMNEISAMTGDGVNDAPALKKAEIGIAMGSGTAVAKSAAEMVLADDNFSSIVSAVEEGRAIYNNMKQFIRYLISSNIGEVVSIFLTAALGLPEALIPVQLLWVNLVTDGLPATALGFNPPDLDIMEKPPRKADEGLISGWLFFRYMAIGFYVGAATVGAAAWWFVFSDEGPKLSYWQLTHHLSCLGGGDEFKGVDCKIFSDPHAMTMALSVLVTIEMLNAMNSLSENQSLITMPPWCNLWLIGSMALSFTLHFVILYVDVLSTVFQVTPLSAEEWITVMKFSIPVVLLDETLKFVARKIADGESPIYKMHGIVLMWAVFFGLLYAMML"
-# DEFAULT_CONFIG = "/mnt/home/ssledzieski/Projects/rocketshp/configs/default_config.yaml"
-# DEFAULT_MODEL = "/mnt/home/ssledzieski/Projects/rocketshp/models/grad_norm_alpha0.12_lr1e-5/model-epoch=19-train_loss=0.55.pt.ckpt"
-
 
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
     pdb_path: Path,
-    config_path: Path,
-    model_path: Path,
-    out_file: Path,
+    run_id: str,
+    model_path: str = "latest",
     device: str = "cuda:0",
-    save_results: bool = True,
     # -----------------------------------------
 ):
+    # Run ID
+    run_id = Path(run_id).resolve()
+
+    # Set compute device
     device = torch.device(device)
-    chain = ProteinChain.from_pdb(pdb_path)
-    logger.info(len(chain.sequence))
-    config = OmegaConf.load(config_path)
 
-    logger.info("Loading RSHP Model")
-    rshp_model = RocketSHPModel.load_from_checkpoint(model_path, strict=True)
-    rshp_model.eval().to(device)
+    # Load the model
+    model = RocketSHP.load_from_checkpoint(model_path).to(device)
 
-    logger.info("Loading structure features")
-    struct_stage = config["struct_stage"]
-    if not config["struct_features"]:
-        struct_embeddings = torch.zeros(1, 1, 1).to(device)
-    elif struct_stage in ["encoded", "pre-quantized", "quantized"]:
-        struct_encoder = get_structure_vae()
-        struct_encoder.eval().to(device)
+    # Load structure file (PDB)
+    structure = pdb.PDBFile.read(pdb_path).get_structure()
+    struct_features = load_structure(structure, device=device)
 
-        with torch.inference_mode():
-            struct_embeddings = (
-                esm3_vqvae(chain, struct_encoder, stage=config["struct_stage"])
-                .squeeze()
-                .detach()
-            )
-    elif struct_stage == "ramachandran":
-        struct_embeddings = ramachandran_angles(chain).squeeze()
+    # Get sequence from structure
+    sequence = str(to_sequence(structure)[0][0])
+    seq_features = load_sequence(sequence, device=device)
 
-    logger.info("Loading sequence features")
-    esm_model = get_model("esm3-open")
-    esm_model.eval().to(device)
-    tokenizers = get_tokenizers("esm3-open")
+    # Predict dynamics with both sequence and structure
+    with torch.no_grad():
+        dynamics_pred = model({
+            "seq_feats": seq_features,
+            "struct_feats": struct_features,
+        })
 
-    with torch.inference_mode():
-        seq_embeddings = (
-            esm3_sequence(chain, esm_model, tokenizers).squeeze()[1:-1].detach()
-        )
+    # Access prediction results
+    rmsf = dynamics_pred["rmsf"].squeeze().cpu().numpy()
+    gcc_lmi = dynamics_pred["gcc_lmi"].squeeze().cpu().numpy()
+    ca_dist = dynamics_pred["ca_dist"].squeeze().cpu().numpy()
+    shp = softmax(dynamics_pred["shp"].squeeze(), dim=1).cpu().numpy()
 
-    temperature = torch.ones(seq_embeddings.shape[0]).to(device) * 290
+    # Visualize results
+    plot_predictions(rmsf, gcc_lmi, shp, run_id.stem, run_id.with_suffix(".png"))
 
-    # logger.info(seq_embeddings.size())
-    # logger.info(struct_embeddings.size())
-    # logger.info(temperature.size())
-
-    logger.info("Performing inference")
-    with torch.inference_mode():
-        y_hat = rshp_model(
-            {
-                "seq_feats": seq_embeddings.to(device).unsqueeze(0),
-                "struct_feats": struct_embeddings.to(device).unsqueeze(0),
-                "temp": temperature.to(device).unsqueeze(0),
-            }
-        )
-        y_hat = {k: v.squeeze().cpu().detach() for k, v in y_hat.items()}
-
-    if save_results:
-        logger.info("Saving results")
-        out_file.parent.mkdir(parents=True, exist_ok=True)
-        torch.save(y_hat, out_file.with_suffix(".pt"))
-
-        plt.plot(
-            np.arange(len(chain.sequence)),
-            y_hat["rmsf"],
-            label="RMSF",
-        )
-        plt.title(pdb_path.stem)
-        plt.ylabel("RMSF")
-        plt.savefig(out_file.with_suffix(".rmsf.png"), dpi=300, bbox_inches="tight")
-        plt.close()
-
-        # plt.imshow(y_hat["ca_dist"], cmap="viridis")
-        # plt.title(pdb_path.stem)
-        # plt.xlabel("Contact Map")
-        # plt.savefig(out_file.with_suffix(".contacts.png"), dpi=300, bbox_inches="tight")
-        # plt.close()
-
-        plt.imshow(y_hat["autocorr"], cmap="viridis")
-        plt.title(pdb_path.stem)
-        plt.xlabel("Autocorrelation of Distances")
-        plt.savefig(out_file.with_suffix(".autocorr.png"), dpi=300, bbox_inches="tight")
-
-        plt.imshow(softmax(y_hat["shp"].T, dim=0), cmap="binary")
-        plt.title(pdb_path.stem)
-        plt.xlabel("Structural Heterogeneity Profile")
-        plt.savefig(out_file.with_suffix(".shp.png"), dpi=300, bbox_inches="tight")
-
+    # Save results to file
+    torch.save(dynamics_pred, run_id.with_suffix(".pt"))
+    print(f"Results saved to {run_id.with_suffix('.pt')}")
 
 def __app__():
     app()
