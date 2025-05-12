@@ -7,26 +7,26 @@ from pathlib import Path
 
 num_samples = 10
 data_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data")
-output_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results")
-atlas_data = data_root / "raw/atlas"
+output_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_mdcath_results")
+output_root.mkdir(parents=True, exist_ok=True)
+mdcath_root  = data_root / "processed/mdcath"
 
-
-#%% Get all atlas pdb files
-pdb_files = [f for f in atlas_data.glob("**/*.pdb") if f.is_file() and re.search(r"...._.\.pdb", f.name)]
+#%% Get all mdcath 
+mdcath_dirs = [f for f in mdcath_root.glob("*") if f.is_dir()]
+mdcath_pdbs = [x / x.with_suffix(".pdb").name for x in mdcath_dirs]
 
 #%% Create script
 
-with open(f"{output_root}/run_dyna.sh", "w") as f:
+with open(f"{output_root}/run_dyna_mdcath.sh", "w") as f:
     f.write("#!/bin/bash\n")
     f.write("mamba activate dyna1\n")
     f.write("cd /mnt/home/ssledzieski/GitHub/Dyna-1\n")
 
-    for pdb_fi in tqdm(pdb_files):
+    for pdb_fi in tqdm(mdcath_pdbs):
         pdb_key = pdb_fi.stem
-        pdb_id = pdb_key.split("_")[0]
-        pdb_chain = pdb_key.split("_")[1]
         f.write(f"echo {pdb_key}\n")
         f.write(
 #            f"mkdir -p {output_root}/{pdb_key}; /usr/bin/time -o {output_root}/{pdb_key}/time_log.txt python dyna1.py --pdb {pdb_id} --chain {pdb_chain} --name {pdb_key} --save_dir {output_root}/{pdb_key} --use_pdb_seq --write_to_pdb\n"
-            f"mkdir -p {output_root}/{pdb_key}; /usr/bin/time -o {output_root}/{pdb_key}/time_log.txt python dyna1.py --pdb {atlas_data / pdb_key[:2] / pdb_key}.pdb --name {pdb_key} --save_dir {output_root}/{pdb_key} --use_pdb_seq --write_to_pdb\n"
+            f"mkdir -p {output_root}/{pdb_key}; python dyna1.py --pdb {pdb_fi} --name {pdb_key} --save_dir {output_root}/{pdb_key} --use_pdb_seq --write_to_pdb\n"
         )
+# %%

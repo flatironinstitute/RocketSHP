@@ -56,7 +56,7 @@ use_struct = args.use_struct
 # checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/full_seq_model/model-epoch=13-val_loss=1.18.pt.ckpt"
 # checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/mini_seq_model/model-epoch=39-val_loss=1.22.pt.ckpt"
 
-log_file = config.REPORTS_DIR / EVAL_KEY / f"{EVAL_KEY}_evaluation.log"
+log_file = config.REPORTS_DIR / EVAL_KEY / f"{EVAL_KEY}_dms_evaluation.log"
 logger.add(log_file, level="INFO", format="{message}", encoding="utf-8")
 
 # %% Load model

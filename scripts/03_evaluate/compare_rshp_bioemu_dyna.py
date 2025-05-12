@@ -37,15 +37,15 @@ from scipy.stats import ttest_rel
 
 #%% Paths
 
-# parser = argparse.ArgumentParser(description="Compare RocketSHP, Dyna-1, and BioEMU results")
-# parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
-# parser.add_argument("--split", choices=["valid", "test"], default="valid", help="Split to evaluate")
-# args = parser.parse_args()
-# EVAL_KEY = args.eval_key
-# split = args.split
+parser = argparse.ArgumentParser(description="Compare RocketSHP, Dyna-1, and BioEMU results")
+parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
+parser.add_argument("--split", choices=["valid", "test"], default="valid", help="Split to evaluate")
+args = parser.parse_args()
+EVAL_KEY = args.eval_key
+split = args.split
 
-EVAL_KEY = "large_model_20250427"
-split = "test"
+# EVAL_KEY = "large_model_20250427"
+# split = "test"
 
 reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
 dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/")

@@ -82,15 +82,26 @@ logger.info(f"Dyna-1 time: {DYNA_TIME:.5f} seconds")
 #%%
 # BIOEMU TIME
 
-bioemu_runtime_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results_100/bioemu_100_time_results.txt")
+# bioemu_runtime_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results_100/bioemu_100_time_results.txt")
+bioemu_runtime_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_atlas_results_100")
+
 bioemu_times = []
-with open(bioemu_runtime_root, "r") as f:
-    for line in f:
-        time_sec = float(line.split()[2])
+for p in bioemu_runtime_root.glob("*/time_log.txt"):
+    with open(p, "r") as f:
+        lines = f.read()
+        time_sec = float(reg.search(lines).group(1))
         bioemu_times.append(time_sec)
+
+# bioemu_times = []
+# with open(bioemu_runtime_root, "r") as f:
+#     for line in f:
+#         time_sec = float(line.split()[2])
+#         bioemu_times.append(time_sec)
+
 BIOEMU_TIME = np.mean(bioemu_times) * seconds  # from conclusion of bioemu paper
 logger.info(f"BioEmu (100) time: {BIOEMU_TIME:.5f} seconds")
 
+#%%
 bioemu_10_runtime_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results/bioemu_time_results.txt")
 bioemu_10_times = []
 with open(bioemu_10_runtime_root, "r") as f:
@@ -126,11 +137,11 @@ import pandas as pd
 
 time_df = pd.DataFrame(
     {
-        "RocketSHP": rshp_times,
-        "RocketSHP-mini": rshp_mini_times,
-        "Dyna-1": dyna_times,
-        "BioEmu (100 samples)": bioemu_times,
-        "BioEmu (10 samples)": bioemu_10_times,
+        "RocketSHP": rshp_times[:len(bioemu_times)],
+        "RocketSHP-mini": rshp_mini_times[:len(bioemu_times)],
+        "Dyna-1": dyna_times[:len(bioemu_times)],
+        "BioEmu (100 samples)": bioemu_times[:len(bioemu_times)],
+        "BioEmu (10 samples)": bioemu_10_times[:len(bioemu_times)],
     }
 )
 
@@ -150,7 +161,7 @@ plt.xlabel("Time (seconds)")
 plt.ylabel("")
 plt.title("ATLAS Inference Times")
 plt.tight_layout()
-plt.savefig(config.REPORTS_DIR / "figures" / "20250508_runtime_distribution.svg")
+# plt.savefig(config.REPORTS_DIR / "figures" / "20250508_runtime_distribution.svg")
 
 #%% 
 TIME_PER_DICT = {
