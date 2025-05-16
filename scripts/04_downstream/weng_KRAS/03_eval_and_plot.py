@@ -1,4 +1,5 @@
 # %% Imports
+import os
 import pickle as pk
 
 import matplotlib.pyplot as plt
@@ -30,27 +31,30 @@ plt.rcParams.update(
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-# parser = argparse.ArgumentParser(description="Evaluate RocketSHP model on DMS data")
-# parser.add_argument("eval_key", type=str, help="Evaluation key")
-# parser.add_argument("--dist-thresh", type=float, help="Distance threshold for centrality calculation in angstrom [6.0]", default=6.0)
-# args = parser.parse_args()
-# EVAL_KEY = args.eval_key
+import argparse
+parser = argparse.ArgumentParser(description="Evaluate RocketSHP model on DMS data")
+parser.add_argument("eval_key", type=str, help="Evaluation key")
+parser.add_argument("--dist-thresh", type=float, help="Distance threshold for centrality calculation in angstrom [8.0]", default=8.0)
+args = parser.parse_args()
+EVAL_KEY = args.eval_key
+DIST_THRESH_ANGSTROM = args.dist_thresh
 
 # EVAL_KEY = "full_seq_model"
 # EVAL_KEY = "mini_seq_model"
-EVAL_KEY = "large_model_20250427"
+# EVAL_KEY = "large_model_20250427"
 
-DIST_THRESH_ANGSTROM = 6.0
+# DIST_THRESH_ANGSTROM = 8.0
 DIST_THRESH_NM = DIST_THRESH_ANGSTROM / 10.0
 
 # %% Load pickle
 
+os.makedirs(config.REPORTS_DIR / EVAL_KEY / "figures", exist_ok=True)
 with open(config.REPORTS_DIR / EVAL_KEY / "mutant_results.pkl", "rb") as f:
     mutant_results = pk.load(f)
     logger.info(f"Loaded {len(mutant_results)} mutant results")
 if mutant_results[0][0] == 0:
     wild_type_result = mutant_results[0]
-    mutant_results = mutant_results[1:]  # remove the first element which is a dummy
+    mutant_results = mutant_results[1:]  # remove the first element which is a the wild type
 # %% Process networks
 SEQ_LENGTH = len(mutant_results[0][2])
 logger.info(f"Sequence length: {SEQ_LENGTH}")

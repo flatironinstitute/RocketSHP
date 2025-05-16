@@ -48,7 +48,7 @@ for pdb_fi, seq in tqdm(zip(mdcath_pdbs, sequences)):
         logger.info(f"Already processed {pdb_fi.stem} with {num_samples} samples.")
         continue
 
-    time.sleep(2)  # to avoid spamming the MSA server-- not counted in running time
+    # time.sleep(2)  # to avoid spamming the MSA server-- not counted in running time
     start_time = time.time()
     sample(
         sequence=seq,

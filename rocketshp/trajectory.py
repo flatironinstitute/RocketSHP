@@ -8,11 +8,33 @@ import mdtraj as md
 import nglview as nv
 import numpy as np
 import torch
-from biotite.structure.alphabet import to_3di
+from biotite.structure.alphabet import to_3di, I3DSequence
 from statsmodels.tsa.stattools import acf
 
 from rocketshp.structure.protein_chain import ProteinChain
 
+FS_3DI_LIST = [
+    "L",
+    "A",
+    "G",
+    "V",
+    "S",
+    "E",
+    "R",
+    "T",
+    "I",
+    "D",
+    "P",
+    "K",
+    "Q",
+    "N",
+    "F",
+    "Y",
+    "M",
+    "H",
+    "W",
+    "C",
+]
 
 def load_trajectory(filename: str):
     return md.load(filename)
@@ -168,31 +190,6 @@ def compute_autocorrelation_DEPRECATED(
         correlations[c_i, c_j] = corrs_[lag]
         correlations[c_j, c_i] = corrs_[lag]
     return correlations
-
-
-FS_3DI_LIST = [
-    "L",
-    "A",
-    "G",
-    "V",
-    "S",
-    "E",
-    "R",
-    "T",
-    "I",
-    "D",
-    "P",
-    "K",
-    "Q",
-    "N",
-    "F",
-    "Y",
-    "M",
-    "H",
-    "W",
-    "C",
-]
-
 
 def seq_list_to_tensor(seq_list):
     max_len = max([len(i) for i in seq_list])

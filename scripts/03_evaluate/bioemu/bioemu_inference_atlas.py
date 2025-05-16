@@ -29,13 +29,13 @@ sequences = []
 
 if (output_root / "sequences.fasta").exists():
     # Read sequences from the file
-    with open(output_root / "sequences.fasta") as f:
+    with open(output_root / "sequences.fasta", "r") as f:
         for line in f:
             if line.startswith(">"):
                 pdb_key = line[1:].strip()
                 seq = next(f).strip()
                 sequences.append(seq)
-                logger.info(f"Loaded sequence for {pdb_key} from file.")
+    logger.info(f"Loaded sequences from {output_root / 'sequences.fasta'}.")
 
 else:
     logger.info("Getting all sequences from the pdb files...")
@@ -57,20 +57,21 @@ else:
             f.write(f">{pdb_f.stem}\n{seq}\n")
 
 # %% Run bioemu for each sequence
-cache_dir = Path(f"/tmp/rocketshp/bioemu_atlas_{num_samples}_cache")
+cache_dir = Path(f"/tmp/rocketshp/bioemu_atlas_{num_samples}_cache2")
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 logger.info("Running bioemu for each sequence...")
-for pdb_fi, seq in tqdm(zip(pdb_files, sequences)):
-    time.sleep(0.1)  # to avoid spamming the MSA server-- not counted in running time
+for pdb_fi, seq in tqdm(zip(pdb_files, sequences), total=len(pdb_files)):
+    # time.sleep(0.1)  # to avoid spamming the MSA server-- not counted in running time
 
     pdb_key = pdb_fi.stem
     if Path(
         f"{output_root}/{pdb_key}_{num_samples}/time_log.txt",
     ).exists():
-        logger.info(f"Already processed {pdb_fi.stem} with {num_samples} samples.")
+        # logger.info(f"Already processed {pdb_fi.stem} with {num_samples} samples.")
         continue
 
+    logger.info(f"Processing {pdb_fi.stem} with {num_samples} samples...")
     start_time = time.time()
     try:
         sample(

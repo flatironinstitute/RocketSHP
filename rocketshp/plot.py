@@ -17,35 +17,44 @@ def plot_predictions(
     shp: np.ndarray,
     title: str = "RocketSHP Predictions",
     output_path: Path = "rocketshp_predictions.png",
+    font_scale: float = 1.0,
 ):
-    fig = plt.figure(figsize=(6, 6))
-    gs = fig.add_gridspec(2, 2)
-    ax1 = fig.add_subplot(gs[0, 0])
-    ax2 = fig.add_subplot(gs[0, 1])
-    ax3 = fig.add_subplot(gs[1, :])
 
-    fig.suptitle(title)
+    with plt.style.context({
+        "font.size": 12 * font_scale,
+        "legend.fontsize": 12 * font_scale,
+        "axes.labelsize": 12 * font_scale,
+        "axes.titlesize": 12 * font_scale,
+        }):
 
-    ax1.plot(rmsf, label="RMSF")
-    ax1.set_title("RMSF")
-    ax1.set_xlabel("Residue Index")
-    ax1.set_ylabel("RMSF (Å)")
-    ax1.spines["top"].set_visible(False)
-    ax1.spines["right"].set_visible(False)
+        fig = plt.figure(figsize=(6, 6))
+        gs = fig.add_gridspec(2, 2)
+        ax1 = fig.add_subplot(gs[0, 0])
+        ax2 = fig.add_subplot(gs[0, 1])
+        ax3 = fig.add_subplot(gs[1, :])
 
-    ax2.imshow(gcc_lmi, cmap="viridis", aspect="equal", vmin=0, vmax=1)
-    ax2.set_title("GCC-LMI")
-    ax2.set_xlabel("Residue Index")
-    ax2.set_ylabel("Residue Index")
+        fig.suptitle(title)
 
-    ax3.imshow(shp.T, cmap="binary", vmin=0, vmax=1)
-    ax3.set_title("SHP")
-    ax3.set_xlabel("Residue Index")
-    ax3.set_ylabel("Structure Token Index")
-    ax3.set_ylim(21, -1)
+        ax1.plot(rmsf, label="RMSF")
+        ax1.set_title("RMSF")
+        ax1.set_xlabel("Residue Index")
+        ax1.set_ylabel("RMSF (Å)")
+        ax1.spines["top"].set_visible(False)
+        ax1.spines["right"].set_visible(False)
 
-    plt.tight_layout()
-    plt.savefig(output_path)
+        ax2.imshow(gcc_lmi, cmap="viridis", aspect="equal", vmin=0, vmax=1)
+        ax2.set_title("GCC-LMI")
+        ax2.set_xlabel("Residue Index")
+        ax2.set_ylabel("Residue Index")
+
+        ax3.imshow(shp.T, cmap="binary", vmin=0, vmax=1)
+        ax3.set_title("SHP")
+        ax3.set_xlabel("Residue Index")
+        ax3.set_ylabel("Structure Token\nIndex")
+        ax3.set_ylim(21, -1)
+
+        plt.tight_layout()
+        plt.savefig(output_path)
 
 
 @app.command()

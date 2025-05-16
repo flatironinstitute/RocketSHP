@@ -86,6 +86,7 @@ adl = MDCathDataModule(
     val_pct=PARAMS.val_pct,
     random_seed=PARAMS.random_seed,
     struct_stage=PARAMS.struct_stage,
+    shuffle=PARAMS.shuffle,
 )
 adl.setup("train")
 ads = adl.dataset

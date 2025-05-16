@@ -417,18 +417,14 @@ class RocketSHPModel(nn.Module):
                 subfolder="checkpoints",
             )
         elif not Path(checkpoint_path).exists():
-            raise FileNotFoundError(
-                f"Checkpoint path {checkpoint_path} does not exist."
-            )
-        elif not checkpoint_path.endswith(".ckpt"):
-            raise ValueError(f"Checkpoint path {checkpoint_path} must end with .ckpt.")
-        else:
             logger.error(
                 f"If you are trying to download from HuggingFace, available models are: {PRETRAINED_MODELS.keys()}"
             )
             raise FileNotFoundError(
                 f"Checkpoint path {checkpoint_path} does not exist."
             )
+        elif not checkpoint_path.endswith(".ckpt"):
+            raise ValueError(f"Checkpoint path {checkpoint_path} must end with .ckpt.")
 
         chk = torch.load(checkpoint_path, weights_only=True)
         hp = chk["hyper_parameters"]

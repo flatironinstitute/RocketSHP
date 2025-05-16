@@ -79,7 +79,7 @@ def run_inference(
 ):
     with torch.inference_mode():
         feats = {}
-        feats["seq_feats"] = esm3_sequence(seq, esm_m, esm_t).squeeze()
+        feats["seq_feats"] = esm3_sequence(seq, esm_m, esm_t).squeeze()[1:-1]
         if struct is not None:
             feats["struct_feats"] = esm3_vqvae(
                 struct, esm_s, stage=structure_stage
@@ -96,7 +96,8 @@ def run_inference(
 
 
 # %%
-wt_sequence = "TEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQGVDDAFYTLVREIRKHKEKMSKDGKKKKKKSKTKCVIM"
+# wt_sequence = "TEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQGVDDAFYTLVREIRKHKEKMSKDGKKKKKKSKTKCVIM"
+wt_sequence = "MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQRVEDAFYTLVREIRQYRLKKISKEEKTPGCVKIKKCIIM"
 kras_pdb_file = "/mnt/home/ssledzieski/database/WengNature_DMS/kras_afdb.pdb"
 if use_struct:
     kras_struct = ProteinChain.from_pdb(kras_pdb_file)
@@ -193,6 +194,7 @@ logger.info(f"Time taken: {end - start:.2f} seconds")
 logger.info(f"Time taken per mutant: {(end - start) / len(mutant_results):.2f} seconds")
 
 # %% Save mutant prediction results
+logger.info(f"Saving mutant results to {config.REPORTS_DIR / EVAL_KEY / 'mutant_results.pkl'}")
 with open(config.REPORTS_DIR / EVAL_KEY / "mutant_results.pkl", "wb") as f:
     pk.dump(mutant_results, f)
 # %%
