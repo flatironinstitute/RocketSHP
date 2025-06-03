@@ -5,6 +5,7 @@ import torch
 import torch.nn.functional as F
 from omegaconf import OmegaConf
 from torch import nn
+from loguru import logger
 
 
 def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):
@@ -122,6 +123,8 @@ class LightningWrapper(L.LightningModule):
 
         self.crop_size = 512
 
+        self.validation_losses = []
+
     def forward(self, x):
         return self.child_model(x)
 
@@ -129,60 +132,44 @@ class LightningWrapper(L.LightningModule):
         x, y, mask = batch
         y_hat = self(x)
 
-        # for y_k, y_v in y.items():
-        #     logger.debug(f"y_{y_k}: {y_v.shape} {y_v.dtype}")
-
         return_dict = {}
-
-        if self.norm_grad and stage == "train":
-            rmsf_loss = self.rmsf_loss_fn(y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask)
+        if "rmsf" in y_hat:
+            rmsf_loss = self.rmsf_loss_fn(
+                y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask
+            )
+            return_dict["rmsf_loss"] = rmsf_loss
+        if "ca_dist" in y_hat:
             ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
+            return_dict["ca_loss"] = ca_dist_loss
+        if "autocorr" in y_hat:
             autocorr_loss = self.autocorr_loss_fn(
                 y_hat["autocorr"], y["autocorr"], mask
             )
-            gcc_loss = self.gcc_loss_fn(y_hat["gcc_lmi"], y["gcc_lmi"], mask)
-            shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
-
-            # weighted_loss, weighted_losses, grad_loss = self.child_model.grad_norm(
-            #     [rmsf_loss, ca_dist_loss, dyn_corr_loss]
-            # )
-
-            return_dict["rmsf_loss"] = rmsf_loss
-            return_dict["ca_loss"] = ca_dist_loss
             return_dict["autocorr_loss"] = autocorr_loss
+        if "gcc_lmi" in y_hat:
+            gcc_loss = self.gcc_loss_fn(y_hat["gcc_lmi"], y["gcc_lmi"], mask)
             return_dict["gcc_lmi_loss"] = gcc_loss
+        if "shp" in y_hat:
+            shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
             return_dict["shp_loss"] = shp_loss
-            # return_dict["batch_loss"] = weighted_loss
-            # return_dict["grad_loss"] = grad_loss
 
-        else:
+        if self.norm_grad:
+            raise NotImplementedError("Gradient normalization is not implemented yet.")
+        elif stage == "train":
             loss = 0
-            if "rmsf" in y_hat:
-                rmsf_loss = self.rmsf_loss_fn(
-                    y_hat["rmsf"], y["rmsf"].unsqueeze(2), mask
-                )
-                loss += self.rmsf_alpha * rmsf_loss
-                return_dict["rmsf_loss"] = rmsf_loss
-            if "ca_dist" in y_hat:
-                ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
-                loss += self.ca_dist_alpha * ca_dist_loss
-                return_dict["ca_loss"] = ca_dist_loss
-            if "autocorr" in y_hat:
-                autocorr_loss = self.autocorr_loss_fn(
-                    y_hat["autocorr"], y["autocorr"], mask
-                )
-                loss += self.autocorr_alpha * autocorr_loss
-                return_dict["autocorr_loss"] = autocorr_loss
-            if "gcc_lmi" in y_hat:
-                gcc_loss = self.gcc_loss_fn(y_hat["gcc_lmi"], y["gcc_lmi"], mask)
-                loss += self.gcc_lmi_alpha * gcc_loss
-                return_dict["gcc_lmi_loss"] = gcc_loss
-            if "shp" in y_hat:
-                shp_loss = self.shp_loss_fn(y_hat["shp"], y["shp"], mask)
-                loss += self.shp_alpha * shp_loss
-                return_dict["shp_loss"] = shp_loss
-
+            loss += self.rmsf_alpha * rmsf_loss
+            loss += self.shp_alpha * shp_loss
+            loss += self.gcc_lmi_alpha * gcc_loss
+            loss += self.ca_dist_alpha * ca_dist_loss
             return_dict["batch_loss"] = loss
+        elif stage == "validation":
+            # use unweighted geometric mean of each individual relevant loss to measure overall performance
+            loss = (
+                rmsf_loss*shp_loss*gcc_loss
+            ) ** (1 / 3)
+            return_dict["batch_loss"] = loss
+        else:
+            raise ValueError(f"Unknown stage: {stage}")
 
         return return_dict
 
@@ -200,23 +187,48 @@ class LightningWrapper(L.LightningModule):
             {"train_loss": loss_dict["batch_loss"]}, on_step=False, on_epoch=True
         )
 
-        return {"loss": total_loss}
+        # if batch_idx % 1000 == 0:
+        #     with torch.no_grad():
+        #         has_extreme = False
+        #         for (name, param) in self.named_parameters():
+        #             if torch.isnan(param).any() or torch.isinf(param).any():
+        #                 logger.warning(
+        #                     f"NaN or Inf detected in parameter {name} at batch {batch_idx} during training."
+        #                 )
+        #                 has_extreme = True
 
+        #             max_val = param.abs().max().item()
+        #             if max_val > 1e5:
+        #                 logger.warning(
+        #                     f"Parameter {name} has a max value of {max_val} at batch {batch_idx} during training."
+        #                 )
+        #                 has_extreme = True
+
+        #         if has_extreme:
+        #             torch.save(
+        #                 self.state_dict(),
+        #                 f"extreme_parameters_batch_{batch_idx}.pt"
+        #             )
+
+        return {"loss": total_loss}
+    
     def on_train_epoch_end(self):
         pass
 
     def validation_step(self, batch, batch_idx):
         loss_dict = self._get_loss(batch, batch_idx, "validation")
+        loss = loss_dict["batch_loss"]
 
-        self.log_dict(
-            {"val_loss": loss_dict["batch_loss"]}, on_epoch=True, on_step=False
-        )
+        if torch.isfinite(loss):
+            self.log_dict(
+                {"val_loss": loss_dict["batch_loss"]}, on_epoch=True, on_step=False
+            )
+            # self.validation_losses.append(loss.detach())
+        else:
+            logger.warning(f"Infinite loss detected at batch {batch_idx} during validation.")
 
         return {"loss": loss_dict["batch_loss"]}
-
-    def on_validation_epoch_end(self):
-        pass
-
+    
     def test_step(self, batch, batch_idx):
         loss_dict = self._get_loss(batch, batch_idx, "test")
 
@@ -226,17 +238,41 @@ class LightningWrapper(L.LightningModule):
 
         return {"loss": loss_dict["batch_loss"]}
 
-    def on_test_epoch_end(self):
-        pass
-
-    # def on_before_optimizer_step(self, optimizer):
-    #     # Log gradient norms for all modules
-    #     for name, param in self.named_parameters():
-    #         if param.grad is not None:
-    #             self.log(f"grad_norm/{name}", grad_norm(param.grad))
-
     def configure_optimizers(self):
-        return torch.optim.Adam(self.parameters(), lr=self.hparams.lr)
+        optimizer = torch.optim.Adam(
+            self.parameters(), 
+            lr=self.hparams.lr, 
+            weight_decay=getattr(self.hparams, 'weight_decay', 0.0)
+        )
+        
+        scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+            optimizer, 
+            mode='min', 
+            factor=0.5, 
+            patience=3, 
+            min_lr=1e-7, 
+            verbose=True
+        )
+        
+        return {
+            "optimizer": optimizer,
+            "lr_scheduler": {
+                "scheduler": scheduler,
+                "monitor": "val_loss",
+                "frequency": 1,
+            },
+        }
+    
+    def on_validation_epoch_end(self):
+        # Log additional metrics for sweep optimization
+        if hasattr(self.trainer, 'callback_metrics'):
+            val_loss = self.trainer.callback_metrics.get('val_loss')
+            if val_loss is not None:
+                self.log("hp/val_loss", val_loss, prog_bar=True)
+                
+        # Log learning rate
+        current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
+        self.log("hp/learning_rate", current_lr)
 
     def _num_parameters(self, requires_grad: bool = True):
         return sum(

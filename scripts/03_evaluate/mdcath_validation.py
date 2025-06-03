@@ -46,16 +46,22 @@ parser.add_argument("eval_key", type=str, help="Key for the evaluation")
 parser.add_argument("model", type=str, help="Path to the model checkpoint")
 parser.add_argument("config_file", type=str, help="Path to the config file")
 parser.add_argument(
-    "--split", choices=["valid", "test"], default="valid", help="Split to evaluate"
+    "--split", choices=["valid", "test"], default="test", help="Split to evaluate"
 )
 parser.add_argument(
     "--device", type=str, default="cuda:0", help="Device to use for inference"
 )
-args = parser.parse_args()
+# args = parser.parse_args()
 
-EVAL_KEY = args.eval_key
-CONFIG_FILE = args.config_file
-CHECKPOINT_FILE = args.model
+# EVAL_KEY = args.eval_key
+# CONFIG_FILE = args.config_file
+# CHECKPOINT_FILE = args.model
+# device = args.device
+
+EVAL_KEY = "mdcath_large_ep10"
+CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250519_mdcath_large.yml"
+CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/full_model_mdcath_5/model-epoch=10-val_loss=0.80151.pt.ckpt"
+device = "cuda:0"
 
 # EVAL_KEY = "large_model_20250427"
 # CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
@@ -72,7 +78,7 @@ PARAMS = config.DEFAULT_PARAMETERS
 PARAMS.update(OmegaConf.load(CONFIG_FILE))
 
 # %% Load data
-device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+device = torch.device(device if torch.cuda.is_available() else "cpu")
 
 logger.info("Loading data...")
 adl = MDCathDataModule(
@@ -153,13 +159,24 @@ all_labels = {**valid_labels, **test_labels}
 # %% Get sequence lengths
 logger.info("Getting sequence lengths...")
 seq_lengths = []
-for k, v in valid_results.items():
-    seq_lengths.append((k, "valid", v["rmsf"].shape[0]))
-for k, v in test_results.items():
-    seq_lengths.append((k, "test", v["rmsf"].shape[0]))
-for i, f in enumerate(adl.train_data):
-    k = adl.dataset.samples[adl.train_data.indices[i]]
-    seq_lengths.append((k, "train", f[1]["rmsf"].shape[0]))
+# for k, v in valid_results.items():
+#     seq_lengths.append((k, "valid", v["rmsf"].shape[0]))
+# for k, v in test_results.items():
+#     seq_lengths.append((k, "test", v["rmsf"].shape[0]))
+# for i, f in enumerate(adl.train_data):
+#     k = adl.dataset.samples[adl.train_data.indices[i]]
+#     seq_lengths.append((k, "train", f[1]["rmsf"].shape[0]))
+
+train_seq_keys = set([adl.dataset.samples[i].split("/")[0] for i in adl.train_data.indices])
+val_seq_keys = set([adl.dataset.samples[i].split("/")[0] for i in adl.val_data.indices])
+test_seq_keys = set([adl.dataset.samples[i].split("/")[0] for i in adl.test_data.indices])
+
+for k in train_seq_keys:
+    seq_lengths.append((k, "train", adl.dataset._handle[k]["embedding"].shape[0]))
+for k in val_seq_keys:
+    seq_lengths.append((k, "valid", adl.dataset._handle[k]["embedding"].shape[0]))
+for k in test_seq_keys:
+    seq_lengths.append((k, "test", adl.dataset._handle[k]["embedding"].shape[0]))
 
 seq_lengths = pd.DataFrame(seq_lengths, columns=["key", "split", "length"])
 
@@ -169,8 +186,7 @@ bins = [
     ("<100 residues", (0, 99)),
     ("100-149 residues", (100, 149)),
     ("150-249 residues", (150, 249)),
-    ("250-349 residues", (250, 349)),
-    (">350 residues", (350, seq_lengths["length"].max())),
+    ("250-350 residues", (250, 350)),
 ]
 
 for label, (low, high) in bins:
@@ -190,8 +206,8 @@ seq_lengths_unique = seq_lengths.copy()
 seq_lengths_unique["key"] = seq_lengths_unique["key"].apply(lambda x: x.split("/")[0])
 seq_lengths_unique = seq_lengths_unique.drop_duplicates()
 
-plt.figure(figsize=(10, 5))
-plt_bins = np.arange(0, 2100, 50)
+plt.figure(figsize=(5, 5))
+plt_bins = np.arange(0, 500, 25)
 plt.hist(
     seq_lengths_unique[seq_lengths_unique["split"] == "train"]["length"],
     bins=plt_bins,
@@ -215,7 +231,7 @@ for b in bins:
     plt.axvline(x=b_min, color="black", linestyle="--")
     plt.text(
         ((b_min + b_max) // 2) - 5,
-        275,
+        1000,
         b[0],
         rotation=45,
         ha="left",
@@ -224,12 +240,12 @@ for b in bins:
     )
 plt.xlabel("Sequence Length")
 plt.ylabel("Number of Proteins")
+plt.legend()
+plt.tight_layout()
 plt.savefig(
     config.FIGURES_DIR / "mdcath_all" / "seq_length_histogram.svg",
-    dpi=300,
-    bbox_inches="tight",
+    transparent=True,
 )
-plt.legend()
 plt.show()
 
 # %% Performance

@@ -137,56 +137,6 @@ def esm3_sequence(
     return logits.embeddings
 
 
-def load_sequence(sequence: str, device: torch.device = torch.device("cuda:0")):
-    """
-    Load default model and tokenizer and get sequence features
-    """
-    from rocketshp.esm3 import get_model, get_tokenizers
-
-    device = torch.device(device)
-
-    # Load the model and tokenizer
-    esm_model, esm_tokenizers = get_model(), get_tokenizers()
-    esm_model = esm_model.to("cuda:0")
-
-    # Get the sequence features
-    sequence_features = esm3_sequence(
-        sequence=sequence,
-        model=esm_model,
-        tokenizers=esm_tokenizers,
-    )[:, 1:-1, :]
-
-    return sequence_features
-
-
-def load_structure(
-    structure: bs.AtomArray,
-    device: torch.device = torch.device("cuda:0"),
-    stage: str = "encoded",
-):
-    """
-    Load default model and tokenizer and get structure features
-    """
-    from rocketshp.esm3 import get_structure_vae
-    from rocketshp.structure.protein_chain import ProteinChain
-
-    device = torch.device(device)
-
-    # Load the model and tokenizer
-    esm_structure_model = get_structure_vae()
-    esm_structure_model = esm_structure_model.to(device)
-
-    # Get the structure features
-    chain = ProteinChain.from_atomarray(structure)
-    structure_features = esm3_vqvae(
-        chain=chain,
-        esm_struct_encoder=esm_structure_model,
-        stage=stage,
-    )
-
-    return structure_features
-
-
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----

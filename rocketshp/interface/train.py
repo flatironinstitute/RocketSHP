@@ -1,5 +1,5 @@
 import logging
-import os
+import os, sys
 import warnings
 from functools import partial
 
@@ -8,7 +8,7 @@ import neptune
 import torch
 import typer
 from lightning import Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
 from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
@@ -59,6 +59,7 @@ def main(
     loggers = []
 
     seed_everything(PARAMS.random_seed)
+    torch.multiprocessing.set_sharing_strategy('file_system')
 
     if debug:
 
@@ -74,11 +75,15 @@ def main(
         # torch.nn.Module.__repr__ = simple_repr
         # L.LightningModule.__repr__ = simple_repr
 
-        PARAMS.epoch_scale = 3100
+        # PARAMS.epoch_scale = 100
         os.environ["LOGURU_LEVEL"] = "DEBUG"
         configure_logger("DEBUG")
         stdout_logger.debug("Running in debug mode")
+
+        # PARAMS.train_pct = 0.001
+
     else:
+        # PARAMS.epoch_scale = -1
         neptune_logger = NeptuneLogger(
             project="samsl-flatiron/RocketSHP",
             name=run_id,
@@ -108,6 +113,7 @@ def main(
 
     if not debug:
         neptune_logger.log_hyperparams(params=PARAMS.__dict__)
+    
     torch.set_float32_matmul_precision(PARAMS.precision)
 
     if dataset == "atlas":
@@ -148,6 +154,7 @@ def main(
         save_last=True,
         verbose=True,
     )
+    # lr_monitor = LearningRateMonitor(logging_interval="epoch")
 
     trainer = Trainer(
         logger=loggers,
@@ -155,9 +162,10 @@ def main(
         # max_steps=PARAMS.epoch_scale,
         callbacks=[checkpoint_callback],
         accumulate_grad_batches=PARAMS.batch_size,
-        gradient_clip_val=1,
+        gradient_clip_val=1.0,
         log_every_n_steps=5,
     )
+
     trainer.fit(lightning_model, datamodule=datamod)
     trainer.test(lightning_model, datamodule=datamod)
 

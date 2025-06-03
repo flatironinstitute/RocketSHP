@@ -21,6 +21,7 @@ struct_dim: 1024
 # Training definitions
 batch_size: 16
 lr: 0.00005
+weight_decay: 0
 max_epochs: 75
 epoch_scale: -1
 precision: "medium"

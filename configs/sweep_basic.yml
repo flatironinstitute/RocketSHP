@@ -1,0 +1,41 @@
+project: "samsl-flatiron/RocketSHP"
+name: "rocketshp_basic_sweep"
+description: "Basic hyperparameter optimization for RocketSHP"
+
+parameters:
+  lr:
+    type: "double"
+    min: 1e-6
+    max: 1e-3
+    scale: "log"
+  
+  batch_size:
+    type: "categorical"
+    values: [8, 16, 32]
+  
+  # Use compatible d_model and n_heads combinations
+  model_config:
+    type: "categorical"
+    values: [
+      {"d_model": 256, "n_heads": 4},    # 256/4 = 64
+      {"d_model": 256, "n_heads": 8},    # 256/8 = 32
+      {"d_model": 512, "n_heads": 4},    # 512/4 = 128
+      {"d_model": 512, "n_heads": 8},    # 512/8 = 64
+      {"d_model": 512, "n_heads": 16},   # 512/16 = 32
+      {"d_model": 768, "n_heads": 6},    # 768/6 = 128
+      {"d_model": 768, "n_heads": 8},    # 768/8 = 96
+      {"d_model": 768, "n_heads": 12},   # 768/12 = 64
+      {"d_model": 1024, "n_heads": 8},   # 1024/8 = 128
+      {"d_model": 1024, "n_heads": 16}   # 1024/16 = 64
+    ]
+  
+  n_layers:
+    type: "categorical"
+    values: [6, 8, 10, 12]
+
+strategy:
+  type: "grid"
+  
+metric:
+  name: "final/val_loss"
+  direction: "minimize"

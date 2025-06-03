@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = "rocketshp"
-version = "0.1.0"
+version = "0.2.0"
 description = "Fast structural heterogeneity estimation with quantization"
 authors = [
   { name = "Samuel Sledzieski" },

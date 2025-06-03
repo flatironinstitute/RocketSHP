@@ -245,6 +245,12 @@ class MDDataset(Dataset):
         except KeyError as e:
             logger.error(f"Error processing sample {rep_key}: {e}")
             raise
+            
+        for k, v in labels.items():
+            if torch.isnan(v).any() or torch.isinf(v).any():
+                logger.warning(f"NaN/Inf found in labels for sample {rep_key} ({k})")
+                # raise ValueError(f"NaN/Inf found in labels for sample {rep_key} ({k})")
+                labels[k] = torch.nan_to_num(v, nan=0.0, posinf=0.0, neginf=0.0)
 
         return features, labels
 

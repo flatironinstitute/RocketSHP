@@ -12,7 +12,7 @@ import seaborn as sns
 import torch
 from biotite.structure.io import pdb, xtc
 from loguru import logger
-from scipy.stats import spearmanr
+from scipy.stats import spearmanr, pearsonr
 from sklearn.linear_model import LinearRegression
 from statannotations.Annotator import Annotator
 from torch.nn.functional import softmax
@@ -51,18 +51,18 @@ parser = argparse.ArgumentParser(
 )
 parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
 parser.add_argument(
-    "--split", choices=["valid", "test"], default="valid", help="Split to evaluate"
+    "--split", choices=["valid", "test"], default="teest", help="Split to evaluate"
 )
-args = parser.parse_args()
-EVAL_KEY = args.eval_key
-split = args.split
+# args = parser.parse_args()
+# EVAL_KEY = args.eval_key
+# split = args.split
 
-# EVAL_KEY = "large_model_20250427"
-# split = "test"
+EVAL_KEY = "mdcath_large_ep10"
+split = "test"
 
 reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
-dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/")
-bioemu_results_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results/")
+dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_mdcath_results/")
+bioemu_results_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_mdcath_results_100/")
 rshp_results_pickle = (
     config.EVALUATION_DATA_DIR
     / "evaluations"
@@ -88,9 +88,13 @@ assert bioemu_results_root.exists(), (
 )
 
 # %% Load RocketSHP results
+
+TEMP_0 = "320"
+
 with open(rshp_results_pickle, "rb") as f:
-    rshp_results = pk.load(f)
-rshp_results = {k.split("/")[0]: v for k, v in rshp_results.items() if k.endswith("R1")}
+    rshp_pickle = pk.load(f)
+rshp_all = {"_".join(k.split("/")[:2]): v for k, v in rshp_pickle.items() if k.endswith("R1")}
+rshp_results = {k.split("_")[0]: v for k, v in rshp_all.items() if k.endswith(TEMP_0)}
 rshp_rmsf = {k: v["rmsf"].numpy() for k, v in rshp_results.items()}
 rshp_gcc = {k: v["gcc_lmi"].numpy() for k, v in rshp_results.items()}
 rshp_shp = {k: v["shp"].numpy() for k, v in rshp_results.items()}
@@ -105,27 +109,21 @@ for k in tqdm(rshp_results.keys(), desc="Load Dyna Results"):
     dyna_results[k] = dyna_probability
 
 # %% Load BioEMU results
-bioemu_results = {}
-bioemu_gcc = {}
-bioemu_shp = {}
+# bioemu_results = {}
+# bioemu_gcc = {}
+# bioemu_shp = {}
 bioemu_100_results = {}
 bioemu_100_gcc = {}
 bioemu_100_shp = {}
 
 for k in tqdm(rshp_results.keys(), desc="Load BioEMU Results"):
-    bioemu_path = bioemu_results_root / f"{k}_10"
-    assert bioemu_path.exists(), f"BioEMU results not found: {bioemu_path}"
-    bioemu_traj = md.load(bioemu_path / "samples.xtc", top=bioemu_path / "topology.pdb")
-    bioemu_rmsf = compute_rmsf(bioemu_traj)
-    bioemu_gcc_lmi = np.load(bioemu_path / "gcc_lmi.npy")
-    bioemu_results[k] = bioemu_rmsf
-    bioemu_gcc[k] = bioemu_gcc_lmi
-    bs_top = pdb.PDBFile.read(str(bioemu_path / "topology.pdb")).get_structure()
-    bs_xtc = xtc.XTCFile.read(str(bioemu_path / "samples.xtc")).get_structure(bs_top)
-    bioemu_shp[k] = compute_shp(bs_xtc)
 
-    bioemu_100_path = bioemu_results_root.parent / "rshp_results_100" / f"{k}_100"
-    assert bioemu_100_path.exists(), f"BioEMU 100 results not found: {bioemu_100_path}"
+    bioemu_100_path = bioemu_results_root/ f"{k}_100"
+    try:
+        assert (bioemu_100_path / "topology.pdb").exists(), f"BioEMU 100 results not found: {bioemu_100_path}"
+    except AssertionError:
+        logger.warning(f"Chain {k} not yet complete, skipping")
+        continue
     bioemu_100_traj = md.load(
         bioemu_100_path / "samples.xtc", top=bioemu_100_path / "topology.pdb"
     )
@@ -140,39 +138,40 @@ for k in tqdm(rshp_results.keys(), desc="Load BioEMU Results"):
     bioemu_100_shp[k] = compute_shp(bs_100_xtc)
 
 # %% Load GNM results
-GNM_ROOT = Path(
-    "/mnt/home/ssledzieski/Projects/rocketshp/data/processed/atlas/gaussian_net_models"
-)
-gnm_gcc = {}
-for k in tqdm(rshp_results.keys(), total=len(rshp_results), desc="Load GNM Results"):
-    gnm_path = GNM_ROOT / f"{k[:2]}/{k}_gnm.npz"
-    gnm_data = np.load(gnm_path)
-    gnm_covar = gnm_data["covar"]
-    # min-max scale between 0 and 1
-    gnm_covar = (gnm_covar - np.min(gnm_covar)) / (
-        np.max(gnm_covar) - np.min(gnm_covar)
-    )
-    gnm_gcc[k] = gnm_covar
+# GNM_ROOT = Path(
+#     "/mnt/home/ssledzieski/Projects/rocketshp/data/processed/atlas/gaussian_net_models"
+# )
+# gnm_gcc = {}
+# for k in tqdm(rshp_results.keys(), total=len(rshp_results), desc="Load GNM Results"):
+#     gnm_path = GNM_ROOT / f"{k[:2]}/{k}_gnm.npz"
+#     gnm_data = np.load(gnm_path)
+#     gnm_covar = gnm_data["covar"]
+#     # min-max scale between 0 and 1
+#     gnm_covar = (gnm_covar - np.min(gnm_covar)) / (
+#         np.max(gnm_covar) - np.min(gnm_covar)
+#     )
+#     gnm_gcc[k] = gnm_covar
 
 # %% Load reference results
 
-ATLAS_H5 = config.PROCESSED_DATA_DIR / "atlas" / "atlas_processed.h5"
+MDCATH_H5 = config.PROCESSED_DATA_DIR / "mdcath" / "mdcath_processed.h5"
 reference_rmsf = {}
 reference_gcc = {}
 reference_shp = {}
 system_sizes = {}
-with h5py.File(ATLAS_H5, "r") as h5fi:
+with h5py.File(MDCATH_H5, "r") as h5fi:
     for k in tqdm(
         rshp_results.keys(), total=len(rshp_results), desc="Load Reference Results"
     ):
         if k not in h5fi:
             logger.error(f"Key {k} not found in reference data")
             continue
+
         # Get RMSF
-        reference_rmsf[k] = h5fi[k]["R1"]["rmsf"][:]
+        reference_rmsf[k] = h5fi[k][f"T{TEMP_0}"]["R1"]["rmsf"][:]
         # Get GCC
-        reference_gcc[k] = h5fi[k]["R1"]["gcc_lmi"][:]
-        reference_shp[k] = h5fi[k]["R1"]["shp"][:]
+        reference_gcc[k] = h5fi[k][f"T{TEMP_0}"]["R1"]["gcc_lmi"][:]
+        reference_shp[k] = h5fi[k][f"T{TEMP_0}"]["R1"]["shp"][:]
         system_sizes[k] = len(reference_rmsf[k])
 
 # reference_rmsf = {}
@@ -267,24 +266,23 @@ methods = {
     "RocketSHP": rshp_rmsf,
     "Dyna-1": dyna_results,
     "Dyna-1 (Calibrated)": dyna_rmsf,
-    "BioEmu (10)": bioemu_results,
+    # "BioEmu (10)": bioemu_results,
     "BioEmu (100)": bioemu_100_results,
     "Reference": reference_rmsf,
 }
 order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 
 rmsf_results = {}
-for k in tqdm(rshp_results.keys(), desc="Collect RMSF Results"):
+for k in tqdm(bioemu_100_results.keys(), desc="Collect RMSF Results"):
     rmsf_results[k] = {m: methods[m][k] for m in methods.keys()}
 rmsf_df = pd.DataFrame(rmsf_results).T
 rmsf_df = rmsf_df.rename_axis("System").reset_index()
 rmsf_df = rmsf_df.melt(id_vars=["System"], var_name="Method", value_name="RMSF")
 
 # %% Plot a particular system
-# system = "7fd1_A"
-system = "4ayg_B"
-# system = "1ab1_A"
-# system = "1tzw_A"
+# system = "1a75A00"
+system = "1u60A00"
+
 if system not in rmsf_df["System"].values:
     logger.warning(f"System {system} not found in RMSF results")
 else:
@@ -309,17 +307,21 @@ else:
 # %% Compute RMSE and spearman correlation for all systems
 mean_sq_error = {}
 spearman = {}
+pearson = {}
 for method in methods:
     if method == "Reference":
         continue
     mean_sq_error[method] = []
     spearman[method] = []
+    pearson[method] = []
     for k in tqdm(rmsf_results.keys(), desc=f"Compute RMSF metrics for {method}"):
         mse = np.mean((rmsf_results[k][method] - rmsf_results[k]["Reference"]) ** 2)
         rmse = np.sqrt(mse)
         sp_stat, sp_p = spearmanr(rmsf_results[k][method], rmsf_results[k]["Reference"])
+        pr_stat, pr_p = pearsonr(rmsf_results[k][method], rmsf_results[k]["Reference"])
         mean_sq_error[method].append(rmse)
         spearman[method].append(sp_stat)
+        pearson[method].append(pr_stat)
 
 mean_sq_error_df = pd.DataFrame(mean_sq_error)
 mean_sq_error_df = mean_sq_error_df.rename_axis("System").reset_index()
@@ -337,7 +339,7 @@ spearman_df = spearman_df.melt(id_vars=["System"], var_name="Method", value_name
 # %% Plot RMSE
 fig, ax = plt.subplots(figsize=(12, 8))
 
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)"]
 for i in order:
     logger.info(
         f"Mean {i} RMSE: {mean_sq_error_df[mean_sq_error_df['Method'] == i]['RMSE'].mean()}"
@@ -357,7 +359,7 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_rmse_comparison.svg")
 # %% Plot Spearman correlation
 fig, ax = plt.subplots(figsize=(12, 8))
 
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)"]
 for i in order:
     logger.info(
         f"Mean {i} Spearman: {spearman_df[spearman_df['Method'] == i]['RMSE'].mean()}"
@@ -398,17 +400,17 @@ spearman_by_size_df.columns = ["System", "Size", "Method", "Spearman"]
 # quartile_boundaries = mean_sq_error_by_size_df["Size"].quantile([0, 0.25, 0.5, 0.75, 1]).values
 
 # assign size groups by manual binning
-quartile_boundaries = np.array([0, 100, 150, 250, 350, 1050])
+quartile_boundaries = np.array([0, 100, 150, 250, 350])
 mean_sq_error_by_size_df["Size Group"] = pd.cut(
     mean_sq_error_by_size_df["Size"],
     bins=quartile_boundaries,
-    labels=["Small", "Small-Medium", "Medium", "Large", "Extra Large"],
+    labels=["Small", "Small-Medium", "Medium", "Large"],
     include_lowest=True,
 )
 spearman_by_size_df["Size Group"] = pd.cut(
     spearman_by_size_df["Size"],
     bins=quartile_boundaries,
-    labels=["Small", "Small-Medium", "Medium", "Large", "Extra Large"],
+    labels=["Small", "Small-Medium", "Medium", "Large"],
     include_lowest=True,
 )
 
@@ -453,25 +455,25 @@ logger.info(
 # only in largest size group
 mean_rshp_rmse = mean_sq_error_by_size_df[
     (mean_sq_error_by_size_df["Method"] == "RocketSHP")
-    & (mean_sq_error_by_size_df["Size"] >= 500)
+    & (mean_sq_error_by_size_df["Size"] >= 250)
 ]["RMSE"].mean()
 mean_bioemu_100_rmse = mean_sq_error_by_size_df[
     (mean_sq_error_by_size_df["Method"] == "BioEmu (10)")
-    & (mean_sq_error_by_size_df["Size"] >= 500)
+    & (mean_sq_error_by_size_df["Size"] >= 250)
 ]["RMSE"].mean()
 mean_dyna_1_rmse = mean_sq_error_by_size_df[
     (mean_sq_error_by_size_df["Method"] == "Dyna-1 (Calibrated)")
-    & (mean_sq_error_by_size_df["Size"] >= 500)
+    & (mean_sq_error_by_size_df["Size"] >= 250)
 ]["RMSE"].mean()
-logger.info(f"Mean RocketSHP RMSE (Extra Large): {mean_rshp_rmse}")
-logger.info(f"Mean BioEmu (100) RMSE (Extra Large): {mean_bioemu_100_rmse}")
-logger.info(f"Mean Dyna-1 (Calibrated) RMSE (Extra Large): {mean_dyna_1_rmse}")
+logger.info(f"Mean RocketSHP RMSE (Large): {mean_rshp_rmse}")
+logger.info(f"Mean BioEmu (100) RMSE (Large): {mean_bioemu_100_rmse}")
+logger.info(f"Mean Dyna-1 (Calibrated) RMSE (Large): {mean_dyna_1_rmse}")
 # log % difference over other methods
 logger.info(
-    f"RocketSHP RMSE % difference to BioEmu (100) (Extra Large): {(mean_rshp_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%"
+    f"RocketSHP RMSE % difference to BioEmu (100) (Large): {(mean_rshp_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%"
 )
 logger.info(
-    f"RocketSHP RMSE % difference to Dyna-1 (Calibrated) (Extra Large): {(mean_rshp_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%"
+    f"RocketSHP RMSE % difference to Dyna-1 (Calibrated) (Large): {(mean_rshp_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%"
 )
 
 # %% Boxplot
@@ -581,33 +583,21 @@ for pair, stats in zip(pairs, test_results):
 # %% Compute GCC metrics
 
 gcc_results = []
-for k, v in tqdm(rshp_gcc.items()):
+for k, v in tqdm(bioemu_100_gcc.items()):
     network_size = v.shape[0]
-    rshp_gdd = graph_diffusion_distance(v, reference_gcc[k], beta=1 / network_size)
-    rshp_imsd = ipsen_mikhailov_distance(v, reference_gcc[k])
-    bioemu_gdd = graph_diffusion_distance(
-        bioemu_gcc[k], reference_gcc[k], beta=1 / network_size
-    )
-    bioemu_imsd = ipsen_mikhailov_distance(bioemu_gcc[k], reference_gcc[k])
+    rshp_gdd = graph_diffusion_distance(rshp_gcc[k], reference_gcc[k], beta=1 / network_size)
+    rshp_imsd = ipsen_mikhailov_distance(rshp_gcc[k], reference_gcc[k])
     bioemu_100_gdd = graph_diffusion_distance(
         bioemu_100_gcc[k], reference_gcc[k], beta=1 / network_size
     )
     bioemu_100_imsd = ipsen_mikhailov_distance(bioemu_100_gcc[k], reference_gcc[k])
-    gnm_gdd = graph_diffusion_distance(
-        gnm_gcc[k], reference_gcc[k], beta=1 / network_size
-    )
-    gnm_imsd = ipsen_mikhailov_distance(gnm_gcc[k], reference_gcc[k])
     gcc_results.append(
         [
             k,
             rshp_gdd,
             rshp_imsd,
-            bioemu_gdd,
-            bioemu_imsd,
             bioemu_100_gdd,
             bioemu_100_imsd,
-            gnm_gdd,
-            gnm_imsd,
         ]
     )
 gcc_results_df = pd.DataFrame(gcc_results)
@@ -615,12 +605,8 @@ gcc_results_df.columns = [
     "System",
     "RocketSHP GDD",
     "RocketSHP IMSD",
-    "BioEmu GDD",
-    "BioEmu IMSD",
     "BioEmu 100 GDD",
     "BioEmu 100 IMSD",
-    "GNM GDD",
-    "GNM IMSD",
 ]
 gcc_results_df = pd.merge(
     size_group_df, gcc_results_df, left_on="System", right_on="System", how="inner"
@@ -628,23 +614,21 @@ gcc_results_df = pd.merge(
 # %% Separate by metric
 
 gdd_results_df = gcc_results_df[
-    ["System", "Size Group", "RocketSHP GDD", "BioEmu GDD", "BioEmu 100 GDD"]
+    ["System", "Size Group", "RocketSHP GDD", "BioEmu 100 GDD"]
 ].melt(id_vars=["System", "Size Group"], var_name="Method", value_name="GDD")
 gdd_results_df["Method"] = gdd_results_df["Method"].replace(
     {
         "RocketSHP GDD": "RocketSHP",
-        "BioEmu GDD": "BioEmu (10)",
         "BioEmu 100 GDD": "BioEmu (100)",
     }
 )
 
 imsd_results_df = gcc_results_df[
-    ["System", "Size Group", "RocketSHP IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
+    ["System", "Size Group", "RocketSHP IMSD", "BioEmu 100 IMSD"]
 ].melt(id_vars=["System", "Size Group"], var_name="Method", value_name="IMSD")
 imsd_results_df["Method"] = imsd_results_df["Method"].replace(
     {
         "RocketSHP IMSD": "RocketSHP",
-        "BioEmu IMSD": "BioEmu (10)",
         "BioEmu 100 IMSD": "BioEmu (100)",
     }
 )
@@ -652,8 +636,8 @@ imsd_results_df["Method"] = imsd_results_df["Method"].replace(
 # %% Boxplot GDD
 
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (100)"), ("RocketSHP", "BioEmu (10)")]
+order = ["RocketSHP", "BioEmu (100)"]
+pairs = [("RocketSHP", "BioEmu (100)")]
 
 for i in order:
     logger.info(
@@ -685,7 +669,7 @@ sns.stripplot(
     jitter=True,
     alpha=0.7,
 )
-ax.set_yscale("log")
+# ax.set_yscale("log")
 
 # Add statistical annotations
 annotator = Annotator(
@@ -708,8 +692,8 @@ for pair, stats in zip(pairs, test_results):
 
 # %% Boxplot IMSD
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
+order = ["RocketSHP", "BioEmu (100)"]
+pairs = [("RocketSHP", "BioEmu (100)")]
 
 for i in order:
     logger.info(
@@ -741,7 +725,7 @@ sns.stripplot(
     jitter=True,
     alpha=0.7,
 )
-ax.set_yscale("log")
+# ax.set_yscale("log")
 
 # Add statistical annotations
 annotator = Annotator(
@@ -764,7 +748,7 @@ for pair, stats in zip(pairs, test_results):
 
 # %% GDD Scatter Plot
 gdd_scatter_data = gcc_results_df[
-    ["System", "Size Group", "RocketSHP GDD", "BioEmu GDD", "BioEmu 100 GDD"]
+    ["System", "Size Group", "RocketSHP GDD", "BioEmu 100 GDD"]
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
 sns.scatterplot(
@@ -785,7 +769,7 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_gdd_scatter.svg")
 
 # %% IMSD Scatter Plot
 imsd_scatter_data = gcc_results_df[
-    ["System", "Size Group", "RocketSHP IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
+    ["System", "Size Group", "RocketSHP IMSD", "BioEmu 100 IMSD"]
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
 sns.scatterplot(
@@ -803,17 +787,16 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_imsd_scatter.svg")
 
 # %% Compute SHP metrics
 shp_results = []
-for k, v in tqdm(rshp_shp.items()):
+for k, v in tqdm(bioemu_100_shp.items()):
     rshp_kl = kl_divergence_2d(
-        softmax(torch.from_numpy(v)), torch.from_numpy(reference_shp[k])
+        softmax(torch.from_numpy(rshp_shp[k])), torch.from_numpy(reference_shp[k])
     )
-    bioemu_kl = kl_divergence_2d(bioemu_shp[k], torch.from_numpy(reference_shp[k]))
     bioemu_100_kl = kl_divergence_2d(
         bioemu_100_shp[k], torch.from_numpy(reference_shp[k])
     )
-    shp_results.append([k, rshp_kl, bioemu_kl, bioemu_100_kl])
+    shp_results.append([k, rshp_kl, bioemu_100_kl])
 shp_results_df = pd.DataFrame(shp_results)
-shp_results_df.columns = ["System", "RocketSHP", "BioEmu (10)", "BioEmu (100)"]
+shp_results_df.columns = ["System", "RocketSHP", "BioEmu (100)"]
 shp_results_df = pd.merge(
     size_group_df, shp_results_df, left_on="System", right_on="System", how="inner"
 )
@@ -824,8 +807,8 @@ kldiv_results_df = shp_results_df.melt(
 )
 
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
+order = ["RocketSHP", "BioEmu (100)"]
+pairs = [("RocketSHP", "BioEmu (100)")]
 
 for i in order:
     logger.info(f"Mean {i} KL-Div: {shp_results_df[i].mean()}")

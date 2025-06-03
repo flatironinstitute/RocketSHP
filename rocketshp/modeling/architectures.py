@@ -80,8 +80,8 @@ class JointStructAndSequenceEncoder(nn.Module):
             seq_embeddings, struct_tokens = x["seq_feats"], x["struct_feats"]
             seq_embeddings = self.seq_emb(seq_embeddings)
             struct_tokens = self.struct_emb(struct_tokens)
-            logger.debug(f"seq_embeddings: {seq_embeddings.shape}")
-            logger.debug(f"struct_tokens: {struct_tokens.shape}")
+            # logger.debug(f"seq_embeddings: {seq_embeddings.shape}")
+            # logger.debug(f"struct_tokens: {struct_tokens.shape}")
             return seq_embeddings + struct_tokens
 
 

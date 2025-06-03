@@ -33,18 +33,19 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 @dataclass
 class PARAMETER_STRUCT:
     num_parameters: int = -1
-    batch_size: int = 8
+    batch_size: int = 16
     crop_size: int = 512
-    lr: float = 0.001
-    grad_norm: bool = True
-    max_epochs: int = 20
+    lr: float = 0.00005
+    weight_decay: float = 0.0
+    grad_norm: bool = False
+    max_epochs: int = 75
     epoch_scale: int = -1
+    precision: str = "medium"
     num_data_workers: int = 31
     shuffle: bool = True
     random_seed: int = 0
     train_pct: float = 0.8
     val_pct: float = 0.1
-    precision: str = "highest"
     embedding_dim: int = 1536
     output_dim: int = 1
     d_model: int = 512
@@ -53,15 +54,15 @@ class PARAMETER_STRUCT:
     square_loss: bool = False
     variance_norm: bool = False
     rmsf_alpha: float = 1.0
-    ca_dist_alpha: float = 0.0
+    ca_dist_alpha: float = 1.0
     dyn_corr_alpha: float = 0.0
     autocorr_alpha: float = 0.0
     gcc_lmi_alpha: float = 1.0
-    shp_alpha: float = 1.0
+    shp_alpha: float = 0.01
     seq_features: bool = True
-    struct_features: bool = False
-    struct_stage: str = "quantized"
-    struct_dim: int = 1
+    struct_features: bool = True
+    struct_stage: str = "encoded"
+    struct_dim: int = 1024
 
 
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
