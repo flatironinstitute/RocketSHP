@@ -33,9 +33,9 @@ FIGURES_DIR = REPORTS_DIR / "figures"
 @dataclass
 class PARAMETER_STRUCT:
     num_parameters: int = -1
-    batch_size: int = 16
+    batch_size: int = 8
     crop_size: int = 512
-    lr: float = 0.00005
+    lr: float = 0.0001
     weight_decay: float = 0.0
     grad_norm: bool = False
     max_epochs: int = 75
@@ -48,15 +48,13 @@ class PARAMETER_STRUCT:
     val_pct: float = 0.1
     embedding_dim: int = 1536
     output_dim: int = 1
-    d_model: int = 512
-    n_heads: int = 8
-    n_layers: int = 8
+    d_model: int = 768
+    n_heads: int = 12
+    n_layers: int = 12
     square_loss: bool = False
     variance_norm: bool = False
     rmsf_alpha: float = 1.0
-    ca_dist_alpha: float = 1.0
-    dyn_corr_alpha: float = 0.0
-    autocorr_alpha: float = 0.0
+    ca_dist_alpha: float = 0.5
     gcc_lmi_alpha: float = 1.0
     shp_alpha: float = 0.01
     seq_features: bool = True

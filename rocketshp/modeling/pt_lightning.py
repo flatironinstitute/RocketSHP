@@ -103,11 +103,7 @@ class LightningWrapper(L.LightningModule):
         )
         self.ca_loss_fn = partial(
             compute_square_masked_mse_loss, rmse=not params.square_loss
-        )
-        # self.dyn_corr_loss_fn = partial(compute_square_masked_mse_loss, rmse=not params.square_loss)
-        self.autocorr_loss_fn = partial(
-            compute_square_masked_mse_loss, rmse=not params.square_loss
-        )
+        ) 
         self.gcc_loss_fn = partial(
             compute_square_masked_mse_loss, rmse=not params.square_loss
         )
@@ -116,7 +112,6 @@ class LightningWrapper(L.LightningModule):
         self.norm_grad = params.grad_norm
         self.rmsf_alpha = params.rmsf_alpha
         self.ca_dist_alpha = params.ca_dist_alpha
-        self.autocorr_alpha = params.autocorr_alpha
         self.gcc_lmi_alpha = params.gcc_lmi_alpha
         self.shp_alpha = params.shp_alpha
         self.variance_norm = params.variance_norm
@@ -141,11 +136,6 @@ class LightningWrapper(L.LightningModule):
         if "ca_dist" in y_hat:
             ca_dist_loss = self.ca_loss_fn(y_hat["ca_dist"], y["ca_dist"], mask)
             return_dict["ca_loss"] = ca_dist_loss
-        if "autocorr" in y_hat:
-            autocorr_loss = self.autocorr_loss_fn(
-                y_hat["autocorr"], y["autocorr"], mask
-            )
-            return_dict["autocorr_loss"] = autocorr_loss
         if "gcc_lmi" in y_hat:
             gcc_loss = self.gcc_loss_fn(y_hat["gcc_lmi"], y["gcc_lmi"], mask)
             return_dict["gcc_lmi_loss"] = gcc_loss
@@ -162,7 +152,7 @@ class LightningWrapper(L.LightningModule):
             loss += self.gcc_lmi_alpha * gcc_loss
             loss += self.ca_dist_alpha * ca_dist_loss
             return_dict["batch_loss"] = loss
-        elif stage == "validation":
+        elif (stage == "validation") or (stage == "test"):
             # use unweighted geometric mean of each individual relevant loss to measure overall performance
             loss = (
                 rmsf_loss*shp_loss*gcc_loss

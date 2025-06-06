@@ -61,6 +61,11 @@ def main(
     seed_everything(PARAMS.random_seed)
     torch.multiprocessing.set_sharing_strategy('file_system')
 
+    # Early sanity check on hyperparameters
+    assert PARAMS.d_model % PARAMS.n_heads == 0, (
+        f"d_model ({PARAMS.d_model}) must be divisible by n_heads ({PARAMS.n_heads})"
+    )
+
     if debug:
 
         def simple_repr(self):

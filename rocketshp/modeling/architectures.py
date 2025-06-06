@@ -319,16 +319,10 @@ class RocketSHPModel(nn.Module):
 
         self.rmsf_head = RegressionHead(d_model + 1, output_dim)
         self.ca_dist_head = PairwiseDistanceHead(d_model, k_size)
-        self.dyn_corr_head = PairwiseProbabilityHead(d_model, k_size)
-        self.autocorr_head = PairwiseProbabilityHead(d_model, k_size)
         self.gcc_lmi_head = PairwiseProbabilityHead(d_model, k_size)
         self.shp_head = CategoricalHead(d_model, n_shp_tokens)
 
-        # for name, module in self.OUTPUT_HEADS.items():
-        #     setattr(self, f"{name}_head", module)
-
-        self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
-        # self.grad_norm.task_weights = nn.Parameter(torch.tensor([1.0, 1.0, 1.0]))
+        # self.grad_norm = GradNorm(self, num_tasks=3, alpha=1.5)
 
     def _transform(self, x):
         x = self.encoder(x)
@@ -349,15 +343,10 @@ class RocketSHPModel(nn.Module):
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1, 3)
         return self.ca_dist_head(sqform).squeeze(1)
 
-    def dyn_corr(self, x):
+    def gcc_lmi(self, x):
         x = self._transform(x)
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1, 3)
-        return self.dyn_corr_head(sqform).squeeze
-
-    def autocorr(self, x):
-        x = self._transform(x)
-        sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1, 3)
-        return self.autocorr_head(sqform).squeeze(1)
+        return self.gcc_lmi_head(sqform).squeeze(1)
 
     def shp(self, x):
         x = self._transform(x)
@@ -382,18 +371,15 @@ class RocketSHPModel(nn.Module):
         x = self._transform(x)
         feats_with_temp = torch.cat([x, temperature.unsqueeze(-1)], dim=-1)
         rmsf_pred = self.rmsf_head(feats_with_temp)
-        # shp_pred = self.shp_head(feats_with_temp).squeeze(1)
         shp_pred = self.shp_head(x).squeeze(1)
 
         sqform = (x.unsqueeze(1) * x.unsqueeze(2)).transpose(1, 3)
         ca_dist_pred = self.ca_dist_head(sqform).squeeze(1)
-        # autocorr_pred = self.autocorr_head(sqform).squeeze(1)
         gcc_pred = self.gcc_lmi_head(sqform).squeeze(1)
 
         return {
             "rmsf": rmsf_pred,
             "ca_dist": ca_dist_pred,
-            # "autocorr": autocorr_pred,
             "gcc_lmi": gcc_pred,
             "shp": shp_pred,
         }

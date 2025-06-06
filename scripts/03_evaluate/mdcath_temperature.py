@@ -11,6 +11,7 @@ import pandas as pd
 import seaborn as sns
 import torch
 from biotite.structure.io import pdb, xtc
+import biotite.structure as bs
 from loguru import logger
 from scipy.stats import spearmanr, pearsonr
 from sklearn.linear_model import LinearRegression
@@ -58,7 +59,6 @@ parser.add_argument(
 EVAL_KEY = "mdcath_large_ep10"
 split = "test"
 
-reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
 rshp_results_pickle = (
     config.EVALUATION_DATA_DIR
     / "evaluations"
@@ -430,6 +430,58 @@ plt.savefig(
     bbox_inches="tight",
     transparent=True,
 )
+
+# %% Write out PDB files of the true RMSF at 320K and 450K
+
+reference_root = config.PROCESSED_DATA_DIR / "mdcath" 
+
+def write_rmsf_pdb(system, temp, rmsf_values, output_dir):
+    """
+    Write RMSF values to a PDB file.
+    
+    Parameters:
+    -----------
+    system : str
+        System identifier (e.g., '1u60A00').
+    temp : int
+        Temperature in Kelvin.
+    rmsf_values : np.ndarray
+        RMSF values for the system at the specified temperature.
+    output_dir : Path
+        Directory to save the PDB file.
+    """
+    pdb_file = output_dir / f"{system}_T{temp}_rmsf.pdb"
+    
+    # Load the reference PDB file for the system
+    ref_pdb_path = reference_root / system / f"{system}.pdb"
+    structure = bs.io.load_structure(ref_pdb_path)
+    
+    # Expand per-residue RMSF values to per-atom values
+    # Get unique residue IDs to map RMSF values
+    unique_res_ids = np.unique(structure.res_id)
+    
+    # Create atom-level B-factors by mapping residue RMSF to all atoms in that residue
+    atom_bfactors = np.zeros(len(structure))
+    for i, res_id in enumerate(unique_res_ids):
+        if i < len(rmsf_values):  # Safety check
+            atom_mask = structure.res_id == res_id
+            atom_bfactors[atom_mask] = rmsf_values[i]
+    
+    # Set B-factors
+    structure.add_annotation("b_factor", dtype=float)
+    structure.set_annotation("b_factor", atom_bfactors)
+    
+    # Write to PDB file
+    bs.io.save_structure(pdb_file, structure)
+    logger.info(f"Wrote RMSF PDB file: {pdb_file}")
+    return structure
+
+# Create output directory for RMSF PDB files
+output_rmsf_dir = FIGURES_DIRECTORY / "rmsf_pdbs"
+output_rmsf_dir.mkdir(parents=True, exist_ok=True)
+# Write RMSF PDB files for 320K and 450K
+for temp in [320, 450]:
+    s_bfact = write_rmsf_pdb(system, temp, reference_rmsf[f"{system}_T{temp}"], output_rmsf_dir)
 
 # %% Case study
 

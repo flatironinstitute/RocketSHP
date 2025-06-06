@@ -1,8 +1,8 @@
 batch_size: 8
-ca_dist_alpha: 0.5648206504774095
+ca_dist_alpha: 0.48785054702257036
 d_model: 768
 description: Loss weight optimization for RocketSHP
-gcc_lmi_alpha: 1.0041648722507188
+gcc_lmi_alpha: 1.0177422790959092
 lr: 0.0001778279410038923
 metric:
   direction: minimize
@@ -28,7 +28,7 @@ parameters:
     min: 0.001
     type: double
 project: samsl-flatiron/RocketSHP
-rmsf_alpha: 0.897264981879063
-shp_alpha: 0.008431818166489378
+rmsf_alpha: 1.998398546694881
+shp_alpha: 0.009630088841667751
 strategy:
   type: random
