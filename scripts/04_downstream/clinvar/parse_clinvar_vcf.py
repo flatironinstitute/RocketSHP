@@ -1,6 +1,6 @@
+#%%
 from rocketshp import config
-
-clinvar_vcf_path = config.PROCESSED_DATA_DIR / "clinvar" / "clinvar.vcf.gz"
+from tqdm import tqdm
 
 def parse_clinvar_vcf(vcf_path):
     """
@@ -33,4 +33,27 @@ def parse_clinvar_vcf(vcf_path):
     
     return records
 
+#%% Run the parser
+clinvar_vcf_path = config.PROCESSED_DATA_DIR / "clinvar" / "clinvar.vcf.gz"
 records = parse_clinvar_vcf(clinvar_vcf_path)
+# %%
+
+pathogenic_records = [i for i in records if "CLNSIG" in i["info"] and "Pathogenic" in i["info"]["CLNSIG"]]
+benign_records = [i for i in records if "CLNSIG" in i["info"] and "Benign" in i["info"]["CLNSIG"]]
+
+clin_sig_types = []
+for r in tqdm(records):
+    if "CLNSIG" in r["info"]:
+        clnsig = r["info"]["CLNSIG"]
+        clnsig_clean = []
+        for sig in clnsig:
+            if "|" in sig:
+                sigs = sig.split("|")
+                clnsig_clean.extend(sigs)
+            else:
+                clnsig_clean.append(sig)
+        clnsig_clean = [s.strip() for s in clnsig_clean if s.strip()]
+        clin_sig_types.extend(clnsig_clean)
+clin_sig_types = set(clin_sig_types)
+
+# %%
