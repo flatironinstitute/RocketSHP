@@ -158,16 +158,15 @@ For more technical details, please refer to our paper.
 
 If you use RocketSHP in your research, please cite:
 
-<!-- ```bibtex
-@article{sledzieski2025rocketshp,
-  title={RocketSHP: Ultra-fast Prediction of Protein Dynamics at Proteome Scale},
-  author={Sledzieski, Samuel and Hanson, Sonya},
-  journal={Preprint},
-  year={2025}
-} -->
-
 ```bibtex
-Coming soon
+@article{sledzieski2025rocketshp,
+  title={RocketSHP: Ultra-fast Proteome-scale Prediction of Protein Dynamics},
+  author={Sledzieski, Samuel and Hanson, Sonya M},
+  journal={bioRxiv},
+  pages={2025--06},
+  year={2025},
+  publisher={Cold Spring Harbor Laboratory}
+}
 ```
 
 ## ⚖️ License
