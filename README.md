@@ -20,7 +20,7 @@ This approach bridges the gap between static structural biology and dynamic func
 
 ```bash
 # Clone the repository
-git clone https://github.com/sledzieski/RocketSHP.git
+git clone https://github.com/samsledje/RocketSHP.git
 cd RocketSHP
 
 # Create and activate a conda environment
