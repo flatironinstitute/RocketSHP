@@ -8,17 +8,12 @@ from pathlib import Path
 from typing import TypeVar
 
 import biotite.structure as bs
-import brotli
-import msgpack
-import msgpack_numpy
 import numpy as np
 import torch
 from Bio.Data import PDBData
 from biotite.application.dssp import DsspApp
 from biotite.database import rcsb
-from biotite.structure.io.npz import NpzFile
 from biotite.structure.io.pdb import PDBFile
-from cloudpathlib import CloudPath
 from scipy.spatial.distance import pdist, squareform
 from torch import Tensor
 
@@ -31,13 +26,11 @@ from rocketshp.structure.normalize_coordinates import (
 )
 from rocketshp.utils import slice_python_object_as_numpy
 
-msgpack_numpy.patch()
-
 CHAIN_ID_CONST = "A"
 
 
 ArrayOrTensor = TypeVar("ArrayOrTensor", np.ndarray, Tensor)
-PathLike = str | Path | CloudPath
+PathLike = str | Path
 PathOrBuffer = PathLike | io.StringIO
 
 
@@ -217,18 +210,6 @@ class ProteinChain:
         np.fill_diagonal(contacts, -1)
         return contacts
 
-    def to_npz(self, path: PathOrBuffer):
-        f = NpzFile()
-        f.set_structure(self.atom_array)
-        f.write(path)
-
-    def to_npz_string(self):
-        f = NpzFile()
-        f.set_structure(self.atom_array)
-        buf = io.BytesIO()
-        f.write(buf)
-        return buf.getvalue()
-
     def to_structure_encoder_inputs(
         self,
         should_normalize_coordinates: bool = True,
@@ -275,9 +256,6 @@ class ProteinChain:
         dct["atom37_positions"] = dct["atom37_positions"][dct["atom37_mask"]]
         return dct
 
-    def to_blob(self, backbone_only=False) -> bytes:
-        return brotli.compress(msgpack.dumps(self.state_dict(backbone_only)))
-
     @classmethod
     def from_state_dict(cls, dct):
         atom37 = np.full((*dct["atom37_mask"].shape, 3), np.nan)
@@ -288,20 +266,6 @@ class ProteinChain:
             for k, v in dct.items()
         }
         return cls(**dct)
-
-    @classmethod
-    def from_blob(cls, input: Path | str | io.BytesIO | bytes):
-        """NOTE: blob + sparse coding + brotli + fp16 reduces memory
-        of chains from 52G/1M chains to 20G/1M chains, I think this is a good first
-        shot at compressing and dumping chains to disk. I'm sure there's better ways."""
-        match input:
-            case Path() | str():
-                bytes = Path(input).read_bytes()
-            case io.BytesIO():
-                bytes = input.getvalue()
-            case _:
-                bytes = input
-        return cls.from_state_dict(msgpack.loads(brotli.decompress(bytes)))
 
     def dssp(self):
         dssp = DsspApp.annotate_sse(self.atom_array_no_insertions)

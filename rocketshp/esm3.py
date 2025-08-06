@@ -194,7 +194,7 @@ class EsmSequenceTokenizer(PreTrainedTokenizerFast):
         super().__init__(
             tokenizer_object=tokenizer,
             unk_token=unk_token,
-            cls_token=cls_token,
+            # cls_token=cls_token,
             pad_token=pad_token,
             mask_token=mask_token,
             eos_token=eos_token,
