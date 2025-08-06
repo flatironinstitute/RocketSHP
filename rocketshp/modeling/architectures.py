@@ -432,8 +432,6 @@ class RocketSHPModel(nn.Module):
         for k, v in chk["state_dict"].items():
             new_k = k.replace("child_model.", "")
             state_dict[new_k] = v
-        if "grad_norm.task_weights" not in chk["state_dict"]:
-            state_dict["grad_norm.task_weights"] = torch.tensor([1.0, 1.0, 1.0])
         fm.load_state_dict(state_dict, strict=strict)
         fm.eval()
         return fm

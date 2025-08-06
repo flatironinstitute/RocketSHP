@@ -47,7 +47,7 @@ def plot_predictions(
         ax2.set_xlabel("Residue Index")
         ax2.set_ylabel("Residue Index")
 
-        ax3.imshow(shp.T, cmap="binary", vmin=0, vmax=1)
+        ax3.imshow(shp.T, cmap="binary", vmin=0, vmax=1, interpolation="none")
         ax3.set_title("SHP")
         ax3.set_xlabel("Residue Index")
         ax3.set_ylabel("Structure Token\nIndex")
