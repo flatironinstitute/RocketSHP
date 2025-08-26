@@ -130,7 +130,10 @@ network = build_allosteric_network(gcc_lmi, ca_dist, distance_cutoff=10.0)
 communities = cluster_network(network, k=5)
 
 # Calculate betweenness centrality
-between, close, degree = calculate_centrality(network)
+centralities = calculate_centrality(network)
+betweenness_centrality = centralities["betweenness"]
+closeness_centrality = centralities["closeness"]
+degree_centrality = centralities["degree"]
 
 # Visualize network
 from rocketshp.network import plot_network_clusters

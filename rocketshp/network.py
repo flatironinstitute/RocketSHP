@@ -89,15 +89,24 @@ def cluster_network(G: nx.Graph, k: int = 5):
     return clusts
 
 
-def calculate_centrality(G: nx.Graph):
+def calculate_centrality(G: nx.Graph, do_betweenness = True, do_closeness = True, do_degree = True):
     """
     Calculate centrality measures for the network.
     """
-    betweenness = nx.betweenness_centrality(G)
-    closeness = nx.closeness_centrality(G)
-    degree = nx.degree_centrality(G)
 
-    return betweenness, closeness, degree
+    results = {}
+
+    if do_betweenness:
+        betweenness = nx.betweenness_centrality(G)
+        results['betweenness'] = np.array(list(betweenness.values())),
+    if do_closeness:
+        closeness = nx.closeness_centrality(G)
+        results['closeness'] = np.array(list(closeness.values()))
+    if do_degree:
+        degree = nx.degree_centrality(G)
+        results['degree'] = np.array(list(degree.values()))
+
+    return results
 
 
 def plot_network_clusters(
