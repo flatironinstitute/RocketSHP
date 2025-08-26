@@ -14,6 +14,7 @@ from biotite.structure.io import pdb, xtc
 from loguru import logger
 from scipy.stats import spearmanr
 from sklearn.linear_model import LinearRegression
+from sklearn.neural_network import MLPRegressor
 from statannotations.Annotator import Annotator
 from torch.nn.functional import softmax
 from tqdm import tqdm
@@ -53,12 +54,12 @@ parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
 parser.add_argument(
     "--split", choices=["valid", "test"], default="valid", help="Split to evaluate"
 )
-args = parser.parse_args()
-EVAL_KEY = args.eval_key
-split = args.split
+# args = parser.parse_args()
+# EVAL_KEY = args.eval_key
+# split = args.split
 
-# EVAL_KEY = "large_model_20250427"
-# split = "test"
+EVAL_KEY = "large_model_20250427"
+split = "test"
 
 reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
 dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/")
@@ -222,45 +223,58 @@ calibration_scale = model.coef_[0]  # Scaling factor
 calibration_offset = model.intercept_  # Offset
 logger.info(f"Scaling factor: {calibration_scale}, Offset: {calibration_offset}")
 
+#%% Fitting non-linear model
+nonlin_model = MLPRegressor(
+    hidden_layer_sizes=(128, 128),
+    activation="relu"
+)
+nonlin_model.fit(X, y)
+
 # %% Plot calibrated data
-# system = "CRABP2"
-# dyna_calibration_sim = f"/mnt/home/ssledzieski/Projects/rocketshp/data/processed/relaxdb_sims/{system}"
-# dyna_calibration_pred = pd.read_csv(f"/mnt/home/ssledzieski/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/{system}/{system}_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000-Dyna1.csv").p_exchange
-# calibration_scaled = calibration_scale * dyna_calibration_pred + calibration_offset
+system = "CRABP2"
+dyna_calibration_sim = f"/mnt/home/ssledzieski/Projects/rocketshp/data/processed/relaxdb_sims/{system}"
+dyna_calibration_pred = pd.read_csv(f"/mnt/home/ssledzieski/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/{system}/{system}_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000-Dyna1.csv").p_exchange
+calibration_scaled = calibration_scale * dyna_calibration_pred + calibration_offset
 
-# dyna_calibration_traj = md.load(f"{dyna_calibration_sim}/{system}_traj.xtc", top=f"{dyna_calibration_sim}/{system}_top.pdb")
-# dyna_calibration_rmsf = compute_rmsf(dyna_calibration_traj)
+calibration_nonlin = nonlin_model.predict(dyna_calibration_pred.values.reshape(-1,1)).flatten()
 
-# rxdb = pd.read_json("~/GitHub/Dyna-1/data/RelaxDB_datasets/RelaxDB_with_other_metrics_22jan2025.json")
-# rxdb_label = rxdb.loc[f"{system}"]["label"]
+dyna_calibration_traj = md.load(f"{dyna_calibration_sim}/{system}_traj.xtc", top=f"{dyna_calibration_sim}/{system}_top.pdb")
+dyna_calibration_rmsf = compute_rmsf(dyna_calibration_traj)
 
-# rxdb_map = {
-#     "p": ".",
-#     ".": ".",
-#     "x": "-",
-#     "v": "v",
-#     "^": "^",
-#     "b": "^",
-#     "A": "-"
-# }
+rxdb = pd.read_json("~/GitHub/Dyna-1/data/RelaxDB_datasets/RelaxDB_with_other_metrics_22jan2025.json")
+rxdb_label = rxdb.loc[f"{system}"]["label"]
 
-# plt.figure(figsize=(10, 6))
-# plt.plot(dyna_calibration_pred, label="Dyna Pred")
-# plt.plot(calibration_scaled, label="Dyna Pred (scaled)")
-# for i, c in enumerate(rxdb_label):
-#     c = rxdb_map.get(c, c)
-#     plt.annotate(c, xy=(i, dyna_calibration_rmsf[i]), xytext=(i, dyna_calibration_rmsf[i]), ha="center", fontsize=10)
-# plt.ylim(0, 1)
-# plt.legend()
-# plt.show()
+rxdb_map = {
+    "p": ".",
+    ".": ".",
+    "x": "-",
+    "v": "v",
+    "^": "^",
+    "b": "^",
+    "A": "-"
+}
+
+plt.figure(figsize=(10, 6))
+plt.plot(dyna_calibration_pred, label="Dyna Pred")
+plt.plot(calibration_scaled, label="Dyna Pred (scaled)")
+plt.plot(calibration_nonlin, label="Dyna Pred (non-linear scaled)")
+for i, c in enumerate(rxdb_label):
+    c = rxdb_map.get(c, c)
+    plt.annotate(c, xy=(i, dyna_calibration_rmsf[i]), xytext=(i, dyna_calibration_rmsf[i]), ha="center", fontsize=10)
+plt.ylim(0, 1)
+plt.legend()
+plt.show()
 
 # %% Calibrate RMSF
 dyna_rmsf = {}
+dyna_nonlin_rmsf = {}
 for k in tqdm(rshp_results.keys(), desc="Calibrate Dyna Probabilities"):
     dyna_probability = dyna_results[k]
     # min max scale probability based on observed calibration rmsf
     dyna_scaled = (calibration_scale * dyna_probability) + calibration_offset
+    dyna_nonlin_scaled = nonlin_model.predict(dyna_probability.reshape(-1, 1)).flatten()
     dyna_rmsf[k] = dyna_scaled
+    dyna_nonlin_rmsf[k] = dyna_nonlin_scaled
 
 # %% Compare RMSF for all methods
 methods = {
@@ -282,9 +296,9 @@ rmsf_df = rmsf_df.melt(id_vars=["System"], var_name="Method", value_name="RMSF")
 
 # %% Plot a particular system
 # system = "7fd1_A"
-system = "4ayg_B"
+# system = "4ayg_B"
 # system = "1ab1_A"
-# system = "1tzw_A"
+system = "1tzw_A"
 if system not in rmsf_df["System"].values:
     logger.warning(f"System {system} not found in RMSF results")
 else:
@@ -516,7 +530,7 @@ annotator.configure(test="t-test_paired", loc="inside", verbose=2)
 _, test_results = annotator.apply_and_annotate()
 
 # ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
-plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_rmse_method_box_by_method.svg")
+# plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_rmse_method_box_by_method.svg")
 
 for pair, stats in zip(pairs, test_results):
     stat_val = stats.data.stat_value
