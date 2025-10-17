@@ -1,5 +1,6 @@
 # %% Imports
 import os
+import numpy as np
 import pickle as pk
 
 import matplotlib.pyplot as plt
@@ -14,6 +15,7 @@ from scipy.stats import pearsonr, spearmanr
 from tqdm import tqdm
 
 from rocketshp import config
+from rocketshp.network import build_allosteric_network, calculate_centrality
 
 plt.rcParams.update(
     {
@@ -31,19 +33,19 @@ plt.rcParams.update(
 
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
-import argparse
-parser = argparse.ArgumentParser(description="Evaluate RocketSHP model on DMS data")
-parser.add_argument("eval_key", type=str, help="Evaluation key")
-parser.add_argument("--dist-thresh", type=float, help="Distance threshold for centrality calculation in angstrom [8.0]", default=8.0)
-args = parser.parse_args()
-EVAL_KEY = args.eval_key
-DIST_THRESH_ANGSTROM = args.dist_thresh
+# import argparse
+# parser = argparse.ArgumentParser(description="Evaluate RocketSHP model on DMS data")
+# parser.add_argument("eval_key", type=str, help="Evaluation key")
+# parser.add_argument("--dist-thresh", type=float, help="Distance threshold for centrality calculation in angstrom [8.0]", default=8.0)
+# args = parser.parse_args()
+# EVAL_KEY = args.eval_key
+# DIST_THRESH_ANGSTROM = args.dist_thresh
 
 # EVAL_KEY = "full_seq_model"
 # EVAL_KEY = "mini_seq_model"
-# EVAL_KEY = "large_model_20250427"
+EVAL_KEY = "large_model_20250427"
 
-# DIST_THRESH_ANGSTROM = 8.0
+DIST_THRESH_ANGSTROM = 6.0
 DIST_THRESH_NM = DIST_THRESH_ANGSTROM / 10.0
 
 # %% Load pickle
@@ -78,20 +80,20 @@ for pos_i, mutants in tqdm(
         m_dict = m[3]
         pos_rmsf = m_dict["rmsf"][pos_i].item()
 
-        mask = m_dict["ca_dist"].numpy() < 0.6
-        masked_gcc = m_dict["gcc_lmi"].numpy() * mask
-        prot_graph = nx.from_numpy_array(masked_gcc)
-        centrality = nx.betweenness_centrality(prot_graph, normalized=True)
+        # compute centrality
+        allo_net = build_allosteric_network(
+            m_dict["gcc_lmi"], m_dict["ca_dist"], distance_cutoff=DIST_THRESH_ANGSTROM
+        )
+        centrality = calculate_centrality(allo_net, do_betweenness=True, do_closeness=False, do_degree=False)['betweenness']
         pos_centrality = centrality[pos_i]
-
         res_i_computed.append((int(pos_i), m_alt, pos_rmsf, pos_centrality))
 
 # %% Process wild type
-wild_type_graph = wild_type_result[3]["gcc_lmi"].numpy()
-wild_type_mask = wild_type_graph < 0.6
-wild_type_graph = wild_type_graph * wild_type_mask
-wild_type_graph = nx.from_numpy_array(wild_type_graph)
-wild_type_centrality = nx.betweenness_centrality(wild_type_graph, normalized=True)
+wild_type_net = build_allosteric_network(
+    wild_type_result[3]["gcc_lmi"], wild_type_result[3]["ca_dist"], distance_cutoff=DIST_THRESH_ANGSTROM
+)
+wild_type_centrality = calculate_centrality(wild_type_net, do_betweenness=True, do_closeness=False, do_degree=False)['betweenness']
+
 
 # %% Create DataFrame
 res_df = pd.DataFrame(res_i_computed, columns=["pos_i", "aa_alt", "rmsf", "centrality"])
@@ -99,6 +101,7 @@ variance_df = res_df.groupby("pos_i")[["rmsf", "centrality"]].var().reset_index(
 variance_df.rename(
     columns={"rmsf": "variance_rmsf", "centrality": "variance_centrality"}, inplace=True
 )
+
 res_df = pd.merge(res_df, variance_df, on="pos_i", how="left")
 
 # %% Recompupte variance test
@@ -146,7 +149,7 @@ fold_raf["abs_mean_kcal/mol"] = (
 fold_raf_variance = fold_raf.groupby("Pos_real")["abs_mean_kcal/mol"].var()
 fold_raf["variance_kcal/mol"] = fold_raf["Pos_real"].map(fold_raf_variance)
 
-# %% Compute correlation
+# %% Compute correlation per variant
 
 merged_df = pd.merge(
     res_df_test,
@@ -156,20 +159,17 @@ merged_df = pd.merge(
     how="inner",
 )
 
-# CORR_A = "variance_centrality"
 CORR_A = "centrality"
-
-# CORR_B = "variance_kcal/mol"
 CORR_B = "abs_mean_kcal/mol"
 
 # Compute correlation between betweenness centrality and folding DDG
-corr, p_value = pearsonr(merged_df[CORR_A], merged_df[CORR_B])
+p_corr, p_p_value = pearsonr(merged_df[CORR_A], merged_df[CORR_B])
 logger.info(
-    f"Pearson correlation between betweenness centrality and folding DDG: {corr:.2f} (p-value: {p_value:.2e})"
+    f"Pearson correlation between betweenness centrality and folding DDG: {p_corr:.2f} (p-value: {p_p_value:.2e})"
 )
-corr, p_value = spearmanr(merged_df[CORR_A], merged_df[CORR_B])
+s_corr, s_p_value = spearmanr(merged_df[CORR_A], merged_df[CORR_B])
 logger.info(
-    f"Spearman correlation between betweenness centrality and folding DDG: {corr:.2f} (p-value: {p_value:.2e})"
+    f"Spearman correlation between betweenness centrality and folding DDG: {s_corr:.2f} (p-value: {s_p_value:.2e})"
 )
 
 fig, ax = plt.subplots(figsize=(12, 8))
@@ -177,8 +177,39 @@ sns.scatterplot(x=merged_df[CORR_A], y=merged_df[CORR_B], ax=ax)
 plt.xlabel("Betweenness Centrality")
 plt.ylabel("Folding |DDG|\n(kcal/mol)")
 plt.title(
-    f"Pearson: {corr:.2f} (p-value: {p_value:.2e})\nSpearman: {corr:.2f} (p-value: {p_value:.2e})"
+    f"Pearson: {p_corr:.2f} (p-value: {p_p_value:.2e})\nSpearman: {s_corr:.2f} (p-value: {s_p_value:.2e})"
 )
+plt.tight_layout()
+plt.savefig(config.REPORTS_DIR / EVAL_KEY / "figures" / "KRAS_centrality_vs_ddg_variant_corr.svg")
+plt.savefig(config.REPORTS_DIR / EVAL_KEY / "figures" / "KRAS_centrality_vs_ddg_variant_corr.png", dpi=300)
+
+#%% Correlation per residue
+
+merged_df_res = merged_df.drop_duplicates(subset=['pos_i'])
+
+CORR_A = "variance_centrality"
+CORR_B = "variance_kcal/mol"
+
+# Compute correlation between betweenness centrality and folding DDG
+p_corr, p_p_value = pearsonr(merged_df_res[CORR_A], merged_df_res[CORR_B])
+logger.info(
+    f"Pearson correlation between var(betweenness centrality) and var(folding DDG): {p_corr:.2f} (p-value: {p_p_value:.2e})"
+)
+s_corr, s_p_value = spearmanr(merged_df_res[CORR_A], merged_df_res[CORR_B])
+logger.info(
+    f"Spearman correlation between var(betweenness centrality) and var(folding DDG): {s_corr:.2f} (p-value: {s_p_value:.2e})"
+)
+
+fig, ax = plt.subplots(figsize=(12, 8))
+sns.scatterplot(x=merged_df_res[CORR_A], y=merged_df_res[CORR_B], ax=ax)
+plt.xlabel("Variance of Betweenness Centrality")
+plt.ylabel("Variance of Folding |DDG|\n(kcal/mol)")
+plt.title(
+    f"Pearson: {p_corr:.2f} (p-value: {p_p_value:.2e})\nSpearman: {s_corr:.2f} (p-value: {s_p_value:.2e})"
+)
+plt.tight_layout()
+plt.savefig(config.REPORTS_DIR / EVAL_KEY / "figures" / "KRAS_centrality_vs_ddg_residue_corr.svg")
+plt.savefig(config.REPORTS_DIR / EVAL_KEY / "figures" / "KRAS_centrality_vs_ddg_residue_corr.png", dpi=300)
 
 # %% Binding
 
@@ -221,7 +252,7 @@ sns.scatterplot(
     legend=False,
     s=POINT_SIZE,
 )
-add_cbar(ax[0], "Variance(Centrality)", "magma", 0, 1e-3)
+add_cbar(ax[0], "Variance \n (Centrality)", "magma", 0, 1e-3)
 ax[0].set_xlabel("")
 ax[0].set_ylabel("Betweenness\nCentrality")
 
@@ -232,7 +263,7 @@ sns.lineplot(
     label="Wild Type Centrality",
     color="green",
     linewidth=6,
-    alpha=0.8,
+    alpha=0.4,
 )
 ax[0].legend(loc="upper left", fontsize=25)
 
@@ -250,7 +281,7 @@ sns.scatterplot(
     legend=False,
     s=POINT_SIZE,
 )
-add_cbar(ax[1], "Variance (Fold)", "viridis", 0, 1)
+add_cbar(ax[1], "Variance\n(Folding |DDG|)", "viridis", 0, 1)
 ax[1].set_xlabel("")
 ax[1].set_ylabel("Folding |DDG|\n(kcal/mol)")
 
@@ -277,6 +308,25 @@ plt.savefig(config.REPORTS_DIR / EVAL_KEY / "figures" / "KRAS_centrality_vs_ddg.
 plt.savefig(
     config.REPORTS_DIR / EVAL_KEY / "figures" / "KRAS_centrality_vs_ddg.png", dpi=300
 )
-# %%
+# %% Binary classification
+
+# find residues with over 0.1 centrality and 1 folding ddg
+high_centrality = res_df_test[res_df_test["centrality"] > 0.1].drop_duplicates(subset=["pos_i"])
+high_ddg = folding_ddg[folding_ddg["abs_mean_kcal/mol"] > 1.5].drop_duplicates(subset=["Pos_real"])
+
+plt.bar(
+    high_centrality["pos_i"],
+    [1] * len(high_centrality),
+    label="High Centrality",
+    color="blue",
+    alpha=0.5,
+)
+plt.bar(
+    high_ddg["Pos_real"],
+    [-1] * len(high_ddg),
+    label="High Folding DDG",
+    color="red",
+    alpha=0.5,
+)
 
 # %%
