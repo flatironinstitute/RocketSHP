@@ -4,6 +4,7 @@ import itertools
 import matplotlib.pyplot as plt
 import networkx as nx
 import numpy as np
+import torch
 
 from rocketshp.metrics import graph_diffusion_distance, ipsen_mikhailov_distance
 
@@ -72,6 +73,10 @@ def build_allosteric_network(
 
     mask = ca_dist < dist_thresh_nm
     masked_net = gcc_lmi * mask
+
+    if isinstance(masked_net, torch.Tensor):
+        masked_net = masked_net.numpy()
+
     np.fill_diagonal(masked_net, 0)  # remove self-edges
     G = nx.from_numpy_array(masked_net)
 
@@ -89,7 +94,9 @@ def cluster_network(G: nx.Graph, k: int = 5):
     return clusts
 
 
-def calculate_centrality(G: nx.Graph, do_betweenness = True, do_closeness = True, do_degree = True):
+def calculate_centrality(
+    G: nx.Graph, do_betweenness=True, do_closeness=True, do_degree=True
+):
     """
     Calculate centrality measures for the network.
     """
@@ -98,13 +105,13 @@ def calculate_centrality(G: nx.Graph, do_betweenness = True, do_closeness = True
 
     if do_betweenness:
         betweenness = nx.betweenness_centrality(G)
-        results['betweenness'] = np.array(list(betweenness.values())),
+        results["betweenness"] = np.array(list(betweenness.values()))
     if do_closeness:
         closeness = nx.closeness_centrality(G)
-        results['closeness'] = np.array(list(closeness.values()))
+        results["closeness"] = np.array(list(closeness.values()))
     if do_degree:
         degree = nx.degree_centrality(G)
-        results['degree'] = np.array(list(degree.values()))
+        results["degree"] = np.array(list(degree.values()))
 
     return results
 
