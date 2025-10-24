@@ -4,8 +4,13 @@ from functools import cache
 from pathlib import Path
 
 import torch
+import huggingface_hub
 from esm.models.esm3 import ESM3
-from esm.pretrained import ESM3_structure_encoder_v0
+from esm.pretrained import (
+    ESM3_structure_encoder_v0,
+    ESM3_structure_decoder_v0,
+    ESM3_function_decoder_v0,
+)
 from esm.tokenization import get_esm3_model_tokenizers
 from esm.utils.constants import models as M
 from huggingface_hub import snapshot_download
@@ -13,12 +18,6 @@ from tokenizers import Tokenizer
 from tokenizers.models import BPE
 from tokenizers.processors import TemplateProcessing
 from transformers import PreTrainedTokenizerFast
-
-
-def _auth_huggingface(token):
-    import os
-
-    os.environ["HF_TOKEN"] = token
 
 
 @dataclass
@@ -228,7 +227,9 @@ class EsmSequenceTokenizer(PreTrainedTokenizerFast):
         return self.all_special_ids
 
 
-def get_model(model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0") -> ESM3:
+def get_model(
+    model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0", HF_TOKEN: str | None = None
+) -> ESM3:
     """
     Load the ESM-3 model.
 
@@ -236,8 +237,36 @@ def get_model(model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0") -> ESM3:
     ESM3
         The ESM-3 model.
     """
+
+    if model != M.ESM3_OPEN_SMALL:
+        raise ValueError(
+            f"Model {model} is not supported. Only {M.ESM3_OPEN_SMALL} is currently supported."
+        )
+
     d: torch.device = torch.device(device)
-    model: ESM3 = ESM3.from_pretrained(model).to(d)
+    model: ESM3 = ESM3_sm_open_v0(device=d, HF_TOKEN=HF_TOKEN)
+    return model
+
+
+def ESM3_sm_open_v0(device: torch.device | str = "cpu", HF_TOKEN: str | None = None):
+    with torch.device(device):
+        model = ESM3(
+            d_model=1536,
+            n_heads=24,
+            v_heads=256,
+            n_layers=48,
+            structure_encoder_fn=ESM3_structure_encoder_v0,
+            structure_decoder_fn=ESM3_structure_decoder_v0,
+            function_decoder_fn=ESM3_function_decoder_v0,
+            tokenizers=get_esm3_model_tokenizers(M.ESM3_OPEN_SMALL),
+        ).eval()
+    weights_path = huggingface_hub.hf_hub_download(
+        repo_id="EvolutionaryScale/esm3-sm-open-v1",
+        filename="data/weights/esm3_sm_open_v1.pth",
+        token=HF_TOKEN,
+    )
+    state_dict = torch.load(weights_path, map_location=device)
+    model.load_state_dict(state_dict)
     return model
 
 

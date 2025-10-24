@@ -15,7 +15,12 @@ from biotite.structure import to_sequence
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
-def load_sequence(sequence: str, device: torch.device = torch.device("cuda:0")):
+
+def load_sequence(
+    sequence: str,
+    device: torch.device = torch.device("cuda:0"),
+    HF_TOKEN: str | None = None,
+):
     """
     Load default model and tokenizer and get sequence features
     """
@@ -23,7 +28,7 @@ def load_sequence(sequence: str, device: torch.device = torch.device("cuda:0")):
     device = torch.device(device)
 
     # Load the model and tokenizer
-    esm_model, esm_tokenizers = get_model(), get_tokenizers()
+    esm_model, esm_tokenizers = get_model(HF_TOKEN=HF_TOKEN), get_tokenizers()
     esm_model = esm_model.to("cuda:0")
 
     # Get the sequence features
@@ -61,6 +66,7 @@ def load_structure(
 
     return structure_features
 
+
 @app.command()
 def main(
     # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
@@ -89,10 +95,12 @@ def main(
 
     # Predict dynamics with both sequence and structure
     with torch.no_grad():
-        dynamics_pred = model({
-            "seq_feats": seq_features,
-            "struct_feats": struct_features,
-        })
+        dynamics_pred = model(
+            {
+                "seq_feats": seq_features,
+                "struct_feats": struct_features,
+            }
+        )
 
     # Access prediction results
     rmsf = dynamics_pred["rmsf"].squeeze().cpu().numpy()
@@ -106,6 +114,7 @@ def main(
     # Save results to file
     torch.save(dynamics_pred, run_id.with_suffix(".pt"))
     print(f"Results saved to {run_id.with_suffix('.pt')}")
+
 
 def __app__():
     app()
