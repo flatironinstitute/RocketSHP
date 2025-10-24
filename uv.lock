@@ -1,6 +1,6 @@
 version = 1
 revision = 2
-requires-python = "==3.11.*"
+requires-python = ">=3.11.0, <3.12"
 
 [[package]]
 name = "aiohappyeyeballs"
@@ -2668,7 +2668,6 @@ dependencies = [
     { name = "numpy" },
     { name = "numpy-indexed" },
     { name = "omegaconf" },
-    { name = "openai" },
     { name = "openpyxl" },
     { name = "pandas" },
     { name = "python-dateutil" },
@@ -2687,6 +2686,7 @@ dependencies = [
 [package.dev-dependencies]
 dev = [
     { name = "marimo", extra = ["mcp"] },
+    { name = "openai" },
     { name = "pytest" },
     { name = "ruff" },
 ]
@@ -2709,7 +2709,6 @@ requires-dist = [
     { name = "numpy", specifier = ">=1.23.5" },
     { name = "numpy-indexed", specifier = ">=0.3.7" },
     { name = "omegaconf" },
-    { name = "openai", specifier = ">=2.6.0" },
     { name = "openpyxl", specifier = ">=3.1.5" },
     { name = "pandas" },
     { name = "python-dateutil" },
@@ -2728,6 +2727,7 @@ requires-dist = [
 [package.metadata.requires-dev]
 dev = [
     { name = "marimo", extras = ["mcp"], specifier = ">=0.17.0" },
+    { name = "openai", specifier = ">=2.6.0" },
     { name = "pytest", specifier = ">=8.4.2" },
     { name = "ruff", specifier = ">=0.14.1" },
 ]

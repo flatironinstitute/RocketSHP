@@ -47,7 +47,6 @@ dependencies = [
   "mdanalysis>=2.9.0",
   "mdanalysisdata>=0.9.0",
   "openpyxl>=3.1.5",
-  "openai>=2.6.0",
 ]
 
 [tool.ruff]
@@ -68,6 +67,7 @@ dev = [
     "marimo[mcp]>=0.17.0",
     "pytest>=8.4.2",
     "ruff>=0.14.1",
+    "openai>=2.6.0",
 ]
 
 [project.scripts]

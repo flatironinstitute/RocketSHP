@@ -390,7 +390,12 @@ class RocketSHPModel(nn.Module):
         )
 
     @classmethod
-    def load_from_checkpoint(cls, checkpoint_path: str = "latest", strict: bool = True):
+    def load_from_checkpoint(
+        cls,
+        checkpoint_path: str = "latest",
+        strict: bool = True,
+        HF_TOKEN: str | None = None,
+    ):
         """Load a model from a checkpoint." """
         from huggingface_hub import hf_hub_download
 
@@ -401,6 +406,7 @@ class RocketSHPModel(nn.Module):
                 repo_id="samsl/rocketshp",
                 filename=PRETRAINED_MODELS[checkpoint_path],
                 subfolder="checkpoints",
+                token=HF_TOKEN,
             )
         elif not Path(checkpoint_path).exists():
             logger.error(

@@ -89,6 +89,7 @@ def cluster_network(G: nx.Graph, k: int = 5):
     """
     comp = nx.community.girvan_newman(G)
     limited = itertools.takewhile(lambda c: len(c) <= k, comp)
+
     for communities in limited:
         clusts = tuple(sorted(c) for c in communities)
     return clusts
