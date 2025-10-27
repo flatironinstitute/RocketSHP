@@ -45,6 +45,7 @@ def load_structure(
     structure: bs.AtomArray,
     device: torch.device = torch.device("cuda:0"),
     stage: str = "encoded",
+    HF_TOKEN: str | None = None,
 ):
     """
     Load default model and tokenizer and get structure features
@@ -53,7 +54,7 @@ def load_structure(
     device = torch.device(device)
 
     # Load the model and tokenizer
-    esm_structure_model = get_structure_vae()
+    esm_structure_model = get_structure_vae(HF_TOKEN=HF_TOKEN)
     esm_structure_model = esm_structure_model.to(device)
 
     # Get the structure features

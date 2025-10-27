@@ -11,6 +11,10 @@ from esm.pretrained import (
     ESM3_structure_decoder_v0,
     ESM3_function_decoder_v0,
 )
+from esm.models.vqvae import (
+    StructureTokenDecoder,
+    StructureTokenEncoder,
+)
 from esm.tokenization import get_esm3_model_tokenizers
 from esm.utils.constants import models as M
 from huggingface_hub import snapshot_download
@@ -260,6 +264,7 @@ def ESM3_sm_open_v0(device: torch.device | str = "cpu", HF_TOKEN: str | None = N
             function_decoder_fn=ESM3_function_decoder_v0,
             tokenizers=get_esm3_model_tokenizers(M.ESM3_OPEN_SMALL),
         ).eval()
+
     weights_path = huggingface_hub.hf_hub_download(
         repo_id="EvolutionaryScale/esm3-sm-open-v1",
         filename="data/weights/esm3_sm_open_v1.pth",
@@ -281,7 +286,9 @@ def get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     return get_esm3_model_tokenizers(model)
 
 
-def get_structure_vae() -> torch.nn.Module:
+def get_structure_vae(
+    device: torch.device | str = "cpu", HF_TOKEN: str | None = None
+) -> torch.nn.Module:
     """
     Get the ESM-3 structure encoder.
 
@@ -289,8 +296,19 @@ def get_structure_vae() -> torch.nn.Module:
     ESM3InferenceClient
         The ESM-3 structure encoder.
     """
-    encoder = ESM3_structure_encoder_v0()
 
+    with torch.device(device):
+        encoder = StructureTokenEncoder(
+            d_model=1024, n_heads=1, v_heads=128, n_layers=2, d_out=128, n_codes=4096
+        ).eval()
+
+    weights_path = huggingface_hub.hf_hub_download(
+        repo_id="EvolutionaryScale/esm3-sm-open-v1",
+        filename="data/weights/esm3_structure_encoder_v0.pth",
+        token=HF_TOKEN,
+    )
+    state_dict = torch.load(weights_path, map_location=device)
+    encoder.load_state_dict(state_dict)
     return encoder
 
 
