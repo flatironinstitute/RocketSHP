@@ -28,7 +28,10 @@ def load_sequence(
     device = torch.device(device)
 
     # Load the model and tokenizer
-    esm_model, esm_tokenizers = get_model(HF_TOKEN=HF_TOKEN), get_tokenizers()
+    esm_model, esm_tokenizers = (
+        get_model(device=device, HF_TOKEN=HF_TOKEN),
+        get_tokenizers(),
+    )
     esm_model = esm_model.to(device)
 
     # Get the sequence features
@@ -54,7 +57,7 @@ def load_structure(
     device = torch.device(device)
 
     # Load the model and tokenizer
-    esm_structure_model = get_structure_vae(HF_TOKEN=HF_TOKEN)
+    esm_structure_model = get_structure_vae(device=device, HF_TOKEN=HF_TOKEN)
     esm_structure_model = esm_structure_model.to(device)
 
     # Get the structure features
