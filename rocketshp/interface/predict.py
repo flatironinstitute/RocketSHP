@@ -29,7 +29,7 @@ def load_sequence(
 
     # Load the model and tokenizer
     esm_model, esm_tokenizers = get_model(HF_TOKEN=HF_TOKEN), get_tokenizers()
-    esm_model = esm_model.to("cuda:0")
+    esm_model = esm_model.to(device)
 
     # Get the sequence features
     sequence_features = esm3_sequence(
