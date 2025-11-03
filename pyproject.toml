@@ -19,9 +19,9 @@ requires-python = "~=3.11.0"
 
 dependencies = [
   "biopython>=1.79",
-  "biotite==0.41.2",
+  "biotite>=1.4",
   "datasets",
-  "esm==3.1.3",
+  "esm @ git+https://github.com/samsledje/esm.git",
   "h5py",
   "huggingface_hub",
   "lightning>=2.4.0",
@@ -29,7 +29,7 @@ dependencies = [
   "matplotlib",
   "neptune>=1.13.0",
   "nglview",
-  "numpy>=1.23.5",
+  "numpy>=1.23.5<2",
   "numpy-indexed>=0.3.7",
   "omegaconf",
   "pandas",
