@@ -642,7 +642,7 @@ wheels = [
 [[package]]
 name = "esm"
 version = "3.2.4a1"
-source = { git = "https://github.com/samsledje/esm.git#d4429d1e49028285955f7c3149bd104ddff05b7d" }
+source = { git = "https://github.com/samsledje/esm.git#f578182d51a7c78c68cc32ee96a41037938baa8e" }
 dependencies = [
     { name = "attrs" },
     { name = "biopython" },

@@ -29,7 +29,7 @@ dependencies = [
   "matplotlib",
   "neptune>=1.13.0",
   "nglview",
-  "numpy>=1.23.5<2",
+  "numpy>=1.23.5,<2",
   "numpy-indexed>=0.3.7",
   "omegaconf",
   "pandas",
