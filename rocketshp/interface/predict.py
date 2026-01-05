@@ -1,21 +1,26 @@
-import torch
-import typer
 from pathlib import Path
-from torch.nn.functional import softmax
-
-from rocketshp.modeling.architectures import RocketSHPModel as RocketSHP
-from rocketshp.plot import plot_predictions
-from rocketshp.features import esm3_sequence, esm3_vqvae
-from rocketshp.esm3 import get_model, get_tokenizers, get_structure_vae
-from rocketshp.structure.protein_chain import ProteinChain
 
 import biotite.structure as bs
-from biotite.structure.io import pdb
+import torch
+import typer
 from biotite.structure import to_sequence
+from biotite.structure.io import pdb
+from torch.nn.functional import softmax
+
+from rocketshp.esm3 import get_model, get_structure_vae, get_tokenizers
+from rocketshp.features import esm3_sequence, esm3_vqvae
+from rocketshp.modeling.architectures import RocketSHPModel as RocketSHP
+from rocketshp.plot import plot_predictions
+from rocketshp.structure.protein_chain import ProteinChain
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
-def load_sequence(sequence: str, device: torch.device = torch.device("cuda:0")):
+
+def load_sequence(
+    sequence: str,
+    device: torch.device = torch.device("cuda:0"),
+    HF_TOKEN: str | None = None,
+):
     """
     Load default model and tokenizer and get sequence features
     """
@@ -23,8 +28,11 @@ def load_sequence(sequence: str, device: torch.device = torch.device("cuda:0")):
     device = torch.device(device)
 
     # Load the model and tokenizer
-    esm_model, esm_tokenizers = get_model(), get_tokenizers()
-    esm_model = esm_model.to("cuda:0")
+    esm_model, esm_tokenizers = (
+        get_model(device=device, HF_TOKEN=HF_TOKEN),
+        get_tokenizers(),
+    )
+    esm_model = esm_model.to(device)
 
     # Get the sequence features
     sequence_features = esm3_sequence(
@@ -40,6 +48,7 @@ def load_structure(
     structure: bs.AtomArray,
     device: torch.device = torch.device("cuda:0"),
     stage: str = "encoded",
+    HF_TOKEN: str | None = None,
 ):
     """
     Load default model and tokenizer and get structure features
@@ -48,7 +57,7 @@ def load_structure(
     device = torch.device(device)
 
     # Load the model and tokenizer
-    esm_structure_model = get_structure_vae()
+    esm_structure_model = get_structure_vae(device=device, HF_TOKEN=HF_TOKEN)
     esm_structure_model = esm_structure_model.to(device)
 
     # Get the structure features
@@ -60,6 +69,7 @@ def load_structure(
     )
 
     return structure_features
+
 
 @app.command()
 def main(
@@ -89,10 +99,12 @@ def main(
 
     # Predict dynamics with both sequence and structure
     with torch.no_grad():
-        dynamics_pred = model({
-            "seq_feats": seq_features,
-            "struct_feats": struct_features,
-        })
+        dynamics_pred = model(
+            {
+                "seq_feats": seq_features,
+                "struct_feats": struct_features,
+            }
+        )
 
     # Access prediction results
     rmsf = dynamics_pred["rmsf"].squeeze().cpu().numpy()
@@ -106,6 +118,7 @@ def main(
     # Save results to file
     torch.save(dynamics_pred, run_id.with_suffix(".pt"))
     print(f"Results saved to {run_id.with_suffix('.pt')}")
+
 
 def __app__():
     app()

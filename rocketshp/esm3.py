@@ -3,22 +3,27 @@ from dataclasses import dataclass
 from functools import cache
 from pathlib import Path
 
+import huggingface_hub
 import torch
 from esm.models.esm3 import ESM3
-from esm.pretrained import ESM3_structure_encoder_v0
-from esm.tokenization import get_esm3_model_tokenizers
+from esm.models.vqvae import (
+    StructureTokenEncoder,
+)
+from esm.pretrained import (
+    ESM3_function_decoder_v0,
+    ESM3_structure_decoder_v0,
+    ESM3_structure_encoder_v0,
+)
+from esm.tokenization import (
+    EsmSequenceTokenizer,
+    InterProQuantizedTokenizer,
+    ResidueAnnotationsTokenizer,
+    SASADiscretizingTokenizer,
+    SecondaryStructureTokenizer,
+    StructureTokenizer,
+)
 from esm.utils.constants import models as M
 from huggingface_hub import snapshot_download
-from tokenizers import Tokenizer
-from tokenizers.models import BPE
-from tokenizers.processors import TemplateProcessing
-from transformers import PreTrainedTokenizerFast
-
-
-def _auth_huggingface(token):
-    import os
-
-    os.environ["HF_TOKEN"] = token
 
 
 @dataclass
@@ -144,91 +149,9 @@ class ESM_CONSTANT_CLASS:
 ESM_CONSTANTS = ESM_CONSTANT_CLASS()
 
 
-class EsmSequenceTokenizer(PreTrainedTokenizerFast):
-    """
-    Constructs an ESM tokenizer.
-    """
-
-    model_input_names = ["sequence_tokens", "attention_mask"]
-
-    def __init__(
-        self,
-        unk_token="<unk>",
-        cls_token="<cls>",
-        pad_token="<pad>",
-        mask_token="<mask>",
-        eos_token="<eos>",
-        chain_break_token="|",
-        **kwargs,
-    ):
-        all_tokens = ESM_CONSTANTS.SEQUENCE_VOCAB
-        token_to_id = {tok: ind for ind, tok in enumerate(all_tokens)}
-
-        # a character-level tokenizer is the same as BPE with no token merges
-        bpe = BPE(token_to_id, merges=[], unk_token=unk_token)
-        tokenizer = Tokenizer(bpe)
-        special_tokens = [
-            cls_token,
-            pad_token,
-            mask_token,
-            eos_token,
-            chain_break_token,
-        ]
-        self.cb_token = chain_break_token
-        additional_special_tokens = [chain_break_token]
-
-        tokenizer.add_special_tokens(
-            special_tokens,
-        )
-
-        # This is where we configure the automatic addition of special tokens when we call
-        # tokenizer(text, add_special_tokens=True). Note that you can also configure how two
-        # sequences are merged if you want.
-        tokenizer.post_processor = TemplateProcessing(  # type: ignore
-            single="<cls> $A <eos>",
-            special_tokens=[
-                ("<cls>", tokenizer.token_to_id("<cls>")),
-                ("<eos>", tokenizer.token_to_id("<eos>")),
-            ],
-        )
-        super().__init__(
-            tokenizer_object=tokenizer,
-            unk_token=unk_token,
-            # cls_token=cls_token,
-            pad_token=pad_token,
-            mask_token=mask_token,
-            eos_token=eos_token,
-            additional_special_tokens=additional_special_tokens,
-            **kwargs,
-        )
-
-    # These are a footgun, we never use the `bos` token anywhere so we're just overriding it here.
-    @property
-    def bos_token(self):
-        return self.cls_token
-
-    @property
-    def bos_token_id(self):
-        return self.cls_token_id
-
-    @property
-    def chain_break_token(self):
-        return self.cb_token
-
-    @property
-    def chain_break_token_id(self):
-        return self.convert_tokens_to_ids(self.chain_break_token)
-
-    @property
-    def all_token_ids(self):
-        return list(range(self.vocab_size))
-
-    @property
-    def special_token_ids(self):
-        return self.all_special_ids
-
-
-def get_model(model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0") -> ESM3:
+def get_model(
+    model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0", HF_TOKEN: str | None = None
+) -> ESM3:
     """
     Load the ESM-3 model.
 
@@ -236,12 +159,28 @@ def get_model(model: str = M.ESM3_OPEN_SMALL, device: str = "cuda:0") -> ESM3:
     ESM3
         The ESM-3 model.
     """
+
+    if model != M.ESM3_OPEN_SMALL:
+        raise ValueError(
+            f"Model {model} is not supported. Only {M.ESM3_OPEN_SMALL} is currently supported."
+        )
+
     d: torch.device = torch.device(device)
-    model: ESM3 = ESM3.from_pretrained(model).to(d)
+    model: ESM3 = ESM3_sm_open_v0(device=d, HF_TOKEN=HF_TOKEN)
     return model
 
 
-def get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
+@dataclass
+class TokenizerCollection:
+    sequence: EsmSequenceTokenizer
+    structure: StructureTokenizer
+    secondary_structure: SecondaryStructureTokenizer
+    sasa: SASADiscretizingTokenizer
+    function: InterProQuantizedTokenizer
+    residue_annotations: ResidueAnnotationsTokenizer
+
+
+def get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> TokenizerCollection:
     """
     Get the ESM-3 tokenizers.
 
@@ -249,10 +188,47 @@ def get_tokenizers(model: str = M.ESM3_OPEN_SMALL) -> tuple:
     tuple
         The ESM-3 tokenizers.
     """
-    return get_esm3_model_tokenizers(model)
+    return TokenizerCollection(
+        sequence=EsmSequenceTokenizer(),
+        structure=StructureTokenizer(),
+        secondary_structure=SecondaryStructureTokenizer(kind="ss8"),
+        sasa=SASADiscretizingTokenizer(),
+        function=InterProQuantizedTokenizer(),
+        residue_annotations=ResidueAnnotationsTokenizer(),
+    )
 
 
-def get_structure_vae() -> torch.nn.Module:
+def ESM3_sm_open_v0(device: torch.device | str = "cpu", HF_TOKEN: str | None = None):
+    _ = huggingface_hub.snapshot_download(
+        repo_id="EvolutionaryScale/esm3-sm-open-v1", token=HF_TOKEN
+    )
+
+    weights_path = huggingface_hub.hf_hub_download(
+        repo_id="EvolutionaryScale/esm3-sm-open-v1",
+        filename="data/weights/esm3_sm_open_v1.pth",
+        token=HF_TOKEN,
+    )
+
+    with torch.device(device):
+        model = ESM3(
+            d_model=1536,
+            n_heads=24,
+            v_heads=256,
+            n_layers=48,
+            structure_encoder_fn=ESM3_structure_encoder_v0,
+            structure_decoder_fn=ESM3_structure_decoder_v0,
+            function_decoder_fn=ESM3_function_decoder_v0,
+            tokenizers=get_tokenizers(M.ESM3_OPEN_SMALL),
+        ).eval()
+
+    state_dict = torch.load(weights_path, map_location=device)
+    model.load_state_dict(state_dict)
+    return model
+
+
+def get_structure_vae(
+    device: torch.device | str = "cpu", HF_TOKEN: str | None = None
+) -> torch.nn.Module:
     """
     Get the ESM-3 structure encoder.
 
@@ -260,8 +236,24 @@ def get_structure_vae() -> torch.nn.Module:
     ESM3InferenceClient
         The ESM-3 structure encoder.
     """
-    encoder = ESM3_structure_encoder_v0()
 
+    _ = huggingface_hub.snapshot_download(
+        repo_id="EvolutionaryScale/esm3-sm-open-v1", token=HF_TOKEN
+    )
+
+    weights_path = huggingface_hub.hf_hub_download(
+        repo_id="EvolutionaryScale/esm3-sm-open-v1",
+        filename="data/weights/esm3_structure_encoder_v0.pth",
+        token=HF_TOKEN,
+    )
+
+    with torch.device(device):
+        encoder = StructureTokenEncoder(
+            d_model=1024, n_heads=1, v_heads=128, n_layers=2, d_out=128, n_codes=4096
+        ).eval()
+
+    state_dict = torch.load(weights_path, map_location=device)
+    encoder.load_state_dict(state_dict)
     return encoder
 
 
