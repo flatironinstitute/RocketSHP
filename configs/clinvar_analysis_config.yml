@@ -1,0 +1,47 @@
+# ClinVar Pathogenicity Analysis Configuration
+
+# Data parameters
+clinvar_vcf: "/mnt/home/ssledzieski/database/clinvar/clinvar.vcf.gz"
+alphafold_dir: "/mnt/home/ssledzieski/database/alphafold"
+output_dir: "/mnt/home/ssledzieski/database/clinvar/analysis"
+reports_dir: "reports/figures/clinvar"
+
+# Genome version
+genome_version: "GRCh38"
+genome_release: 110  # Latest available in pyensembl
+
+# Quality filters
+min_plddt: 70
+min_protein_length: 50
+terminus_buffer: 5  # exclude first/last N residues
+max_protein_length: 2000  # exclude very large proteins for computational efficiency
+
+# Model parameters
+model_checkpoint: "latest"
+device: "cuda:0"
+batch_size: 1  # Process one at a time for variable-length proteins
+checkpoint_interval: 100  # Save progress every N proteins
+
+# Network parameters
+distance_cutoff: 8.0  # Angstroms (converted to 0.8 nm internally, RocketSHP predicts in nm)
+num_communities: 5
+
+# Statistical parameters
+fdr_threshold: 0.05
+random_seed: 42
+bootstrap_iterations: 1000
+test_alpha: 0.05
+
+# Variant categorization
+pathogenic_keywords: ["Pathogenic"]
+benign_keywords: ["Benign"]
+vus_keywords: ["uncertain significance", "Uncertain significance"]
+exclude_conflicting: true  # Exclude variants with conflicting interpretations
+
+# AlphaFold API
+alphafold_api_base: "https://alphafold.ebi.ac.uk/files"
+alphafold_version: "v4"
+
+# Logging
+log_level: "INFO"
+log_file: "logs/clinvar_analysis.log"

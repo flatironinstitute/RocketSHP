@@ -57,11 +57,13 @@ parser.add_argument(
 # CONFIG_FILE = args.config_file
 # CHECKPOINT_FILE = args.model
 # device = args.device
+# split = args.split
 
 EVAL_KEY = "mdcath_large_ep10"
 CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250519_mdcath_large.yml"
 CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/full_model_mdcath_5/model-epoch=10-val_loss=0.80151.pt.ckpt"
 device = "cuda:0"
+split = "test"
 
 # EVAL_KEY = "large_model_20250427"
 # CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
@@ -353,7 +355,7 @@ with open(test_met_path, "rb") as f:
 # %% Plot just RocketSHP results
 logger.info("Plotting metrics...")
 fig, ax = plt.subplots(figsize=(8, 8))
-if args.split == "valid":
+if split == "valid":
     plot_metrics = valid_metrics
 else:
     plot_metrics = test_metrics

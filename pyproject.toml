@@ -44,6 +44,14 @@ dependencies = [
   "transformers",
   "tqdm",
   "typer",
+  "mdanalysis>=2.9.0",
+  "mdanalysisdata>=0.9.0",
+  "openpyxl>=3.1.5",
+  "py2dmol>=1.5.1",
+  "cyvcf2>=0.31.4",
+  "pyfaidx>=0.9.0.3",
+  "pyensembl>=2.2.9",
+  "vcfpy>=0.14.2",
 ]
 
 [tool.ruff]
