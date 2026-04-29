@@ -86,12 +86,20 @@ def build_allosteric_network(
 def cluster_network(G: nx.Graph, k: int = 5):
     """
     Cluster the network using Girvan-Newman algorithm.
+
+    Returns tuple of communities (each community is a sorted tuple of node IDs).
+    If no valid partition is found with <= k communities, returns all nodes as one community.
     """
     comp = nx.community.girvan_newman(G)
     limited = itertools.takewhile(lambda c: len(c) <= k, comp)
 
+    # Initialize with all nodes in one community (fallback)
+    clusts = (tuple(sorted(G.nodes())),)
+
+    # Find the partition with the most communities that still satisfies k limit
     for communities in limited:
         clusts = tuple(sorted(c) for c in communities)
+
     return clusts
 
 

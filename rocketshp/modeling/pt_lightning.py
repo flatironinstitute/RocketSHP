@@ -103,7 +103,7 @@ class LightningWrapper(L.LightningModule):
         )
         self.ca_loss_fn = partial(
             compute_square_masked_mse_loss, rmse=not params.square_loss
-        ) 
+        )
         self.gcc_loss_fn = partial(
             compute_square_masked_mse_loss, rmse=not params.square_loss
         )
@@ -201,7 +201,7 @@ class LightningWrapper(L.LightningModule):
         #             )
 
         return {"loss": total_loss}
-    
+
     def on_train_epoch_end(self):
         pass
 
@@ -218,7 +218,7 @@ class LightningWrapper(L.LightningModule):
             logger.warning(f"Infinite loss detected at batch {batch_idx} during validation.")
 
         return {"loss": loss_dict["batch_loss"]}
-    
+
     def test_step(self, batch, batch_idx):
         loss_dict = self._get_loss(batch, batch_idx, "test")
 
@@ -230,20 +230,19 @@ class LightningWrapper(L.LightningModule):
 
     def configure_optimizers(self):
         optimizer = torch.optim.Adam(
-            self.parameters(), 
-            lr=self.hparams.lr, 
+            self.parameters(),
+            lr=self.hparams.lr,
             weight_decay=getattr(self.hparams, 'weight_decay', 0.0)
         )
-        
+
         scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-            optimizer, 
-            mode='min', 
-            factor=0.5, 
-            patience=3, 
-            min_lr=1e-7, 
-            verbose=True
+            optimizer,
+            mode='min',
+            factor=0.5,
+            patience=3,
+            min_lr=1e-7,
         )
-        
+
         return {
             "optimizer": optimizer,
             "lr_scheduler": {
@@ -252,14 +251,14 @@ class LightningWrapper(L.LightningModule):
                 "frequency": 1,
             },
         }
-    
+
     def on_validation_epoch_end(self):
         # Log additional metrics for sweep optimization
         if hasattr(self.trainer, 'callback_metrics'):
             val_loss = self.trainer.callback_metrics.get('val_loss')
             if val_loss is not None:
                 self.log("hp/val_loss", val_loss, prog_bar=True)
-                
+
         # Log learning rate
         current_lr = self.trainer.optimizers[0].param_groups[0]['lr']
         self.log("hp/learning_rate", current_lr)

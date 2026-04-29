@@ -1,9 +1,5 @@
 random_seed: 0
 
-# Logging
-wandb_project: "RocketSHP"
-wandb_entity: "samsl" # Set this to your W&B username/team
-
 # Data definitions
 num_data_workers: 31
 crop_size: 512
@@ -34,6 +30,6 @@ grad_norm: false
 
 # Targets
 rmsf_alpha: 1.0
-ca_dist_alpha: 0.5
+ca_dist_alpha: 0.0
 gcc_lmi_alpha: 1.0
 shp_alpha: 0.01

@@ -1,4 +1,5 @@
 #!/usr/bin/bash
+#SBATCH --job-name=ablate_ca_dist
 #SBATCH -p gpu
 #SBATCH --constraint=a100-40gb  # if you want a particular type of GPU
 #SBATCH --gpus-per-task=1
@@ -13,7 +14,9 @@ module load python/3.11.7
 module load cudnn/8.9.7.29-12
 module load nccl/2.20.3-1
 module load gcc
+# source ~/venvs/scc-rocketshp/bin/activate
+
 cd $HOME/Projects/rocketshp
 source .venv/bin/activate
 
-rocketshp_train $SLURM_JOB_NAME --config $RSHP_CONFIG
+rocketshp_train $SLURM_JOB_NAME --config configs/20260311_ablate_cadist.yml

@@ -1,15 +1,13 @@
-import logging
-import os, sys
+import os
 import warnings
 from functools import partial
 
 import dotenv
-import neptune
 import torch
 import typer
 from lightning import Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint, LearningRateMonitor
-from lightning.pytorch.loggers import CSVLogger, NeptuneLogger
+from lightning.pytorch.callbacks import ModelCheckpoint
+from lightning.pytorch.loggers import CSVLogger, WandbLogger
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 
@@ -23,21 +21,6 @@ from rocketshp.modeling.pt_lightning import LightningWrapper
 from rocketshp.utils import configure_logger, seed_everything
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
-
-
-class _FilterCallback(logging.Filterer):
-    def filter(self, record: logging.LogRecord):
-        return not (
-            record.name == "neptune"
-            and record.getMessage().startswith(
-                "Error occurred during asynchronous operation processing: X-coordinates (step) must be strictly increasing for series attribute"
-            )
-        )
-
-
-neptune.internal.operation_processors.async_operation_processor.logger.addFilter(
-    _FilterCallback()
-)
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
@@ -59,7 +42,7 @@ def main(
     loggers = []
 
     seed_everything(PARAMS.random_seed)
-    torch.multiprocessing.set_sharing_strategy('file_system')
+    torch.multiprocessing.set_sharing_strategy("file_system")
 
     # Early sanity check on hyperparameters
     assert PARAMS.d_model % PARAMS.n_heads == 0, (
@@ -89,13 +72,13 @@ def main(
 
     else:
         # PARAMS.epoch_scale = -1
-        neptune_logger = NeptuneLogger(
-            project="samsl-flatiron/RocketSHP",
+        wandb_logger = WandbLogger(
+            project=PARAMS.get("wandb_project", "RocketSHP"),
+            entity=PARAMS.get("wandb_entity", None),
             name=run_id,
-            api_key=os.getenv("NEPTUNE_API_TOKEN"),
-            log_model_checkpoints=True,
+            log_model=True,
         )
-        loggers.append(neptune_logger)
+        loggers.append(wandb_logger)
 
         configure_logger("INFO")
 
@@ -117,8 +100,8 @@ def main(
     lightning_model = LightningWrapper(model, PARAMS)
 
     if not debug:
-        neptune_logger.log_hyperparams(params=PARAMS.__dict__)
-    
+        wandb_logger.log_hyperparams(params=PARAMS.__dict__)
+
     torch.set_float32_matmul_precision(PARAMS.precision)
 
     if dataset == "atlas":
