@@ -1,4 +1,5 @@
 # %%
+import json
 import re
 from pathlib import Path
 
@@ -51,7 +52,7 @@ for p in sorted(rshp_runtime_root.glob("*runtime.txt")):
         time_sec = float(reg.search(lines).group(1))
         rshp_times.append(time_sec)
 RSHP_TIME = np.mean(rshp_times) * seconds
-logger.info(f"RocketSHP time: {RSHP_TIME:.5f} seconds")
+logger.info(f"PLANET-MD time: {RSHP_TIME:.5f} seconds")
 
 # RSHP_TIME_PER_EMBED = 0.1758 * seconds
 # RSHP_TIME_PER_INFERENCE = 0.01050 * seconds
@@ -65,7 +66,7 @@ for p in sorted(rshp_mini_runtime_root.glob("*runtime.txt")):
         time_sec = float(reg.search(lines).group(1))
         rshp_mini_times.append(time_sec)
 RSHP_MINI_TIME = np.mean(rshp_mini_times) * seconds
-logger.info(f"RocketSHP-mini time: {RSHP_MINI_TIME:.5f} seconds")
+logger.info(f"PLANET-MD mini time: {RSHP_MINI_TIME:.5f} seconds")
 
 # %% DYNA-1 TIME
 
@@ -123,22 +124,35 @@ AF_CLUSTER_TIME = (
 SIM_TIME = 2 * days
 
 COLOR_MAP = {
-    "RocketSHP-mini": "lightsalmon",
-    "RocketSHP": "firebrick",
-    "Dyna-1": "teal",
-    "AF-Cluster": "green",
-    "BioEmu (10 samples)": "lightskyblue",
-    "BioEmu (100 samples)": "blue",
-    "All-Atom Simulation": "black",
+    "PLANET-MD mini": "#74c476",   # light green (colorblind-friendly)
+    "PLANET-MD": "#247d3d",        # dark green
+    "Dyna-1": "#2171b5",           # blue
+    "AF-Cluster": "#d94801",       # orange-red
+    "BioEmu (10 samples)": "#756bb1",   # purple
+    "BioEmu (100 samples)": "#3f007d",  # deep purple
+    "All-Atom Simulation": "#252525",   # near-black
 }
+
+# %% Save raw timing data for plotting notebook
+PRECOMPUTED_DIR = config.EVALUATION_DATA_DIR / "evaluations" / "large_model_20250427" / "precomputed"
+PRECOMPUTED_DIR.mkdir(parents=True, exist_ok=True)
+with open(PRECOMPUTED_DIR / "runtime_times.json", "w") as f:
+    json.dump({
+        "PLANET-MD": rshp_times,
+        "PLANET-MD mini": rshp_mini_times,
+        "Dyna-1": dyna_times,
+        "BioEmu (10 samples)": bioemu_10_times,
+        "BioEmu (100 samples)": bioemu_times,
+    }, f)
+logger.info(f"Saved runtime times to {PRECOMPUTED_DIR / 'runtime_times.json'}")
 
 # %% Distribution of times
 
 # build dataframe
 time_df = pd.DataFrame(
     {
-        "RocketSHP": rshp_times[: len(bioemu_times)],
-        "RocketSHP-mini": rshp_mini_times[: len(bioemu_times)],
+        "PLANET-MD": rshp_times[: len(bioemu_times)],
+        "PLANET-MD mini": rshp_mini_times[: len(bioemu_times)],
         "Dyna-1": dyna_times[: len(bioemu_times)],
         "BioEmu (100 samples)": bioemu_times[: len(bioemu_times)],
         "BioEmu (10 samples)": bioemu_10_times[: len(bioemu_times)],
@@ -147,27 +161,51 @@ time_df = pd.DataFrame(
 
 fig, ax = plt.subplots(figsize=(12, 8))
 order = [
-    "RocketSHP-mini",
-    "RocketSHP",
+    "PLANET-MD mini",
+    "PLANET-MD",
     "Dyna-1",
     "BioEmu (10 samples)",
     "BioEmu (100 samples)",
 ]
+palette = [COLOR_MAP[name] for name in order]
 sns.set_style("whitegrid")
-sns.stripplot(
-    data=time_df.melt(),
+melted = time_df.melt()
+melted_log = melted.copy()
+melted_log["value"] = np.log10(melted_log["value"])
+sns.violinplot(
+    data=melted_log,
     x="value",
     y="variable",
     hue="variable",
-    size=3,
-    alpha=0.5,
     order=order,
     hue_order=order,
-    palette=[COLOR_MAP[name] for name in order],
+    palette=palette,
     orient="h",
+    inner=None,
+    alpha=0.4,
+    legend=False,
 )
-# sns.boxplot(data=time_df.melt(), x="value", hue="variable", orient="h")
-plt.xscale("log")
+sns.boxplot(
+    data=melted_log,
+    x="value",
+    y="variable",
+    hue="variable",
+    order=order,
+    hue_order=order,
+    palette=palette,
+    orient="h",
+    width=0.25,
+    fliersize=0,
+    linewidth=1.5,
+    boxprops=dict(facecolor="white", edgecolor="black"),
+    medianprops=dict(color="black"),
+    whiskerprops=dict(color="black"),
+    capprops=dict(color="black"),
+    legend=False,
+)
+tick_vals = [-2, -1, 0, 1, 2, 3, 4]
+ax.set_xticks(tick_vals)
+ax.set_xticklabels([f"$10^{{{v}}}$" for v in tick_vals])
 plt.xlabel("Time (seconds)")
 plt.ylabel("")
 plt.title("ATLAS Inference Times")
@@ -180,32 +218,52 @@ plt.savefig(
 # %%
 
 order = [
-    "RocketSHP-mini",
-    "RocketSHP",
+    "PLANET-MD mini",
+    "PLANET-MD",
     "Dyna-1",
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
+palette_zoom = [COLOR_MAP[name] for name in order]
 sns.set_style("white")
-sns.stripplot(
-    data=time_df.melt(),
+melted_zoom = time_df[order].melt()
+melted_zoom_log = melted_zoom.copy()
+melted_zoom_log["value"] = np.log10(melted_zoom_log["value"])
+sns.violinplot(
+    data=melted_zoom_log,
     x="value",
     y="variable",
     hue="variable",
-    size=3,
-    alpha=0.5,
     order=order,
     hue_order=order,
-    palette=[COLOR_MAP[name] for name in order],
+    palette=palette_zoom,
     orient="h",
+    inner=None,
+    alpha=0.4,
+    legend=False,
 )
-# sns.boxplot(data=time_df.melt(), x="value", hue="variable", orient="h")
-plt.xscale("log")
+sns.boxplot(
+    data=melted_zoom_log,
+    x="value",
+    y="variable",
+    hue="variable",
+    order=order,
+    hue_order=order,
+    palette=palette_zoom,
+    orient="h",
+    width=0.25,
+    fliersize=0,
+    linewidth=1.5,
+    boxprops=dict(facecolor="white", edgecolor="black"),
+    medianprops=dict(color="black"),
+    whiskerprops=dict(color="black"),
+    capprops=dict(color="black"),
+    legend=False,
+)
 
 # set xtick labels to be tenths of a second from 0 to 1
-plt.xticks(
-    [0.025, 0.05, 0.1, 0.25, 0.5],
-    ["0.025", "0.05", "0.1", "0.25", "0.5"],
-)
+zoom_tick_vals = np.log10([0.025, 0.05, 0.1, 0.25, 0.5])
+ax.set_xticks(zoom_tick_vals)
+ax.set_xticklabels(["0.025", "0.05", "0.1", "0.25", "0.5"])
 
 #empty y tick labels
 plt.yticks(
@@ -224,8 +282,8 @@ plt.savefig(
 
 # %%
 TIME_PER_DICT = {
-    "RocketSHP": RSHP_TIME,
-    "RocketSHP-mini": RSHP_MINI_TIME,
+    "PLANET-MD": RSHP_TIME,
+    "PLANET-MD mini": RSHP_MINI_TIME,
     "Dyna-1": DYNA_TIME,
     "AF-Cluster": AF_CLUSTER_TIME,
     "BioEmu (10 samples)": BIOEMU_10_TIME,
@@ -240,7 +298,7 @@ x_range = np.logspace(0, np.log10(50_000 + 1))
 
 sns.set_style("white")
 for name, time in TIME_PER_DICT.items():
-    if name in ["RocketSHP", "RocketSHP-mini", "Dyna-1"]:
+    if name in ["PLANET-MD", "PLANET-MD mini", "Dyna-1"]:
         plt.plot(x_range, x_range * time / minutes, label=name, c=COLOR_MAP[name])
 
 for name, point in zip(
@@ -321,7 +379,7 @@ plt.show()
 
 # # Create a dictionary of methods and their times
 # methods = {
-#     'RocketSHP': rshp_proteome,
+#     'PLANET-MD': rshp_proteome,
 #     'Dyna-1': dyna_proteome,
 #     'BioEmu (100 samples)': bioemu_proteome,
 #     'AF-Cluster': afcluster_proteome,
@@ -361,7 +419,7 @@ plt.show()
 #              ha='right', va='center', fontsize=12, fontweight='bold')
 
 #     # Add time value and relative speedup
-#     if method == 'RocketSHP':
+#     if method == 'PLANET-MD':
 #         time_text = f"baseline"
 #     else:
 #         speedup = time / rshp_rel

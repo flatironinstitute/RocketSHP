@@ -92,7 +92,7 @@ ads = adl.dataset
 
 # %% Load model
 logger.info("Loading model...")
-model = RocketSHPModel.load_from_checkpoint(CHECKPOINT_FILE, strict=True)
+model = RocketSHPModel.load_from_checkpoint(CHECKPOINT_FILE, strict=False)
 model = model.to(device)
 
 
@@ -303,6 +303,8 @@ def compute_metrics(labels, predictions, save_path=None):
     if save_path is not None:
         with open(save_path, "wb") as f:
             pk.dump(all_metrics, f)
+        csv_path = save_path.with_suffix(".csv")
+        all_metrics.to_csv(csv_path, index=False)
     logger.info(f"Metrics saved to {save_path}")
 
     return all_metrics
@@ -332,6 +334,10 @@ with open(valid_met_path, "rb") as f:
     valid_metrics = pk.load(f)
 with open(test_met_path, "rb") as f:
     test_metrics = pk.load(f)
+
+# Save as CSV for plotting notebook
+valid_metrics.to_csv(OUTPUT_DIRECTORY / f"{EVAL_KEY}_valid_metrics.csv", index=False)
+test_metrics.to_csv(OUTPUT_DIRECTORY / f"{EVAL_KEY}_test_metrics.csv", index=False)
 
 # %% Plot just RocketSHP results
 logger.info("Plotting metrics...")

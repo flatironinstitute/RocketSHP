@@ -1,4 +1,5 @@
 # %% Imports
+import json
 import os
 import pickle as pk
 
@@ -149,6 +150,15 @@ fold_raf["abs_mean_kcal/mol"] = (
 fold_raf_variance = fold_raf.groupby("Pos_real")["abs_mean_kcal/mol"].var()
 fold_raf["variance_kcal/mol"] = fold_raf["Pos_real"].map(fold_raf_variance)
 
+# %% Save precomputed data for plotting notebook
+PRECOMPUTED_DIR = config.REPORTS_DIR / EVAL_KEY / "precomputed"
+PRECOMPUTED_DIR.mkdir(parents=True, exist_ok=True)
+res_df_test.to_csv(PRECOMPUTED_DIR / "kras_res_df.csv", index=False)
+folding_ddg.to_csv(PRECOMPUTED_DIR / "kras_folding_ddg.csv", index=False)
+with open(PRECOMPUTED_DIR / "kras_wild_type_centrality.json", "w") as f:
+    json.dump({str(i): float(v) for i, v in enumerate(wild_type_centrality)}, f)
+logger.info(f"Saved KRAS precomputed data to {PRECOMPUTED_DIR}")
+
 # %% Compute correlation per variant
 
 merged_df = pd.merge(
@@ -257,8 +267,8 @@ ax[0].set_xlabel("")
 ax[0].set_ylabel("Betweenness\nCentrality")
 
 sns.lineplot(
-    x=wild_type_centrality.keys(),
-    y=wild_type_centrality.values(),
+    x=range(len(wild_type_centrality)),
+    y=wild_type_centrality,
     ax=ax[0],
     label="Wild Type Centrality",
     color="green",

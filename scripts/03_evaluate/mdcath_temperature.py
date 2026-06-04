@@ -1,8 +1,8 @@
 # %% Imports
 import argparse
-import pickle as pk
 from pathlib import Path
 
+import biotite.structure as bs
 import h5py
 import matplotlib.pyplot as plt
 import mdtraj as md
@@ -11,20 +11,21 @@ import pandas as pd
 import seaborn as sns
 import torch
 from biotite.structure.io import pdb, xtc
-import biotite.structure as bs
 from loguru import logger
-from scipy.stats import spearmanr, pearsonr
+from omegaconf import OmegaConf
+from scipy.stats import pearsonr, spearmanr
 from sklearn.linear_model import LinearRegression
-from statannotations.Annotator import Annotator
 from torch.nn.functional import softmax
 from tqdm import tqdm
 
 from rocketshp import config
+from rocketshp.data.mdcath import MDCathDataModule
 from rocketshp.metrics import (
     graph_diffusion_distance,
     ipsen_mikhailov_distance,
     kl_divergence_2d,
 )
+from rocketshp.modeling.architectures import RocketSHPModel
 from rocketshp.trajectory import (
     compute_rmsf,
     compute_shp,
@@ -49,38 +50,102 @@ parser = argparse.ArgumentParser(
     description="Evaluate RocketSHP across mdCATH temperatures"
 )
 parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
+parser.add_argument("model", type=str, help="Path to the model checkpoint")
+parser.add_argument("config_file", type=str, help="Path to the config file")
 parser.add_argument(
-    "--split", choices=["valid", "test"], default="teest", help="Split to evaluate"
+    "--split", choices=["valid", "test"], default="test", help="Split to evaluate"
 )
-# args = parser.parse_args()
-# EVAL_KEY = args.eval_key
-# split = args.split
-
-EVAL_KEY = "mdcath_large_ep10"
-split = "test"
-
-rshp_results_pickle = (
-    config.EVALUATION_DATA_DIR
-    / "evaluations"
-    / EVAL_KEY
-    / f"{EVAL_KEY}_{split}_inference_results.pkl"
+parser.add_argument(
+    "--device", type=str, default="cuda:0", help="Device to use for inference"
 )
+args = parser.parse_args()
+EVAL_KEY = args.eval_key
+CHECKPOINT_FILE = args.model
+CONFIG_FILE = args.config_file
+split = args.split
+
 FIGURES_DIRECTORY = config.REPORTS_DIR / EVAL_KEY / "figures"
 FIGURES_DIRECTORY.mkdir(parents=True, exist_ok=True)
-log_file = config.REPORTS_DIR / EVAL_KEY / f"{EVAL_KEY}_{split}_temperature_evaluation.log"
+OUTPUT_DIRECTORY = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY
+OUTPUT_DIRECTORY.mkdir(parents=True, exist_ok=True)
+log_file = (
+    config.REPORTS_DIR / EVAL_KEY / f"{EVAL_KEY}_{split}_temperature_evaluation.log"
+)
 logger.add(log_file, level="INFO", format="{message}", encoding="utf-8")
 
-# %% Load predictions
+# %% Run inference
+PARAMS = config.DEFAULT_PARAMETERS
+PARAMS.update(OmegaConf.load(CONFIG_FILE))
 
+device = torch.device(args.device if torch.cuda.is_available() else "cpu")
+logger.info(f"Using device: {device}")
+
+logger.info("Loading data...")
+adl = MDCathDataModule(
+    config.PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5",
+    seq_features=True,
+    struct_features=True,
+    batch_size=1,
+    crop_size=2048,
+    num_workers=PARAMS.num_data_workers,
+    train_pct=PARAMS.train_pct,
+    val_pct=PARAMS.val_pct,
+    random_seed=PARAMS.random_seed,
+    struct_stage=PARAMS.struct_stage,
+    shuffle=PARAMS.shuffle,
+)
+adl.setup("train")
+
+logger.info("Loading model...")
+model = RocketSHPModel.load_from_checkpoint(CHECKPOINT_FILE, strict=False).to(device)
+
+
+def run_inference(model, feats, device):
+    model.eval()
+    with torch.inference_mode():
+        feats = {k: v.to(device).unsqueeze(0) for k, v in feats.items()}
+        y_hat = model(feats)
+    return {k: v.detach().cpu().squeeze() for k, v in y_hat.items()}
+
+
+logger.info(f"Running inference on {split} set...")
+data_loader = adl.test_data if split == "test" else adl.val_data
+rshp_all = {}
+for i, (feats, _) in enumerate(tqdm(data_loader, desc="Inference")):
+    key = adl.dataset.samples[data_loader.indices[i]]
+    # only keep R1 replicas; reshape key to system_Ttemp format
+    if not key.endswith("R1"):
+        continue
+    parts = key.split("/")  # e.g. 1u60A00/T320/R1
+    flat_key = f"{parts[0]}_{parts[1]}"  # e.g. 1u60A00_T320
+    rshp_all[flat_key] = run_inference(model, feats, device)
+
+# Save as NPZ (one file per system-temperature key)
+npz_dir = OUTPUT_DIRECTORY / f"{EVAL_KEY}_{split}_inference_npz"
+npz_dir.mkdir(exist_ok=True)
+for k, v in rshp_all.items():
+    arrays = {
+        name: (arr.numpy() if hasattr(arr, "numpy") else np.array(arr))
+        for name, arr in v.items()
+    }
+    np.savez(npz_dir / f"{k}.npz", **arrays)
+logger.info(f"Saved {len(rshp_all)} inference NPZ files to {npz_dir}")
+
+# %% Load predictions from NPZ
 TEMP_LIST = ["320", "348", "379", "413", "450"]
 
-with open(rshp_results_pickle, "rb") as f:
-    rshp_pickle = pk.load(f)
-rshp_all = {"_".join(k.split("/")[:2]): v for k, v in rshp_pickle.items() if k.endswith("R1")}
-
-rshp_rmsf = {k: v["rmsf"].numpy() for k, v in rshp_all.items()}
-rshp_gcc = {k: v["gcc_lmi"].numpy() for k, v in rshp_all.items()}
-rshp_shp = {k: v["shp"].numpy() for k, v in rshp_all.items()}
+rshp_rmsf = {
+    k: v["rmsf"].numpy() if hasattr(v["rmsf"], "numpy") else v["rmsf"]
+    for k, v in rshp_all.items()
+}
+rshp_gcc = {
+    k: v["gcc_lmi"].numpy() if hasattr(v["gcc_lmi"], "numpy") else v["gcc_lmi"]
+    for k, v in rshp_all.items()
+}
+rshp_shp = {
+    k: v["shp"].numpy() if hasattr(v["shp"], "numpy") else v["shp"]
+    for k, v in rshp_all.items()
+}
 
 # %% Load references
 
@@ -90,10 +155,7 @@ reference_gcc = {}
 reference_shp = {}
 system_sizes = {}
 with h5py.File(MDCATH_H5, "r") as h5fi:
-    for k in tqdm(
-        rshp_all.keys(), total=len(rshp_all), desc="Load Reference Results"
-    ):
-        
+    for k in tqdm(rshp_all.keys(), total=len(rshp_all), desc="Load Reference Results"):
         k0, temp = k.split("_")
 
         if k0 not in h5fi:
@@ -104,10 +166,11 @@ with h5py.File(MDCATH_H5, "r") as h5fi:
         reference_gcc[k] = h5fi[k0][temp]["R1"]["gcc_lmi"][:]
         reference_shp[k] = h5fi[k0][temp]["R1"]["shp"][:]
 
+
 def scale_bfactors(bfactors_T1, T1, T2, k=0.0045):
     """
     Scale B-factors from temperature T1 to temperature T2.
-    
+
     Parameters:
     -----------
     bfactors_T1 : array-like
@@ -118,7 +181,7 @@ def scale_bfactors(bfactors_T1, T1, T2, k=0.0045):
         Target temperature in Kelvin
     k : float
         Thermal constant (default=0.0045 K⁻¹)
-        
+
     Returns:
     --------
     array-like
@@ -126,8 +189,9 @@ def scale_bfactors(bfactors_T1, T1, T2, k=0.0045):
     """
     scaling_factor = np.exp(k * (T2 - T1))
     bfactors_T2 = bfactors_T1 * scaling_factor
-    
+
     return bfactors_T2
+
 
 # %% Compute RMSE and spearman correlation for all systems
 
@@ -135,7 +199,6 @@ results_df = []
 scaled_results_df = []
 
 for k in tqdm(rshp_rmsf.keys(), desc=f"Compute RMSF"):
-
     k0, temp = k.split("_")
     temp = int(temp.lstrip("T"))
     b_init = reference_rmsf[f"{k.split('_')[0]}_T320"]
@@ -155,25 +218,29 @@ for k in tqdm(rshp_rmsf.keys(), desc=f"Compute RMSF"):
 
     k0, temp = k.split("_")
     temp = int(temp.lstrip("T"))
-    results_df.append([
-        k0,
-        temp,
-        rmse,
-        sp_stat,
-        sp_p,
-        pr_stat,
-        pr_p,
-    ])
+    results_df.append(
+        [
+            k0,
+            temp,
+            rmse,
+            sp_stat,
+            sp_p,
+            pr_stat,
+            pr_p,
+        ]
+    )
 
-    scaled_results_df.append([
-        k0,
-        temp,
-        rmse_scaled,
-        sp_stat_scaled,
-        sp_p_scaled,
-        pr_stat_scaled,
-        pr_p_scaled,
-    ])
+    scaled_results_df.append(
+        [
+            k0,
+            temp,
+            rmse_scaled,
+            sp_stat_scaled,
+            sp_p_scaled,
+            pr_stat_scaled,
+            pr_p_scaled,
+        ]
+    )
 
 results_df = pd.DataFrame(
     results_df,
@@ -185,9 +252,9 @@ results_df = pd.DataFrame(
         "spearman_p",
         "pearson_stat",
         "pearson_p",
-    ]
+    ],
 )
-results_df["method"] = "RocketSHP"
+results_df["method"] = "PLANET-MD"
 scaled_results_df = pd.DataFrame(
     scaled_results_df,
     columns=[
@@ -198,21 +265,91 @@ scaled_results_df = pd.DataFrame(
         "spearman_p",
         "pearson_stat",
         "pearson_p",
-    ]
+    ],
 )
 scaled_results_df["method"] = "Exponential Thermal Dependence"
 
 joint_results_df = pd.concat([results_df, scaled_results_df], axis=0, ignore_index=True)
 
-#%% RocketSHP only temperature RMSE
+# %% Save precomputed data for plotting notebook
+PRECOMPUTED_DIR = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY / "precomputed"
+PRECOMPUTED_DIR.mkdir(parents=True, exist_ok=True)
+joint_results_df.to_csv(PRECOMPUTED_DIR / "temperature_joint_results.csv", index=False)
+logger.info(
+    f"Saved temperature results to {PRECOMPUTED_DIR / 'temperature_joint_results.csv'}"
+)
+
+# Save case study arrays for system 1u60A00
+_case_system = "1u60A00"
+_case_arrays = {}
+for _temp in TEMP_LIST:
+    _k = f"{_case_system}_T{_temp}"
+    if _k in rshp_rmsf and _k in reference_rmsf:
+        _case_arrays[f"rshp_{_temp}"] = rshp_rmsf[_k]
+        _case_arrays[f"ref_{_temp}"] = reference_rmsf[_k]
+        _case_arrays[f"exp_{_temp}"] = scale_bfactors(
+            reference_rmsf[f"{_case_system}_T320"], 320, int(_temp)
+        )
+np.savez(PRECOMPUTED_DIR / "temperature_case_study.npz", **_case_arrays)
+logger.info(
+    f"Saved case study arrays to {PRECOMPUTED_DIR / 'temperature_case_study.npz'}"
+)
+
+# %% Save sample trajectories
+import tempfile, os
+
+_case_h5_file = (
+    config.PROCESSED_DATA_DIR / "mdcath" / f"mdcath_dataset_{_case_system}.h5"
+)
+ds = h5py.File(_case_h5_file)
+
+with tempfile.NamedTemporaryFile(mode="wb", suffix=".pdb", delete=False) as f:
+    f.write(ds[_case_system]["pdbProteinAtoms"][()])
+    tmp_path = f.name
+
+try:
+    topology = md.load_pdb(tmp_path).topology
+finally:
+    os.remove(tmp_path)
+
+
+def build_and_write_trajectory(coords, topology, filename):
+    traj = md.Trajectory(coords / 10.0, topology)
+    traj.superpose(traj, frame=0)
+    ca_idx = traj.topology.select("name CA")
+    rmsf_ca = md.rmsf(traj, traj, frame=0, atom_indices=ca_idx) * 10
+
+    bfactors = np.zeros(traj.n_atoms)
+    for i, atom in enumerate(traj.topology.atoms):
+        res_idx = atom.residue.index
+        bfactors[i] = rmsf_ca[res_idx]
+
+    traj[0].save_pdb(filename.with_suffix(".pdb"), bfactors=bfactors)
+    traj.save_xtc(filename.with_suffix(".xtc"))
+
+
+build_and_write_trajectory(
+    ds[_case_system][TEMP_LIST[0]]["0"]["coords"][:],
+    topology,
+    Path("lowTemp"),
+)
+
+build_and_write_trajectory(
+    ds[_case_system][TEMP_LIST[-1]]["0"]["coords"][:],
+    topology,
+    Path("hiTemp"),
+)
+ds.close()
+
+# %% RocketSHP only temperature RMSE
 
 # Create a figure with appropriate size
 plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='rmse', 
+    x="temperature",
+    y="rmse",
     data=results_df,
     fill=False,
     fliersize=0,
@@ -223,8 +360,8 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='rmse', 
+    x="temperature",
+    y="rmse",
     data=results_df,
     dodge=True,
     alpha=0.5,
@@ -232,11 +369,11 @@ sns.stripplot(
 )
 
 # Enhance the plot
-plt.xlabel('Temperature (K)', fontsize=24)
-plt.ylabel('RMSE (Angstroms)', fontsize=24)
+plt.xlabel("Temperature (K)", fontsize=24)
+plt.ylabel("RMSE (Angstroms)", fontsize=24)
 plt.xticks(fontsize=20)
 plt.yticks(fontsize=20)
-plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.grid(axis="y", linestyle="--", alpha=0.7)
 
 plt.tight_layout()
 plt.savefig(
@@ -251,8 +388,8 @@ plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='spearman_stat', 
+    x="temperature",
+    y="spearman_stat",
     data=results_df,
     fill=False,
     fliersize=0,
@@ -263,8 +400,8 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='spearman_stat', 
+    x="temperature",
+    y="spearman_stat",
     data=results_df,
     dodge=True,
     alpha=0.5,
@@ -272,11 +409,11 @@ sns.stripplot(
 )
 
 # Enhance the plot
-plt.xlabel('Temperature (K)', fontsize=24)
-plt.ylabel('Spearman Correlation of RMSF', fontsize=24)
+plt.xlabel("Temperature (K)", fontsize=24)
+plt.ylabel("Spearman Correlation of RMSF", fontsize=24)
 plt.xticks(fontsize=20)
 plt.yticks(fontsize=20)
-plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.grid(axis="y", linestyle="--", alpha=0.7)
 
 plt.tight_layout()
 plt.savefig(
@@ -285,16 +422,16 @@ plt.savefig(
     transparent=True,
 )
 
-#%% Plot
+# %% Plot
 
 plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='rmse', 
-    hue='method',
-    hue_order=[ "Exponential Thermal Dependence", "RocketSHP"],
+    x="temperature",
+    y="rmse",
+    hue="method",
+    hue_order=["Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
     fill=False,
     fliersize=0,
@@ -305,9 +442,9 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='rmse', 
-    hue='method',
+    x="temperature",
+    y="rmse",
+    hue="method",
     hue_order=["Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
     dodge=True,
@@ -316,12 +453,12 @@ sns.stripplot(
 )
 
 # Enhance the plot
-plt.xlabel('Temperature (K)', fontsize=24)
-plt.ylabel('RMSE (Angstroms)', fontsize=24)
+plt.xlabel("Temperature (K)", fontsize=24)
+plt.ylabel("RMSE (Angstroms)", fontsize=24)
 plt.xticks(fontsize=20)
 plt.yticks(fontsize=20)
-plt.legend(title='Method', fontsize=16, title_fontsize=16)
-plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.legend(title="Method", fontsize=16, title_fontsize=16)
+plt.grid(axis="y", linestyle="--", alpha=0.7)
 
 plt.tight_layout()
 plt.savefig(
@@ -330,16 +467,16 @@ plt.savefig(
     transparent=True,
 )
 
-#%% Plot
+# %% Plot
 
 plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='spearman_stat', 
-    hue='method',
-    hue_order=[ "Exponential Thermal Dependence", "RocketSHP"],
+    x="temperature",
+    y="spearman_stat",
+    hue="method",
+    hue_order=["Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
     fill=False,
     fliersize=0,
@@ -350,9 +487,9 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='spearman_stat', 
-    hue='method',
+    x="temperature",
+    y="spearman_stat",
+    hue="method",
     hue_order=["Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
     dodge=True,
@@ -361,12 +498,12 @@ sns.stripplot(
 )
 
 # Enhance the plot
-plt.xlabel('Temperature (K)', fontsize=24)
-plt.ylabel('Spearman Correlation of RMSF', fontsize=24)
+plt.xlabel("Temperature (K)", fontsize=24)
+plt.ylabel("Spearman Correlation of RMSF", fontsize=24)
 plt.xticks(fontsize=20)
 plt.yticks(fontsize=20)
-plt.legend(title='Method', fontsize=16, title_fontsize=16)
-plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.legend(title="Method", fontsize=16, title_fontsize=16)
+plt.grid(axis="y", linestyle="--", alpha=0.7)
 
 plt.tight_layout()
 plt.savefig(
@@ -378,7 +515,7 @@ plt.savefig(
 # %% Case study
 system_list = list(set(i[:7] for i in rshp_rmsf.keys()))
 # system = list(rshp_rmsf.keys())[30].split("_")[0]
-system = '1u60A00'
+system = "1u60A00"
 
 fig, ax = plt.subplots(figsize=(24, 10))
 
@@ -391,17 +528,17 @@ for temp in TEMP_LIST:
         rshp_rmsf[k],
         alpha=0.8,
         linewidth=3,
-        label = f"{temp}K Predicted",
+        label=f"{temp}K Predicted",
     )
     # get color of previous line
     color = ax.get_lines()[-1].get_color()
     ax.plot(
         reference_rmsf[k],
-        c = color,
+        c=color,
         linestyle="--",
         alpha=0.4,
         linewidth=3,
-        label = f"{temp}K True",
+        label=f"{temp}K True",
     )
     # ax.plot(
     #     scale_bfactors(b_init, 320, int(temp)),
@@ -415,7 +552,7 @@ ax.set_xlabel("Residue index", fontsize=26)
 ax.set_ylabel("RMSF (Angstoms)", fontsize=26)
 plt.xticks(fontsize=26)
 plt.yticks(fontsize=26)
-plt.grid(axis='y', linestyle='--', alpha=0.7)
+plt.grid(axis="y", linestyle="--", alpha=0.7)
 # set legend outside of plot and turn off box
 ax.legend(
     loc="upper left",
@@ -433,12 +570,13 @@ plt.savefig(
 
 # %% Write out PDB files of the true RMSF at 320K and 450K
 
-reference_root = config.PROCESSED_DATA_DIR / "mdcath" 
+reference_root = config.PROCESSED_DATA_DIR / "mdcath"
+
 
 def write_rmsf_pdb(system, temp, rmsf_values, output_dir):
     """
     Write RMSF values to a PDB file.
-    
+
     Parameters:
     -----------
     system : str
@@ -451,37 +589,40 @@ def write_rmsf_pdb(system, temp, rmsf_values, output_dir):
         Directory to save the PDB file.
     """
     pdb_file = output_dir / f"{system}_T{temp}_rmsf.pdb"
-    
+
     # Load the reference PDB file for the system
     ref_pdb_path = reference_root / system / f"{system}.pdb"
     structure = bs.io.load_structure(ref_pdb_path)
-    
+
     # Expand per-residue RMSF values to per-atom values
     # Get unique residue IDs to map RMSF values
     unique_res_ids = np.unique(structure.res_id)
-    
+
     # Create atom-level B-factors by mapping residue RMSF to all atoms in that residue
     atom_bfactors = np.zeros(len(structure))
     for i, res_id in enumerate(unique_res_ids):
         if i < len(rmsf_values):  # Safety check
             atom_mask = structure.res_id == res_id
             atom_bfactors[atom_mask] = rmsf_values[i]
-    
+
     # Set B-factors
     structure.add_annotation("b_factor", dtype=float)
     structure.set_annotation("b_factor", atom_bfactors)
-    
+
     # Write to PDB file
     bs.io.save_structure(pdb_file, structure)
     logger.info(f"Wrote RMSF PDB file: {pdb_file}")
     return structure
+
 
 # Create output directory for RMSF PDB files
 output_rmsf_dir = FIGURES_DIRECTORY / "rmsf_pdbs"
 output_rmsf_dir.mkdir(parents=True, exist_ok=True)
 # Write RMSF PDB files for 320K and 450K
 for temp in [320, 450]:
-    s_bfact = write_rmsf_pdb(system, temp, reference_rmsf[f"{system}_T{temp}"], output_rmsf_dir)
+    s_bfact = write_rmsf_pdb(
+        system, temp, reference_rmsf[f"{system}_T{temp}"], output_rmsf_dir
+    )
 
 # %% Case study
 
@@ -492,7 +633,7 @@ logger.info(f"System: {system}")
 
 fig, ax = plt.subplots(5, 1, figsize=(12, 12), sharex=True, sharey=True)
 b_init = reference_rmsf[f"{system}_T320"]
-color_list = ['#537EBA', '#FF9300', '#81AD4A', '#FF4115', '#FFD53E', '#1D2954']
+color_list = ["#537EBA", "#FF9300", "#81AD4A", "#FF4115", "#FFD53E", "#1D2954"]
 
 
 for i, temp in enumerate(TEMP_LIST):
@@ -502,28 +643,27 @@ for i, temp in enumerate(TEMP_LIST):
         rshp_rmsf[k],
         alpha=0.8,
         linewidth=1,
-        label = f"{temp}K Predicted",
-        c = color_list[i],
+        label=f"{temp}K Predicted",
+        c=color_list[i],
     )
     # get color of previous line
     ax[i].plot(
         reference_rmsf[k],
-        c = color_list[i],
+        c=color_list[i],
         linestyle="--",
         alpha=0.4,
         linewidth=1,
-        label = f"{temp}K True",
+        label=f"{temp}K True",
     )
     ax[i].plot(
         scale_bfactors(b_init, 320, int(temp)),
         alpha=0.8,
         linewidth=1,
-        c = color_list[i],
+        c=color_list[i],
         linestyle="-.",
-        label = f"{temp}K Exponential",
+        label=f"{temp}K Exponential",
     )
     ax[i].set_ylabel("RMSF\n(Angstoms)", fontsize=16)
-
 
     ax[i].legend(
         loc="upper left",

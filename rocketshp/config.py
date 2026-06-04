@@ -57,6 +57,8 @@ class PARAMETER_STRUCT:
     variance_norm: bool = False
     rmsf_alpha: float = 1.0
     ca_dist_alpha: float = 0.5
+    dyn_corr_alpha: float = 0.0
+    autocorr_alpha: float = 0.0
     gcc_lmi_alpha: float = 1.0
     shp_alpha: float = 0.01
     seq_features: bool = True

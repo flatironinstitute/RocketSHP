@@ -10,7 +10,6 @@ from tqdm import tqdm
 
 import seaborn as sns
 import matplotlib.pyplot as plt
-from statannotations.Annotator import Annotator
 
 # DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
@@ -220,7 +219,99 @@ subsample_prots = list(subsample_prots)
 #     pk.dump(annotations_df, f)
 
 with open(result_dir / "uniprot_annotations.pk", "rb") as f:
-    annotations_df = pk.load(f)    
+    annotations_df = pk.load(f)
+
+# %% Save plot-ready precomputed CSVs for plotting notebook
+import ast
+
+PRECOMPUTED_DIR = result_dir / "precomputed"
+PRECOMPUTED_DIR.mkdir(parents=True, exist_ok=True)
+
+# Load annotations from CSV with list-column parsing (for reproducibility)
+annotations_csv = pd.read_csv(result_dir / "uniprot_annotations.csv")
+for col in ["subcellular_location", "regions", "protein_class", "gene_names", "domains", "functions"]:
+    if col in annotations_csv.columns:
+        annotations_csv[col] = annotations_csv[col].apply(
+            lambda x: ast.literal_eval(x) if isinstance(x, str) and x.strip().startswith(("[", "{")) else x
+        )
+
+# --- Disordered vs other RMSF ---
+_disordered_results = {}
+for k in tqdm(subsample_prots, desc="Disordered regions"):
+    pred_rmsf = rocketshp_rmsf.get(k)
+    if pred_rmsf is None or len(pred_rmsf) == 1400:
+        continue
+    rows = annotations_csv.loc[annotations_csv["uniprot_id"] == k, "regions"].values
+    if len(rows) == 0:
+        continue
+    regions = rows[0]
+    if not isinstance(regions, list):
+        continue
+    disordered_residues = []
+    for r in regions:
+        if isinstance(r, dict) and "disordered" in r.get("name", "").lower():
+            start, end = r.get("start", 0), r.get("end", 0)
+            if end <= len(pred_rmsf):
+                disordered_residues.extend(range(start - 1, end))
+    if not disordered_residues:
+        continue
+    ordered_residues = [i for i in range(len(pred_rmsf)) if i not in set(disordered_residues)]
+    _disordered_results[k] = {
+        "type_rmsf": float(np.mean(pred_rmsf[disordered_residues])),
+        "other_rmsf": float(np.mean(pred_rmsf[ordered_residues])) if ordered_residues else float("nan"),
+    }
+_disordered_df = pd.DataFrame.from_dict(_disordered_results, orient="index").reset_index()
+_disordered_df = _disordered_df.rename(columns={"index": "uniprot_id"})
+_disordered_melt = _disordered_df.melt(id_vars="uniprot_id", value_vars=["type_rmsf", "other_rmsf"])
+_disordered_melt.to_csv(PRECOMPUTED_DIR / "disordered_rmsf.csv", index=False)
+
+# --- Subcellular location counts ---
+_allowed_regions = [
+    "Nucleus", "Cytoplasm", "Cell membrane", "Endosome", "Secreted",
+    "Golgi apparatus", "Flagellum", "Cytosekeleton", "Extracellular matrix",
+    "Endroplasmic reticulum", "Centrosome", "Cytosol", "Mitochondrion",
+]
+_subcell_by_prot = {}
+for k in tqdm(subsample_prots, desc="Subcellular locations"):
+    rows = annotations_csv.loc[annotations_csv["uniprot_id"] == k, "subcellular_location"].values
+    if len(rows) == 0:
+        continue
+    locs = rows[0]
+    if not isinstance(locs, list):
+        continue
+    for loc in locs:
+        if loc in _allowed_regions:
+            _subcell_by_prot[k] = loc
+            break
+
+_subcell_counts_raw = pd.Series(_subcell_by_prot.values()).value_counts().reset_index()
+_subcell_counts_raw.columns = ["subcellular_location", "count"]
+_subcell_counts_raw["subcellular_location"] = np.where(
+    _subcell_counts_raw["count"] / len(subsample_prots) < 0.02,
+    "Other",
+    _subcell_counts_raw["subcellular_location"],
+)
+_subcell_counts = _subcell_counts_raw.groupby("subcellular_location").sum().reset_index()
+_subcell_counts = _subcell_counts.sort_values("count", ascending=False).reset_index(drop=True)
+_subcell_counts.to_csv(PRECOMPUTED_DIR / "subcellular_location_counts.csv", index=False)
+
+# --- Median RMSF by subcellular location ---
+_location_rmsfs = {}
+for loc in _subcell_counts["subcellular_location"]:
+    if loc == "Other":
+        continue
+    sub_df = annotations_csv[annotations_csv["subcellular_location"].apply(
+        lambda x: loc in x if isinstance(x, list) else False
+    )]
+    _med_rmsfs = []
+    for p in sub_df["uniprot_id"]:
+        if p in rocketshp_rmsf:
+            _med_rmsfs.append(float(np.median(rocketshp_rmsf[p])))
+    _location_rmsfs[loc] = _med_rmsfs
+
+_location_rmsfs_df = pd.DataFrame.from_dict(_location_rmsfs, orient="index").T.melt().dropna()
+_location_rmsfs_df.to_csv(PRECOMPUTED_DIR / "subcellular_location_rmsf.csv", index=False)
+logger.info(f"Saved proteome precomputed CSVs to {PRECOMPUTED_DIR}")
 
 # %% Types of regions
 types_of_regions = set()
@@ -274,6 +365,7 @@ def boxplot_regions(region_type, search_query):
     ax.set_xticks([0, 1], [region_type, "Other"])
     ax.set_ylabel("RMSF")
 
+    from statannotations.Annotator import Annotator
     annotator = Annotator(
         ax, pairs=[("type_rmsf", "other_rmsf")], data=type_melt, x="variable", y="value"
     )

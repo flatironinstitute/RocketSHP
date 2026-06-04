@@ -278,14 +278,14 @@ for k in tqdm(rshp_results.keys(), desc="Calibrate Dyna Probabilities"):
 
 # %% Compare RMSF for all methods
 methods = {
-    "RocketSHP": rshp_rmsf,
+    "PLANET-MD": rshp_rmsf,
     "Dyna-1": dyna_results,
     "Dyna-1 (Calibrated)": dyna_rmsf,
     "BioEmu (10)": bioemu_results,
     "BioEmu (100)": bioemu_100_results,
     "Reference": reference_rmsf,
 }
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["PLANET-MD", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 
 rmsf_results = {}
 for k in tqdm(rshp_results.keys(), desc="Collect RMSF Results"):
@@ -351,7 +351,7 @@ spearman_df = spearman_df.melt(id_vars=["System"], var_name="Method", value_name
 # %% Plot RMSE
 fig, ax = plt.subplots(figsize=(12, 8))
 
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["PLANET-MD", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 for i in order:
     logger.info(
         f"Mean {i} RMSE: {mean_sq_error_df[mean_sq_error_df['Method'] == i]['RMSE'].mean()}"
@@ -371,7 +371,7 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_rmse_comparison.svg")
 # %% Plot Spearman correlation
 fig, ax = plt.subplots(figsize=(12, 8))
 
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["PLANET-MD", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 for i in order:
     logger.info(
         f"Mean {i} Spearman: {spearman_df[spearman_df['Method'] == i]['RMSE'].mean()}"
@@ -445,7 +445,7 @@ size_group_df = mean_sq_error_by_size_df[
 # %% Check overall performance difference and in largest size group
 
 mean_rshp_rmse = mean_sq_error_by_size_df[
-    mean_sq_error_by_size_df["Method"] == "RocketSHP"
+    mean_sq_error_by_size_df["Method"] == "PLANET-MD"
 ]["RMSE"].mean()
 mean_bioemu_100_rmse = mean_sq_error_by_size_df[
     mean_sq_error_by_size_df["Method"] == "BioEmu (100)"
@@ -466,7 +466,7 @@ logger.info(
 
 # only in largest size group
 mean_rshp_rmse = mean_sq_error_by_size_df[
-    (mean_sq_error_by_size_df["Method"] == "RocketSHP")
+    (mean_sq_error_by_size_df["Method"] == "PLANET-MD")
     & (mean_sq_error_by_size_df["Size"] >= 500)
 ]["RMSE"].mean()
 mean_bioemu_100_rmse = mean_sq_error_by_size_df[
@@ -491,7 +491,7 @@ logger.info(
 # %% Boxplot
 
 fig, ax = plt.subplots(figsize=(12, 8))
-pairs = [("RocketSHP", "Dyna-1 (Calibrated)"), ("RocketSHP", "BioEmu (100)")]
+pairs = [("PLANET-MD", "Dyna-1 (Calibrated)"), ("PLANET-MD", "BioEmu (100)")]
 
 ax = sns.boxplot(
     x="Method",
@@ -542,7 +542,7 @@ for pair, stats in zip(pairs, test_results):
 
 # %% Plot Spearman
 fig, ax = plt.subplots(figsize=(12, 8))
-pairs = [("RocketSHP", "Dyna-1 (Calibrated)"), ("RocketSHP", "BioEmu (100)")]
+pairs = [("PLANET-MD", "Dyna-1 (Calibrated)"), ("PLANET-MD", "BioEmu (100)")]
 
 ax = sns.boxplot(
     x="Method",
@@ -627,8 +627,8 @@ for k, v in tqdm(rshp_gcc.items()):
 gcc_results_df = pd.DataFrame(gcc_results)
 gcc_results_df.columns = [
     "System",
-    "RocketSHP GDD",
-    "RocketSHP IMSD",
+    "PLANET-MD GDD",
+    "PLANET-MD IMSD",
     "BioEmu GDD",
     "BioEmu IMSD",
     "BioEmu 100 GDD",
@@ -642,22 +642,22 @@ gcc_results_df = pd.merge(
 # %% Separate by metric
 
 gdd_results_df = gcc_results_df[
-    ["System", "Size Group", "RocketSHP GDD", "BioEmu GDD", "BioEmu 100 GDD"]
+    ["System", "Size Group", "PLANET-MD GDD", "BioEmu GDD", "BioEmu 100 GDD"]
 ].melt(id_vars=["System", "Size Group"], var_name="Method", value_name="GDD")
 gdd_results_df["Method"] = gdd_results_df["Method"].replace(
     {
-        "RocketSHP GDD": "RocketSHP",
+        "PLANET-MD GDD": "PLANET-MD",
         "BioEmu GDD": "BioEmu (10)",
         "BioEmu 100 GDD": "BioEmu (100)",
     }
 )
 
 imsd_results_df = gcc_results_df[
-    ["System", "Size Group", "RocketSHP IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
+    ["System", "Size Group", "PLANET-MD IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
 ].melt(id_vars=["System", "Size Group"], var_name="Method", value_name="IMSD")
 imsd_results_df["Method"] = imsd_results_df["Method"].replace(
     {
-        "RocketSHP IMSD": "RocketSHP",
+        "PLANET-MD IMSD": "PLANET-MD",
         "BioEmu IMSD": "BioEmu (10)",
         "BioEmu 100 IMSD": "BioEmu (100)",
     }
@@ -666,8 +666,8 @@ imsd_results_df["Method"] = imsd_results_df["Method"].replace(
 # %% Boxplot GDD
 
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (100)"), ("RocketSHP", "BioEmu (10)")]
+order = ["PLANET-MD", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("PLANET-MD", "BioEmu (100)"), ("PLANET-MD", "BioEmu (10)")]
 
 for i in order:
     logger.info(
@@ -722,8 +722,8 @@ for pair, stats in zip(pairs, test_results):
 
 # %% Boxplot IMSD
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
+order = ["PLANET-MD", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("PLANET-MD", "BioEmu (10)"), ("PLANET-MD", "BioEmu (100)")]
 
 for i in order:
     logger.info(
@@ -778,13 +778,13 @@ for pair, stats in zip(pairs, test_results):
 
 # %% GDD Scatter Plot
 gdd_scatter_data = gcc_results_df[
-    ["System", "Size Group", "RocketSHP GDD", "BioEmu GDD", "BioEmu 100 GDD"]
+    ["System", "Size Group", "PLANET-MD GDD", "BioEmu GDD", "BioEmu 100 GDD"]
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
 sns.scatterplot(
     data=gdd_scatter_data,
     x="BioEmu 100 GDD",
-    y="RocketSHP GDD",
+    y="PLANET-MD GDD",
     ax=ax,
     hue="Size Group",
     alpha=0.95,
@@ -799,13 +799,13 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_gdd_scatter.svg")
 
 # %% IMSD Scatter Plot
 imsd_scatter_data = gcc_results_df[
-    ["System", "Size Group", "RocketSHP IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
+    ["System", "Size Group", "PLANET-MD IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
 sns.scatterplot(
     data=imsd_scatter_data,
     x="BioEmu 100 IMSD",
-    y="RocketSHP IMSD",
+    y="PLANET-MD IMSD",
     ax=ax,
     hue="Size Group",
     alpha=0.95,
@@ -827,7 +827,7 @@ for k, v in tqdm(rshp_shp.items()):
     )
     shp_results.append([k, rshp_kl, bioemu_kl, bioemu_100_kl])
 shp_results_df = pd.DataFrame(shp_results)
-shp_results_df.columns = ["System", "RocketSHP", "BioEmu (10)", "BioEmu (100)"]
+shp_results_df.columns = ["System", "PLANET-MD", "BioEmu (10)", "BioEmu (100)"]
 shp_results_df = pd.merge(
     size_group_df, shp_results_df, left_on="System", right_on="System", how="inner"
 )
@@ -838,8 +838,8 @@ kldiv_results_df = shp_results_df.melt(
 )
 
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
+order = ["PLANET-MD", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("PLANET-MD", "BioEmu (10)"), ("PLANET-MD", "BioEmu (100)")]
 
 for i in order:
     logger.info(f"Mean {i} KL-Div: {shp_results_df[i].mean()}")
@@ -887,4 +887,12 @@ for pair, stats in zip(pairs, test_results):
     logger.info(
         f"KL-Div Comparison: {pair[0]} vs {pair[1]}, t-statistic: {stat_val:.4f}, p-value: {p_val:.4e}"
     )
+
+# %% Save precomputed DataFrames for plotting notebook
+PRECOMPUTED_DIR = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY / "precomputed"
+PRECOMPUTED_DIR.mkdir(parents=True, exist_ok=True)
+mean_sq_error_by_size_df.to_csv(PRECOMPUTED_DIR / f"{split}_rmse_by_size.csv", index=False)
+spearman_by_size_df.to_csv(PRECOMPUTED_DIR / f"{split}_spearman_by_size.csv", index=False)
+imsd_results_df.to_csv(PRECOMPUTED_DIR / f"{split}_imsd_by_size.csv", index=False)
+logger.info(f"Saved precomputed DataFrames to {PRECOMPUTED_DIR}")
 # %%

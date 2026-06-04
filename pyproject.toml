@@ -39,7 +39,10 @@ dependencies = [
   "scipy",
   "seaborn",
   "statsmodels",
+  "statannotations",
   "tokenizers",
+  "torch==2.6.0",
+  "torchvision==0.21.0",
   "torchmetrics",
   "transformers",
   "tqdm",
@@ -54,6 +57,9 @@ dependencies = [
   "vcfpy>=0.14.2",
   "bioemu>=1.2.0",
 ]
+
+[tool.uv]
+environments = ["sys_platform == 'linux'"]
 
 [tool.ruff]
 target-version = "py311"
