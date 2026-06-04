@@ -4,8 +4,8 @@ import numpy as np
 import torch
 from torch import Tensor
 
-from rocketshp.structure import residue_constants as RC
-from rocketshp.structure.affine3d import Affine3D
+from planet_md.structure import residue_constants as RC
+from planet_md.structure.affine3d import Affine3D
 
 ArrayOrTensor = TypeVar("ArrayOrTensor", np.ndarray, Tensor)
 

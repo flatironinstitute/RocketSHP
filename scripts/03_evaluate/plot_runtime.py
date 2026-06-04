@@ -8,7 +8,7 @@ import pandas as pd
 import seaborn as sns
 from loguru import logger
 
-from rocketshp import config
+from planet_md import config
 
 # %% Define constants
 reg = re.compile(r"Model inference time: (\d+.\d+)")

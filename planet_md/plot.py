@@ -6,7 +6,7 @@ import typer
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp.config import FIGURES_DIR, PROCESSED_DATA_DIR
+from planet_md.config import FIGURES_DIR, PROCESSED_DATA_DIR
 
 app = typer.Typer()
 
@@ -15,18 +15,18 @@ def plot_predictions(
     rmsf: np.ndarray,
     gcc_lmi: np.ndarray,
     shp: np.ndarray,
-    title: str = "RocketSHP Predictions",
-    output_path: Path = "rocketshp_predictions.png",
+    title: str = "PLANET-MD Predictions",
+    output_path: Path = "planet_md_predictions.png",
     font_scale: float = 1.0,
 ):
-
-    with plt.style.context({
-        "font.size": 12 * font_scale,
-        "legend.fontsize": 12 * font_scale,
-        "axes.labelsize": 12 * font_scale,
-        "axes.titlesize": 12 * font_scale,
-        }):
-
+    with plt.style.context(
+        {
+            "font.size": 12 * font_scale,
+            "legend.fontsize": 12 * font_scale,
+            "axes.labelsize": 12 * font_scale,
+            "axes.titlesize": 12 * font_scale,
+        }
+    ):
         fig = plt.figure(figsize=(6, 6))
         gs = fig.add_gridspec(2, 2)
         ax1 = fig.add_subplot(gs[0, 0])
@@ -55,22 +55,6 @@ def plot_predictions(
 
         plt.tight_layout()
         plt.savefig(output_path)
-
-
-@app.command()
-def main(
-    # ---- REPLACE DEFAULT PATHS AS APPROPRIATE ----
-    input_path: Path = PROCESSED_DATA_DIR / "dataset.csv",
-    output_path: Path = FIGURES_DIR / "plot.png",
-    # -----------------------------------------
-):
-    # ---- REPLACE THIS WITH YOUR OWN CODE ----
-    logger.info("Generating plot from data...")
-    for i in tqdm(range(10), total=10):
-        if i == 5:
-            logger.info("Something happened for iteration 5.")
-    logger.success("Plot generation complete.")
-    # -----------------------------------------
 
 
 if __name__ == "__main__":

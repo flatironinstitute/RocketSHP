@@ -6,8 +6,8 @@ from pathlib import Path
 import h5py
 import numpy as np
 
-from rocketshp.config import PROCESSED_DATA_DIR
-from rocketshp.data.utils import MDDataModule, MDDataset
+from planet_md.config import PROCESSED_DATA_DIR
+from planet_md.data.utils import MDDataModule, MDDataset
 
 MDCATH_PROCESSED_H5 = PROCESSED_DATA_DIR / "mdcath/mdcath_processed.h5"
 MDCATH_TEMPS = [320, 348, 379, 413, 450]

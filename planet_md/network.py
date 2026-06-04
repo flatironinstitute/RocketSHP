@@ -6,7 +6,7 @@ import networkx as nx
 import numpy as np
 import torch
 
-from rocketshp.metrics import graph_diffusion_distance, ipsen_mikhailov_distance
+from planet_md.metrics import graph_diffusion_distance, ipsen_mikhailov_distance
 
 
 def display_network(

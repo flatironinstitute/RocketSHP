@@ -283,7 +283,7 @@ def PairwiseProbabilityHead(
     )
 
 
-class RocketSHPModel(nn.Module):
+class PlanetMDModel(nn.Module):
     def __init__(
         self,
         embedding_dim: int,
@@ -399,7 +399,7 @@ class RocketSHPModel(nn.Module):
         """Load a model from a checkpoint." """
         from huggingface_hub import hf_hub_download
 
-        from rocketshp.config import PRETRAINED_MODELS
+        from planet_md.config import PRETRAINED_MODELS
 
         if checkpoint_path in PRETRAINED_MODELS:
             checkpoint_path = hf_hub_download(

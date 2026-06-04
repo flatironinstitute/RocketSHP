@@ -11,14 +11,14 @@ from lightning.pytorch.loggers import CSVLogger, WandbLogger
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
 
-from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
-from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.data.mdcath import MDCathDataModule
-from rocketshp.modeling.architectures import (
-    RocketSHPModel,
+from planet_md.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
+from planet_md.data.atlas import ATLASDataModule
+from planet_md.data.mdcath import MDCathDataModule
+from planet_md.modeling.architectures import (
+    PlanetMDModel,
 )
-from rocketshp.modeling.pt_lightning import LightningWrapper
-from rocketshp.utils import configure_logger, seed_everything
+from planet_md.modeling.pt_lightning import LightningWrapper
+from planet_md.utils import configure_logger, seed_everything
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -84,7 +84,7 @@ def main(
 
     loggers.append(CSVLogger("logs", name=run_id))
 
-    model = RocketSHPModel(
+    model = PlanetMDModel(
         embedding_dim=PARAMS.embedding_dim,
         output_dim=PARAMS.output_dim,
         d_model=PARAMS.d_model,

@@ -4,7 +4,7 @@ import pickle as pk
 import matplotlib.pyplot as plt
 import pandas as pd
 
-from rocketshp import config
+from planet_md import config
 
 plt.rcParams.update(
     {

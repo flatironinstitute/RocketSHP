@@ -1,13 +1,13 @@
 import torch
 from loguru import logger
 
-from rocketshp.esm3 import (
+from planet_md.esm3 import (
     _get_model,
     _get_structure_vae,
     _get_tokenizers,
     esm3_embed,
 )
-from rocketshp.modeling.architectures import RocketSHPModel
+from planet_md.modeling.architectures import PlanetMDModel
 
 device = torch.device("cuda:0")
 
@@ -33,7 +33,7 @@ tokenizers = _get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
 logger.info("Loading RSHP Model")
-rshp_model = RocketSHPModel.load_from_checkpoint(CHECKPOINT, strict=True)
+rshp_model = PlanetMDModel.load_from_checkpoint(CHECKPOINT, strict=True)
 rshp_model.eval().to(device)
 
 logger.info("Generating intial features")

@@ -22,8 +22,8 @@ from openmm.app import (
 )
 
 # from openmm.unit import nanometer, picosecond, femtosecond, bar, kelvin
-from rocketshp import config
-from rocketshp.utils import seed_everything
+from planet_md import config
+from planet_md.utils import seed_everything
 
 # %% File paths and constants
 

@@ -1,11 +1,11 @@
-# 🚀 RocketSHP: Ultra-fast Prediction of Protein Dynamics
+# 🚀 PLANET-MD: Ultra-fast Prediction of Protein Dynamics
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
 
-RocketSHP enables ultra-fast prediction of protein dynamics and flexibility from amino acid sequences and/or protein structures. Trained on thousands of molecular dynamics trajectories, it predicts multiple dynamics-related features simultaneously:
+PLANET-MD enables ultra-fast prediction of protein dynamics and flexibility from amino acid sequences and/or protein structures. Trained on thousands of molecular dynamics trajectories, it predicts multiple dynamics-related features simultaneously:
 
 - Root-Mean-Square Fluctuations (RMSF)
 - Generalized Correlation Coefficients with Linear Mutual Information (GCC-LMI)
@@ -17,18 +17,18 @@ This approach bridges the gap between static structural biology and dynamic func
 
 ```bash
 # Clone the repository
-git clone https://github.com/samsledje/RocketSHP.git
-cd RocketSHP
+git clone https://github.com/flatironinstitute/PLANET-MD.git
+cd PLANET-MD
 
 # Create and activate a conda environment
-mamba create -n rocketshp python=3.11
-mamba activate rocketshp
+mamba create -n planet_md python=3.11
+mamba activate planet_md
 
 # Install package
 pip install -e .
 
 # Check installation
-python -c "import rocketshp; print('Success!')"
+python -c "import planet_md; print('Success!')"
 ```
 
 ## 🚀 Quick Start
@@ -36,7 +36,7 @@ python -c "import rocketshp; print('Success!')"
 With a `.pdb` file from the command line:
 
 ```bash
-rocketshp_predict example/kras_afdb.pdb RocketSHP_KRAS_Predictions
+planet_md_predict example/kras_afdb.pdb PLANET_MD_KRAS_Predictions
 ```
 
 Python interface:
@@ -44,14 +44,14 @@ Python interface:
 ```python
 import torch
 from torch.nn.functional import softmax
-from rocketshp import RocketSHP, load_sequence, load_structure
-from rocketshp.plot import plot_predictions
+from planet_md import PlanetMD, load_sequence, load_structure
+from planet_md.plot import plot_predictions
 
 # Set compute device
 device = torch.device("cuda:0")
 
 # Load the model (will download if not present)
-model = RocketSHP.load_from_checkpoint("v1_seq").to(device)
+model = PlanetMD.load_from_checkpoint("v1_seq").to(device)
 
 # Predict dynamics from sequence only
 sequence = "MTEYKLVVVGAGGVGKSALTIQLIQNHFVDEYDPTIEDSYRKQVVIDGETCLLDILDTAGQEEYSAMRDQYMRTGEGFLCVFAINNTKSFEDIHHYREQIKRVKDSEDVPMVLVGNKCDLPSRTVDTKQAQDLARSYGIPFIETSAKTRQRVEDAFYTLVREIRQYRLKKISKEEKTPGCVKIKKCIIM"
@@ -66,22 +66,22 @@ ca_dist = dynamics_pred["ca_dist"].squeeze().cpu().numpy()
 shp = softmax(dynamics_pred["shp"].squeeze(), dim=1).cpu().numpy()
 
 # Visualize results
-plot_predictions(rmsf, gcc_lmi, shp, "KRAS", "rocketshp_kras.png")
+plot_predictions(rmsf, gcc_lmi, shp, "KRAS", "planet_md_kras.png")
 ```
 
 ## 💻 Model Variants
 
-RocketSHP comes in three variants:
+PLANET-MD comes in three variants:
 
-1. **RocketSHP** - Full model that uses both sequence and structure information
-2. **RocketSHP-seq** - Sequence-only model trained with the same architecture
-3. **RocketSHP-mini** - Lightweight sequence-only model (1.5M parameters)
+1. **PLANET-MD** - Full model that uses both sequence and structure information
+2. **PLANET-MD-seq** - Sequence-only model trained with the same architecture
+3. **PLANET-MD-mini** - Lightweight sequence-only model (1.5M parameters)
 
 ```python
 # Load different model variants
-full_model = RocketSHP.load_from_checkpoint("latest")  # Latest is also 'v1'
-seq_model = RocketSHP.load_from_checkpoint("v1_seq")
-mini_model = RocketSHP.load_from_checkpoint("v1_mini")
+full_model = PlanetMD.load_from_checkpoint("latest")  # Latest is also 'v1'
+seq_model = PlanetMD.load_from_checkpoint("v1_seq")
+mini_model = PlanetMD.load_from_checkpoint("v1_mini")
 ```
 
 ### 📈 Using a Structure for Improved Predictions
@@ -89,7 +89,7 @@ mini_model = RocketSHP.load_from_checkpoint("v1_mini")
 ```python
 import torch
 from torch.nn.functional import softmax
-from rocketshp import RocketSHP, load_sequence, load_structure
+from planet_md import PlanetMD, load_sequence, load_structure
 from biotite.structure.io import pdb
 from biotite.structure import to_sequence
 
@@ -97,7 +97,7 @@ from biotite.structure import to_sequence
 device = torch.device("cuda:0")
 
 # Load the model
-model = RocketSHP.load_from_checkpoint("latest").to(device)
+model = PlanetMD.load_from_checkpoint("latest").to(device)
 
 # Load structure file (PDB)
 structure_file = "example/kras_afdb.pdb"
@@ -119,7 +119,7 @@ with torch.no_grad():
 ## 🕸️ Building an Allosteric Network
 
 ```python
-from rocketshp.network import build_allosteric_network, cluster_network, calculate_centrality, plot_network_clusters
+from planet_md.network import build_allosteric_network, cluster_network, calculate_centrality, plot_network_clusters
 
 # Build network from GCC-LMI predictions and distance mask
 gcc_lmi = dynamics_pred["gcc_lmi"].squeeze().cpu().numpy()
@@ -136,13 +136,13 @@ closeness_centrality = centralities["closeness"]
 degree_centrality = centralities["degree"]
 
 # Visualize network
-from rocketshp.network import plot_network_clusters
-plot_network_clusters(network, communities, output_path="rocketshp_kras_network.png")
+from planet_md.network import plot_network_clusters
+plot_network_clusters(network, communities, output_path="planet_md_kras_network.png")
 ```
 
 ## 🔎 Model Details
 
-RocketSHP leverages ESM3 for sequence and structure representations, feeding these through a transformer encoder to predict multiple dynamics properties:
+PLANET-MD leverages ESM3 for sequence and structure representations, feeding these through a transformer encoder to predict multiple dynamics properties:
 
 - **Architecture**: Transformer encoder with specialized prediction heads
 - **Sequence Input**: ESM3 embeddings (frozen)
@@ -156,7 +156,7 @@ For more technical details, please refer to our paper.
 
 ## 📝 Citation
 
-If you use RocketSHP in your research, please cite:
+If you use PLANET-MD in your research, please cite:
 
 ```bibtex
 @article{sledzieski2025rocketshp,
@@ -171,4 +171,4 @@ If you use RocketSHP in your research, please cite:
 
 ## ⚖️ License
 
-This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/samsledje/RocketSHP?tab=MIT-1-ov-file#readme) file for details.
+This project is licensed under the MIT License - see the [LICENSE.md](https://github.com/flatironinstitute/PLANET-MD?tab=MIT-1-ov-file#readme) file for details.

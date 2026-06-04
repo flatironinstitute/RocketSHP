@@ -3,8 +3,8 @@ import h5py
 from datasets import Dataset
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.utils import update_h5_dataset
+from planet_md import config
+from planet_md.data.utils import update_h5_dataset
 
 MDCATH_DATA_DIR = config.RAW_DATA_DIR / "mdcath"
 MDCATH_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "mdcath"

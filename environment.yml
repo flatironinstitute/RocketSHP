@@ -1,4 +1,4 @@
-name: rocketshp
+name: planet_md
 channels:
   - conda-forge
   - pytorch
@@ -37,8 +37,8 @@ dependencies:
   - wandb
   - foldseek
   - pip:
-    - python-dotenv
-    - -e .
-    - nglview
-    - mdtraj
-    - esm
+      - python-dotenv
+      - -e .
+      - nglview
+      - mdtraj
+      - esm

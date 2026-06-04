@@ -1,29 +1,29 @@
+import json
 import os
+import random
 import warnings
 from functools import partial
-import json
-import random
 from itertools import product
-from typing import Dict, Any, List
+from typing import Any
 
 import dotenv
+import pandas as pd
 import torch
 import typer
-import pandas as pd
+import yaml
 from lightning import Trainer
-from lightning.pytorch.callbacks import ModelCheckpoint, EarlyStopping
+from lightning.pytorch.callbacks import EarlyStopping, ModelCheckpoint
 from lightning.pytorch.loggers import CSVLogger, WandbLogger
 from loguru import logger as stdout_logger
 from omegaconf import OmegaConf
-import yaml
-import wandb
 
-from rocketshp.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
-from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.data.mdcath import MDCathDataModule
-from rocketshp.modeling.architectures import RocketSHPModel
-from rocketshp.modeling.pt_lightning import LightningWrapper
-from rocketshp.utils import configure_logger, seed_everything
+import wandb
+from planet_md.config import DEFAULT_PARAMETERS, PROCESSED_DATA_DIR
+from planet_md.data.atlas import ATLASDataModule
+from planet_md.data.mdcath import MDCathDataModule
+from planet_md.modeling.architectures import PlanetMDModel
+from planet_md.modeling.pt_lightning import LightningWrapper
+from planet_md.utils import configure_logger, seed_everything
 
 warnings.simplefilter(action="ignore", category=FutureWarning)
 
@@ -32,10 +32,10 @@ app = typer.Typer(pretty_exceptions_enable=False)
 
 def generate_sweep_configs(
     sweep_config_path: str, count: int = 50
-) -> List[Dict[str, Any]]:
+) -> list[dict[str, Any]]:
     """Generate hyperparameter configurations from sweep definition."""
 
-    with open(sweep_config_path, "r") as f:
+    with open(sweep_config_path) as f:
         sweep_def = yaml.safe_load(f)
 
     parameters = sweep_def.get("parameters", {})
@@ -108,7 +108,7 @@ def generate_sweep_configs(
     return configs
 
 
-def _flatten_model_config(config: Dict[str, Any]) -> Dict[str, Any]:
+def _flatten_model_config(config: dict[str, Any]) -> dict[str, Any]:
     """Flatten model_config parameter into individual d_model and n_heads parameters."""
     if "model_config" in config:
         model_config = config.pop("model_config")
@@ -185,7 +185,7 @@ def single_run(
     loggers.append(CSVLogger("logs", name=run_name))
 
     # Create model with hyperparameters
-    model = RocketSHPModel(
+    model = PlanetMDModel(
         embedding_dim=PARAMS.embedding_dim,
         output_dim=PARAMS.output_dim,
         d_model=PARAMS.d_model,
@@ -307,7 +307,7 @@ def run_sweep_from_file(
 ):
     """Run a single job from a sweep file (useful for SLURM array jobs)."""
 
-    with open(sweep_file, "r") as f:
+    with open(sweep_file) as f:
         sweep_data = json.load(f)
 
     configs = sweep_data["configs"]
@@ -344,7 +344,7 @@ def run_local_sweep(
 ):
     """Run multiple sweep jobs locally (for testing)."""
 
-    with open(sweep_file, "r") as f:
+    with open(sweep_file) as f:
         sweep_data = json.load(f)
 
     configs = sweep_data["configs"]

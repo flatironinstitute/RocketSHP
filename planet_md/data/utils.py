@@ -9,9 +9,9 @@ import torch
 from loguru import logger
 from torch.utils.data import DataLoader, Dataset, Subset
 
-from rocketshp.esm3 import get_model, get_structure_vae, get_tokenizers
-from rocketshp.features import esm3_sequence, esm3_vqvae, ramachandran_angles
-from rocketshp.structure.protein_chain import ProteinChain
+from planet_md.esm3 import get_model, get_structure_vae, get_tokenizers
+from planet_md.features import esm3_sequence, esm3_vqvae, ramachandran_angles
+from planet_md.structure.protein_chain import ProteinChain
 
 MAX_CACHE_SIZE = 500
 
@@ -245,7 +245,7 @@ class MDDataset(Dataset):
         except KeyError as e:
             logger.error(f"Error processing sample {rep_key}: {e}")
             raise
-            
+
         for k, v in labels.items():
             if torch.isnan(v).any() or torch.isinf(v).any():
                 logger.warning(f"NaN/Inf found in labels for sample {rep_key} ({k})")

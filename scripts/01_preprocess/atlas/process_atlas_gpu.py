@@ -5,9 +5,9 @@ from esm.utils.structure.protein_chain import ProteinChain
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.utils import update_h5_dataset
-from rocketshp.esm3 import (
+from planet_md import config
+from planet_md.data.utils import update_h5_dataset
+from planet_md.esm3 import (
     _get_model,
     _get_structure_vae,
     _get_tokenizers,

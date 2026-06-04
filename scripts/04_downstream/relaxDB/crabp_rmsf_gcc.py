@@ -8,9 +8,9 @@ import numpy as np
 import seaborn as sns
 from matplotlib.colors import Normalize
 
-from rocketshp import config
-from rocketshp.network import display_network, pairwise_correlation_to_network
-from rocketshp.trajectory import (
+from planet_md import config
+from planet_md.network import display_network, pairwise_correlation_to_network
+from planet_md.trajectory import (
     compute_generalized_correlation_lmi,
     compute_rmsf,
     display_trajectory,

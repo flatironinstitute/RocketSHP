@@ -19,13 +19,13 @@ from statannotations.Annotator import Annotator
 from torch.nn.functional import softmax
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.metrics import (
+from planet_md import config
+from planet_md.metrics import (
     graph_diffusion_distance,
     ipsen_mikhailov_distance,
     kl_divergence_2d,
 )
-from rocketshp.trajectory import (
+from planet_md.trajectory import (
     compute_rmsf,
     compute_shp,
 )

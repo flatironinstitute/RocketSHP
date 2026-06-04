@@ -6,15 +6,14 @@ from dotenv import load_dotenv
 from loguru import logger
 from omegaconf import OmegaConf
 
-from rocketshp.utils import configure_logger
+from planet_md.utils import configure_logger
 
 # # Load environment variables from .env file if it exists
 load_dotenv()
 configure_logger(os.getenv("LOGURU_LEVEL", "INFO"))
 
 # Paths
-# PROJ_ROOT = Path(__file__).resolve().parents[1]
-PROJ_ROOT = Path("/mnt/home/ssledzieski/Projects/rocketshp")
+PROJ_ROOT = Path(__file__).resolve().parents[1]
 logger.debug(f"PROJ_ROOT path is: {PROJ_ROOT}")
 
 DATA_DIR = PROJ_ROOT / "data"

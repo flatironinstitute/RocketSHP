@@ -7,8 +7,8 @@ from datasets import Dataset
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.trajectory import (
+from planet_md import config
+from planet_md.trajectory import (
     compute_autocorrelation,
     compute_contacts,
     compute_rmsf,

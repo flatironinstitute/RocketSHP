@@ -1,7 +1,7 @@
 from pathlib import Path
 
-from rocketshp.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
-from rocketshp.data.utils import MDDataModule, MDDataset
+from planet_md.config import PROCESSED_DATA_DIR, RAW_DATA_DIR
+from planet_md.data.utils import MDDataModule, MDDataset
 
 ATLAS_PDBS_DIR = RAW_DATA_DIR / "atlas"
 ATLAS_FOLDSEEK_CLUSTERS_FILE = (

@@ -7,10 +7,10 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.esm3 import get_structure_vae
-from rocketshp.features import esm3_vqvae
-from rocketshp.trajectory import frame_to_chain, normalize
+from planet_md import config
+from planet_md.esm3 import get_structure_vae
+from planet_md.features import esm3_vqvae
+from planet_md.trajectory import frame_to_chain, normalize
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 RESULT_DIR = config.PROCESSED_DATA_DIR / "atlas/esm_shp"

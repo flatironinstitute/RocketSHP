@@ -6,7 +6,7 @@ import subprocess as sp
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
+from planet_md import config
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"

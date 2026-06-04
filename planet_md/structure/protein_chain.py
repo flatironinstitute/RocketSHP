@@ -17,14 +17,14 @@ from biotite.structure.io.pdb import PDBFile
 from scipy.spatial.distance import pdist, squareform
 from torch import Tensor
 
-from rocketshp.structure import residue_constants as RC
-from rocketshp.structure.affine3d import Affine3D
-from rocketshp.structure.normalize_coordinates import (
+from planet_md.structure import residue_constants as RC
+from planet_md.structure.affine3d import Affine3D
+from planet_md.structure.normalize_coordinates import (
     apply_frame_to_coords,
     get_protein_normalization_frame,
     normalize_coordinates,
 )
-from rocketshp.utils import slice_python_object_as_numpy
+from planet_md.utils import slice_python_object_as_numpy
 
 CHAIN_ID_CONST = "A"
 

@@ -7,8 +7,8 @@ from loguru import logger
 from scipy.stats import entropy
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.atlas import ATLASDataModule
+from planet_md import config
+from planet_md.data.atlas import ATLASDataModule
 
 plt.rcParams.update(
     {

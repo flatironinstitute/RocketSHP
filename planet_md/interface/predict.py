@@ -7,11 +7,11 @@ from biotite.structure import to_sequence
 from biotite.structure.io import pdb
 from torch.nn.functional import softmax
 
-from rocketshp.esm3 import get_model, get_structure_vae, get_tokenizers
-from rocketshp.features import esm3_sequence, esm3_vqvae
-from rocketshp.modeling.architectures import RocketSHPModel as RocketSHP
-from rocketshp.plot import plot_predictions
-from rocketshp.structure.protein_chain import ProteinChain
+from planet_md.esm3 import get_model, get_structure_vae, get_tokenizers
+from planet_md.features import esm3_sequence, esm3_vqvae
+from planet_md.modeling.architectures import PlanetMDModel as RocketSHP
+from planet_md.plot import plot_predictions
+from planet_md.structure.protein_chain import ProteinChain
 
 app = typer.Typer(pretty_exceptions_enable=False)
 
@@ -109,7 +109,7 @@ def main(
     # Access prediction results
     rmsf = dynamics_pred["rmsf"].squeeze().cpu().numpy()
     gcc_lmi = dynamics_pred["gcc_lmi"].squeeze().cpu().numpy()
-    ca_dist = dynamics_pred["ca_dist"].squeeze().cpu().numpy()
+    _ = dynamics_pred["ca_dist"].squeeze().cpu().numpy()
     shp = softmax(dynamics_pred["shp"].squeeze(), dim=1).cpu().numpy()
 
     # Visualize results

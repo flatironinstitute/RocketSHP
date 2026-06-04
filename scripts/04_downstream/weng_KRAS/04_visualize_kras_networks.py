@@ -8,8 +8,8 @@ import numpy as np
 import torch
 from loguru import logger
 
-from rocketshp import config
-from rocketshp.network import display_network, pairwise_correlation_to_network
+from planet_md import config
+from planet_md.network import display_network, pairwise_correlation_to_network
 
 plt.rcParams.update(
     {

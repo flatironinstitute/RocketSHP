@@ -5,7 +5,7 @@ from dataclasses import dataclass
 
 import torch
 
-from rocketshp.utils import fp32_autocast_context
+from planet_md.utils import fp32_autocast_context
 
 
 @T.runtime_checkable

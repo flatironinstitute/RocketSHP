@@ -8,10 +8,10 @@ import mdtraj as md
 import nglview as nv
 import numpy as np
 import torch
-from biotite.structure.alphabet import to_3di, I3DSequence
+from biotite.structure.alphabet import to_3di
 from statsmodels.tsa.stattools import acf
 
-from rocketshp.structure.protein_chain import ProteinChain
+from planet_md.structure.protein_chain import ProteinChain
 
 FS_3DI_LIST = [
     "L",

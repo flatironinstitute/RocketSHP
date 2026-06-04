@@ -14,8 +14,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import pearsonr, spearmanr
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.network import build_allosteric_network, calculate_centrality
+from planet_md import config
+from planet_md.network import build_allosteric_network, calculate_centrality
 
 plt.rcParams.update(
     {

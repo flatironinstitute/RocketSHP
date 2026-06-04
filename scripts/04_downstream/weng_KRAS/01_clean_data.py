@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import seaborn as sns
 
-from rocketshp.config import RAW_DATA_DIR
+from planet_md.config import RAW_DATA_DIR
 
 plt.rcParams.update(
     {

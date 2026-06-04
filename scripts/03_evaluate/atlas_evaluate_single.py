@@ -12,10 +12,10 @@ from omegaconf import OmegaConf
 from scipy.stats import entropy, pearsonr, spearmanr
 from torch.nn.functional import softmax
 
-from rocketshp import config
-from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.modeling.architectures import RocketSHPModel
-from rocketshp.trajectory import compute_rmsf
+from planet_md import config
+from planet_md.data.atlas import ATLASDataModule
+from planet_md.modeling.architectures import PlanetMDModel
+from planet_md.trajectory import compute_rmsf
 
 plt.rcParams.update(
     {
@@ -79,7 +79,7 @@ logger.info(
 
 # %%
 
-model = RocketSHPModel.load_from_checkpoint("latest")
+model = PlanetMDModel.load_from_checkpoint("latest")
 model = model.to(device)
 model = model.eval()
 

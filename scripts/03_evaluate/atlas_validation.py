@@ -12,9 +12,9 @@ from loguru import logger
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.metrics import (
+from planet_md import config
+from planet_md.data.atlas import ATLASDataModule
+from planet_md.metrics import (
     ipsen_mikhailov_distance,
     kl_divergence_2d,
     mae,
@@ -23,7 +23,7 @@ from rocketshp.metrics import (
     spearman,
     wasserstein_2d,
 )
-from rocketshp.modeling.architectures import RocketSHPModel
+from planet_md.modeling.architectures import PlanetMDModel
 
 plt.rcParams.update(
     {
@@ -92,7 +92,7 @@ ads = adl.dataset
 
 # %% Load model
 logger.info("Loading model...")
-model = RocketSHPModel.load_from_checkpoint(CHECKPOINT_FILE, strict=True)
+model = PlanetMDModel.load_from_checkpoint(CHECKPOINT_FILE, strict=True)
 model = model.to(device)
 
 

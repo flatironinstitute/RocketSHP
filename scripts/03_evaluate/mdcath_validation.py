@@ -12,9 +12,9 @@ from loguru import logger
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.mdcath import MDCathDataModule
-from rocketshp.metrics import (
+from planet_md import config
+from planet_md.data.mdcath import MDCathDataModule
+from planet_md.metrics import (
     ipsen_mikhailov_distance,
     kl_divergence_2d,
     mae,
@@ -23,7 +23,7 @@ from rocketshp.metrics import (
     spearman,
     wasserstein_2d,
 )
-from rocketshp.modeling.architectures import RocketSHPModel
+from planet_md.modeling.architectures import PlanetMDModel
 
 plt.rcParams.update(
     {
@@ -59,7 +59,9 @@ parser.add_argument(
 # device = args.device
 
 EVAL_KEY = "mdcath_large_ep10"
-CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250519_mdcath_large.yml"
+CONFIG_FILE = (
+    "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250519_mdcath_large.yml"
+)
 CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/full_model_mdcath_5/model-epoch=10-val_loss=0.80151.pt.ckpt"
 device = "cuda:0"
 
@@ -99,7 +101,7 @@ ads = adl.dataset
 
 # %% Load model
 logger.info("Loading model...")
-model = RocketSHPModel.load_from_checkpoint(CHECKPOINT_FILE, strict=True)
+model = PlanetMDModel.load_from_checkpoint(CHECKPOINT_FILE, strict=True)
 model = model.to(device)
 
 
@@ -167,9 +169,13 @@ seq_lengths = []
 #     k = adl.dataset.samples[adl.train_data.indices[i]]
 #     seq_lengths.append((k, "train", f[1]["rmsf"].shape[0]))
 
-train_seq_keys = set([adl.dataset.samples[i].split("/")[0] for i in adl.train_data.indices])
+train_seq_keys = set(
+    [adl.dataset.samples[i].split("/")[0] for i in adl.train_data.indices]
+)
 val_seq_keys = set([adl.dataset.samples[i].split("/")[0] for i in adl.val_data.indices])
-test_seq_keys = set([adl.dataset.samples[i].split("/")[0] for i in adl.test_data.indices])
+test_seq_keys = set(
+    [adl.dataset.samples[i].split("/")[0] for i in adl.test_data.indices]
+)
 
 for k in train_seq_keys:
     seq_lengths.append((k, "train", adl.dataset._handle[k]["embedding"].shape[0]))

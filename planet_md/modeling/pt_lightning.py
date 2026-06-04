@@ -3,9 +3,9 @@ from functools import partial
 import lightning as L
 import torch
 import torch.nn.functional as F
+from loguru import logger
 from omegaconf import OmegaConf
 from torch import nn
-from loguru import logger
 
 
 def compute_masked_mse_loss(outputs, labels, lengths, rmse=False, pad_value=0.0):

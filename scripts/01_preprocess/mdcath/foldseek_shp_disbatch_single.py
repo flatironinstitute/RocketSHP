@@ -9,9 +9,9 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.mdcath import convert_to_mdtraj
-from rocketshp.trajectory import frame_to_chain, normalize
+from planet_md import config
+from planet_md.data.mdcath import convert_to_mdtraj
+from planet_md.trajectory import frame_to_chain, normalize
 
 MDCATH_DATA_DIR = config.RAW_DATA_DIR / "mdcath"
 RESULT_DIR = config.PROCESSED_DATA_DIR / "mdcath/fs_shp"

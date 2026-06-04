@@ -9,10 +9,10 @@ from esm.utils.generation import _stack_protein_tensors
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp.config import PROCESSED_DATA_DIR
-from rocketshp.structure.affine3d import build_affine3d_from_coordinates
-from rocketshp.structure.normalize_coordinates import normalize_coordinates
-from rocketshp.structure.protein_chain import ProteinChain
+from planet_md.config import PROCESSED_DATA_DIR
+from planet_md.structure.affine3d import build_affine3d_from_coordinates
+from planet_md.structure.normalize_coordinates import normalize_coordinates
+from planet_md.structure.protein_chain import ProteinChain
 
 app = typer.Typer()
 
