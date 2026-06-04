@@ -161,7 +161,7 @@ def single_run(
             tags.append("sweep")
 
         wandb_run = wandb.init(
-            project=PARAMS.get("wandb_project", "RocketSHP"),
+            project=PARAMS.get("wandb_project", "PLANET_MD"),
             entity=PARAMS.get("wandb_entity", None),
             name=run_name,
             tags=tags,
@@ -292,7 +292,7 @@ def generate_sweep(
     stdout_logger.info(f"Generated {len(configs)} sweep configurations")
     stdout_logger.info(f"Sweep data saved to: {output_file}")
     stdout_logger.info(
-        f"To run sweep, use: python -m rocketshp.interface.train_sweep run-sweep-from-file {output_file}"
+        f"To run sweep, use: python -m planet_md.interface.train_sweep run-sweep-from-file {output_file}"
     )
 
     return output_file
@@ -399,7 +399,7 @@ def analyze_sweep(
 
     api = wandb.Api()
     entity = PARAMS.get("wandb_entity")
-    project = PARAMS.get("wandb_project", "RocketSHP")
+    project = PARAMS.get("wandb_project", "PLANET_MD")
 
     # Construct project path
     if entity:

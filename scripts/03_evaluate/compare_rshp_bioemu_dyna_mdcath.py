@@ -47,7 +47,7 @@ plt.rcParams.update(
 # %% Paths
 
 parser = argparse.ArgumentParser(
-    description="Compare RocketSHP, Dyna-1, and BioEMU results"
+    description="Compare PLANET-MD, Dyna-1, and BioEMU results"
 )
 parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
 parser.add_argument(
@@ -62,7 +62,9 @@ split = "test"
 
 reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
 dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_mdcath_results/")
-bioemu_results_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_mdcath_results_100/")
+bioemu_results_root = Path(
+    "/mnt/home/ssledzieski/GitHub/bioemu/rshp_mdcath_results_100/"
+)
 rshp_results_pickle = (
     config.EVALUATION_DATA_DIR
     / "evaluations"
@@ -93,7 +95,9 @@ TEMP_0 = "320"
 
 with open(rshp_results_pickle, "rb") as f:
     rshp_pickle = pk.load(f)
-rshp_all = {"_".join(k.split("/")[:2]): v for k, v in rshp_pickle.items() if k.endswith("R1")}
+rshp_all = {
+    "_".join(k.split("/")[:2]): v for k, v in rshp_pickle.items() if k.endswith("R1")
+}
 rshp_results = {k.split("_")[0]: v for k, v in rshp_all.items() if k.endswith(TEMP_0)}
 rshp_rmsf = {k: v["rmsf"].numpy() for k, v in rshp_results.items()}
 rshp_gcc = {k: v["gcc_lmi"].numpy() for k, v in rshp_results.items()}
@@ -117,10 +121,11 @@ bioemu_100_gcc = {}
 bioemu_100_shp = {}
 
 for k in tqdm(rshp_results.keys(), desc="Load BioEMU Results"):
-
-    bioemu_100_path = bioemu_results_root/ f"{k}_100"
+    bioemu_100_path = bioemu_results_root / f"{k}_100"
     try:
-        assert (bioemu_100_path / "topology.pdb").exists(), f"BioEMU 100 results not found: {bioemu_100_path}"
+        assert (bioemu_100_path / "topology.pdb").exists(), (
+            f"BioEMU 100 results not found: {bioemu_100_path}"
+        )
     except AssertionError:
         logger.warning(f"Chain {k} not yet complete, skipping")
         continue
@@ -585,7 +590,9 @@ for pair, stats in zip(pairs, test_results):
 gcc_results = []
 for k, v in tqdm(bioemu_100_gcc.items()):
     network_size = v.shape[0]
-    rshp_gdd = graph_diffusion_distance(rshp_gcc[k], reference_gcc[k], beta=1 / network_size)
+    rshp_gdd = graph_diffusion_distance(
+        rshp_gcc[k], reference_gcc[k], beta=1 / network_size
+    )
     rshp_imsd = ipsen_mikhailov_distance(rshp_gcc[k], reference_gcc[k])
     bioemu_100_gdd = graph_diffusion_distance(
         bioemu_100_gcc[k], reference_gcc[k], beta=1 / network_size

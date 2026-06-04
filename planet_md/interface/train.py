@@ -73,7 +73,7 @@ def main(
     else:
         # PARAMS.epoch_scale = -1
         wandb_logger = WandbLogger(
-            project=PARAMS.get("wandb_project", "RocketSHP"),
+            project=PARAMS.get("wandb_project", "PLANET_MD"),
             entity=PARAMS.get("wandb_entity", None),
             name=run_id,
             log_model=True,

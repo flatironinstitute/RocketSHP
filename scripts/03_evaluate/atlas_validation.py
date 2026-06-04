@@ -41,7 +41,7 @@ plt.rcParams.update(
 
 # %% Script inputs
 
-parser = argparse.ArgumentParser(description="Evaluate RocketSHP model")
+parser = argparse.ArgumentParser(description="Evaluate PLANET-MD model")
 parser.add_argument("eval_key", type=str, help="Key for the evaluation")
 parser.add_argument("model", type=str, help="Path to the model checkpoint")
 parser.add_argument("config_file", type=str, help="Path to the config file")
@@ -333,7 +333,7 @@ with open(valid_met_path, "rb") as f:
 with open(test_met_path, "rb") as f:
     test_metrics = pk.load(f)
 
-# %% Plot just RocketSHP results
+# %% Plot just PLANET_MD results
 logger.info("Plotting metrics...")
 fig, ax = plt.subplots(figsize=(8, 8))
 if args.split == "valid":
@@ -369,7 +369,7 @@ ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 ax.set_yscale("log")
 
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_mse.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_rmsf_mse.svg")
 
 # %%
 fig, ax = plt.subplots(figsize=(8, 8))
@@ -387,7 +387,7 @@ ax.set_xlabel("Spearman Correlation of RMSF")
 ax.set_ylabel("-log10(p)")
 
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_spearman.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_rmsf_spearman.svg")
 
 # %%
 fig, ax = plt.subplots(figsize=(8, 8))
@@ -419,7 +419,7 @@ ax.set_xlabel("")
 ax.set_ylabel("Ipsen-Mikhailov Distance of GCC")
 
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_gcc_im_dist.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_gcc_im_dist.svg")
 
 # %%
 fig, ax = plt.subplots(figsize=(8, 8))
@@ -452,7 +452,7 @@ ax.set_ylabel("KL Divergence of SHP")
 
 plt.tight_layout()
 plt.savefig(
-    FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_shp_kl_div.svg",
+    FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_shp_kl_div.svg",
     dpi=300,
     bbox_inches="tight",
 )

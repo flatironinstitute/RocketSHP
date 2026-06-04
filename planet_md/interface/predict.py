@@ -9,7 +9,7 @@ from torch.nn.functional import softmax
 
 from planet_md.esm3 import get_model, get_structure_vae, get_tokenizers
 from planet_md.features import esm3_sequence, esm3_vqvae
-from planet_md.modeling.architectures import PlanetMDModel as RocketSHP
+from planet_md.modeling.architectures import PlanetMDModel as PlanetMD
 from planet_md.plot import plot_predictions
 from planet_md.structure.protein_chain import ProteinChain
 
@@ -87,7 +87,7 @@ def main(
     device = torch.device(device)
 
     # Load the model
-    model = RocketSHP.load_from_checkpoint(model_path).to(device)
+    model = PlanetMD.load_from_checkpoint(model_path).to(device)
 
     # Load structure file (PDB)
     structure = pdb.PDBFile.read(pdb_path).get_structure()

@@ -45,7 +45,7 @@ class PARAMETER_STRUCT:
     random_seed: int = 0
     train_pct: float = 0.8
     val_pct: float = 0.1
-    wandb_project: str = "RocketSHP"
+    wandb_project: str = "PLANET_MD"
     wandb_entity: str | None = "samsl"
     embedding_dim: int = 1536
     output_dim: int = 1
