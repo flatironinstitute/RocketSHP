@@ -2,7 +2,7 @@
 # GLOBALS                                                                       #
 #################################################################################
 
-PROJECT_NAME = rocketshp
+PROJECT_NAME = planet_md
 PYTHON_VERSION = 3.11
 PYTHON_INTERPRETER = python
 
@@ -30,19 +30,19 @@ clean:
 ## Lint using ruff (use `make format` to do formatting)
 .PHONY: lint
 lint:
-	ruff check rocketshp scripts --fix
-	ruff format rocketshp scripts notebooks
+	ruff check planet_md scripts --fix
+	ruff format planet_md scripts notebooks
 
 ## Format source code with black
 .PHONY: format
 format:
-	ruff format rocketshp scripts notebooks
+	ruff format planet_md scripts notebooks
 
 ## Set up python interpreter environment
 .PHONY: create_environment
 create_environment:
 	mamba env create --name $(PROJECT_NAME) -f environment.yml
-	
+
 	@echo ">>> conda env created. Activate with:\nmamba activate $(PROJECT_NAME)"
 
 
@@ -54,7 +54,7 @@ create_environment:
 ## Make Dataset
 # .PHONY: data
 # data: requirements
-# 	$(PYTHON_INTERPRETER) rocketshp/dataset.py
+# 	$(PYTHON_INTERPRETER) planet_md/dataset.py
 
 
 #################################################################################

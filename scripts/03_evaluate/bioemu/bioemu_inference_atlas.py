@@ -9,9 +9,9 @@ from biotite.sequence import ProteinSequence
 from loguru import logger
 from tqdm import tqdm
 
-num_samples = 100
+num_samples = 5000
 data_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data")
-output_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_atlas_results_100")
+output_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_atlas_results_5000")
 atlas_data = data_root / "raw/atlas"
 
 

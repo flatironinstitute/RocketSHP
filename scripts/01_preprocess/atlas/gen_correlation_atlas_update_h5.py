@@ -3,8 +3,8 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.utils import update_h5_dataset
+from planet_md import config
+from planet_md.data.utils import update_h5_dataset
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"

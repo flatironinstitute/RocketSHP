@@ -4,7 +4,7 @@ import numpy as np
 from tqdm import tqdm
 from loguru import logger
 
-from rocketshp.trajectory import compute_generalized_correlation_lmi
+from planet_md.trajectory import compute_generalized_correlation_lmi
 
 bioemu_100_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_mdcath_results_100/")
 bioemu_100_results = sorted(bioemu_100_root.glob("*_100"))

@@ -5,7 +5,7 @@ from pathlib import Path
 import matplotlib.pyplot as plt
 import numpy as np
 
-from rocketshp import config
+from planet_md import config
 
 # %% Paths
 bioemu_results_dir = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results_100")

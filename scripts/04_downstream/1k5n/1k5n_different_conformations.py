@@ -3,7 +3,7 @@ import mdtraj as md
 import seaborn as sns
 from loguru import logger
 
-from rocketshp import config
+from planet_md import config
 
 data_dir = config.RAW_DATA_DIR / "atlas"
 

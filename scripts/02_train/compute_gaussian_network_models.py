@@ -5,7 +5,7 @@ import numpy as np
 from prody import GNM, parsePDB
 from tqdm import tqdm
 
-from rocketshp import config
+from planet_md import config
 
 # %% File paths
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"

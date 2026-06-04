@@ -8,11 +8,11 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.esm3 import get_model, get_structure_vae, get_tokenizers
-from rocketshp.features import esm3_sequence, esm3_vqvae
-from rocketshp.modeling.architectures import RocketSHPModel
-from rocketshp.structure.protein_chain import ProteinChain
+from planet_md import config
+from planet_md.esm3 import get_model, get_structure_vae, get_tokenizers
+from planet_md.features import esm3_sequence, esm3_vqvae
+from planet_md.modeling.architectures import PlanetMDModel
+from planet_md.structure.protein_chain import ProteinChain
 
 plt.rcParams.update(
     {
@@ -69,7 +69,7 @@ esm_tokenizers = get_tokenizers()
 logger.info("Loading RocketSHP model...")
 # checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
 
-rshp_model = RocketSHPModel.load_from_checkpoint(checkpoint, strict=False)
+rshp_model = PlanetMDModel.load_from_checkpoint(checkpoint, strict=False)
 rshp_model = rshp_model.to(DEVICE)
 
 
@@ -194,7 +194,9 @@ logger.info(f"Time taken: {end - start:.2f} seconds")
 logger.info(f"Time taken per mutant: {(end - start) / len(mutant_results):.2f} seconds")
 
 # %% Save mutant prediction results
-logger.info(f"Saving mutant results to {config.REPORTS_DIR / EVAL_KEY / 'mutant_results.pkl'}")
+logger.info(
+    f"Saving mutant results to {config.REPORTS_DIR / EVAL_KEY / 'mutant_results.pkl'}"
+)
 with open(config.REPORTS_DIR / EVAL_KEY / "mutant_results.pkl", "wb") as f:
     pk.dump(mutant_results, f)
 # %%

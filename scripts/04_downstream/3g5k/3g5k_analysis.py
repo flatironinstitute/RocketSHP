@@ -3,8 +3,8 @@ import matplotlib.pyplot as plt
 import mdtraj as md
 import seaborn as sns
 
-from rocketshp import config
-from rocketshp.trajectory import compute_rmsf, normalize
+from planet_md import config
+from planet_md.trajectory import compute_rmsf, normalize
 
 # %% Load single trajectory from ATLAS
 key = "3g5k_D"

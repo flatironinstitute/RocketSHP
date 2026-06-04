@@ -19,13 +19,13 @@ from statannotations.Annotator import Annotator
 from torch.nn.functional import softmax
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.metrics import (
+from planet_md import config
+from planet_md.metrics import (
     graph_diffusion_distance,
     ipsen_mikhailov_distance,
     kl_divergence_2d,
 )
-from rocketshp.trajectory import (
+from planet_md.trajectory import (
     compute_rmsf,
     compute_shp,
 )
@@ -93,7 +93,7 @@ with h5py.File(MDCATH_H5, "r") as h5fi:
     for k in tqdm(
         rshp_all.keys(), total=len(rshp_all), desc="Load Reference Results"
     ):
-        
+
         k0, temp = k.split("_")
 
         if k0 not in h5fi:
@@ -107,7 +107,7 @@ with h5py.File(MDCATH_H5, "r") as h5fi:
 def scale_bfactors(bfactors_T1, T1, T2, k=0.0045):
     """
     Scale B-factors from temperature T1 to temperature T2.
-    
+
     Parameters:
     -----------
     bfactors_T1 : array-like
@@ -118,7 +118,7 @@ def scale_bfactors(bfactors_T1, T1, T2, k=0.0045):
         Target temperature in Kelvin
     k : float
         Thermal constant (default=0.0045 K⁻¹)
-        
+
     Returns:
     --------
     array-like
@@ -126,7 +126,7 @@ def scale_bfactors(bfactors_T1, T1, T2, k=0.0045):
     """
     scaling_factor = np.exp(k * (T2 - T1))
     bfactors_T2 = bfactors_T1 * scaling_factor
-    
+
     return bfactors_T2
 
 # %% Compute RMSE and spearman correlation for all systems
@@ -211,8 +211,8 @@ plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='rmse', 
+    x='temperature',
+    y='rmse',
     data=results_df,
     fill=False,
     fliersize=0,
@@ -223,8 +223,8 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='rmse', 
+    x='temperature',
+    y='rmse',
     data=results_df,
     dodge=True,
     alpha=0.5,
@@ -251,8 +251,8 @@ plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='spearman_stat', 
+    x='temperature',
+    y='spearman_stat',
     data=results_df,
     fill=False,
     fliersize=0,
@@ -263,8 +263,8 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='spearman_stat', 
+    x='temperature',
+    y='spearman_stat',
     data=results_df,
     dodge=True,
     alpha=0.5,
@@ -291,8 +291,8 @@ plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='rmse', 
+    x='temperature',
+    y='rmse',
     hue='method',
     hue_order=[ "Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
@@ -305,8 +305,8 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='rmse', 
+    x='temperature',
+    y='rmse',
     hue='method',
     hue_order=["Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
@@ -336,8 +336,8 @@ plt.figure(figsize=(15, 8))
 
 # Create the box plot
 sns.boxplot(
-    x='temperature', 
-    y='spearman_stat', 
+    x='temperature',
+    y='spearman_stat',
     hue='method',
     hue_order=[ "Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
@@ -350,8 +350,8 @@ sns.boxplot(
 
 # Add jittered points to show individual data points
 sns.stripplot(
-    x='temperature', 
-    y='spearman_stat', 
+    x='temperature',
+    y='spearman_stat',
     hue='method',
     hue_order=["Exponential Thermal Dependence", "RocketSHP"],
     data=joint_results_df,
@@ -433,12 +433,12 @@ plt.savefig(
 
 # %% Write out PDB files of the true RMSF at 320K and 450K
 
-reference_root = config.PROCESSED_DATA_DIR / "mdcath" 
+reference_root = config.PROCESSED_DATA_DIR / "mdcath"
 
 def write_rmsf_pdb(system, temp, rmsf_values, output_dir):
     """
     Write RMSF values to a PDB file.
-    
+
     Parameters:
     -----------
     system : str
@@ -451,26 +451,26 @@ def write_rmsf_pdb(system, temp, rmsf_values, output_dir):
         Directory to save the PDB file.
     """
     pdb_file = output_dir / f"{system}_T{temp}_rmsf.pdb"
-    
+
     # Load the reference PDB file for the system
     ref_pdb_path = reference_root / system / f"{system}.pdb"
     structure = bs.io.load_structure(ref_pdb_path)
-    
+
     # Expand per-residue RMSF values to per-atom values
     # Get unique residue IDs to map RMSF values
     unique_res_ids = np.unique(structure.res_id)
-    
+
     # Create atom-level B-factors by mapping residue RMSF to all atoms in that residue
     atom_bfactors = np.zeros(len(structure))
     for i, res_id in enumerate(unique_res_ids):
         if i < len(rmsf_values):  # Safety check
             atom_mask = structure.res_id == res_id
             atom_bfactors[atom_mask] = rmsf_values[i]
-    
+
     # Set B-factors
     structure.add_annotation("b_factor", dtype=float)
     structure.set_annotation("b_factor", atom_bfactors)
-    
+
     # Write to PDB file
     bs.io.save_structure(pdb_file, structure)
     logger.info(f"Wrote RMSF PDB file: {pdb_file}")

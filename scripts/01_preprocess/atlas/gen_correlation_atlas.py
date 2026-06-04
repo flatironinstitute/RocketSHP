@@ -10,7 +10,7 @@ import torch
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
+from planet_md import config
 
 os.environ["LOGURU_LEVEL"] = "INFO"
 

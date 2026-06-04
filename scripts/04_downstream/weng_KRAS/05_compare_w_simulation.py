@@ -16,14 +16,14 @@ from biotite.structure.io import pdb
 from biotite.structure import to_sequence
 from biotite.structure.io import pdb, xtc
 
-from rocketshp import config, RocketSHP, load_sequence, load_structure
-from rocketshp.trajectory import (
+from planet_md import config, RocketSHP, load_sequence, load_structure
+from planet_md.trajectory import (
     compute_rmsf,
     compute_generalized_correlation_lmi,
     compute_contacts,
     compute_shp,
 )
-from rocketshp.plot import plot_predictions
+from planet_md.plot import plot_predictions
 
 plt.rcParams.update(
     {
@@ -210,10 +210,10 @@ with plt.style.context({
     ax[1].set_xlabel("Residue Index")
     ax[1].set_ylabel("Structure\nToken")
     ax[1].set_ylim(21, -1)
-    
+
     for c, region, color in zip(clusters, REGION_LIST, COLOR_LIST):
         for i, span in enumerate(res_list_to_span(c)):
-            ax[0].axvspan(span[0], span[1], 
+            ax[0].axvspan(span[0], span[1],
                         color=color, alpha=0.3)
             ax[1].axvspan(span[0], span[1],
                         color=color, alpha=0.3)

@@ -7,16 +7,16 @@ from loguru import logger
 from omegaconf import OmegaConf
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.atlas import ATLASDataModule
-from rocketshp.esm3 import (
+from planet_md import config
+from planet_md.data.atlas import ATLASDataModule
+from planet_md.esm3 import (
     get_model,
     get_structure_vae,
     get_tokenizers,
 )
-from rocketshp.features import esm3_sequence, esm3_vqvae
-from rocketshp.modeling.architectures import (
-    RocketSHPModel,
+from planet_md.features import esm3_sequence, esm3_vqvae
+from planet_md.modeling.architectures import (
+    PlanetMDModel,
 )
 
 logger.info("Loading models...")
@@ -32,7 +32,7 @@ tokenizers = get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
 EVAL_KEY = "rshp_mini"
-model = RocketSHPModel.load_from_checkpoint("v1_mini", strict=False)
+model = PlanetMDModel.load_from_checkpoint("v1_mini", strict=False)
 model = model.to(device)
 
 PARAMS = config.DEFAULT_PARAMETERS

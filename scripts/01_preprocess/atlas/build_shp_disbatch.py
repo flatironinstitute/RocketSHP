@@ -5,7 +5,7 @@ import torch
 from datasets import Dataset
 from tqdm import tqdm
 
-from rocketshp import config
+from planet_md import config
 
 # %%
 # disbatch_tasks_file = f"{config.PROJ_ROOT}/scripts/01_preprocess/atlas/atlas_shp_disbatch.tasks.txt"

@@ -13,7 +13,7 @@ module load python/3.11.7
 module load cudnn/8.9.7.29-12
 module load nccl/2.20.3-1
 module load gcc
-source ~/venvs/rocketshp/bin/activate
-
 cd $HOME/Projects/rocketshp
+source .venv/bin/activate
+
 rocketshp_train $SLURM_JOB_NAME --config $RSHP_CONFIG

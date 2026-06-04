@@ -1,10 +1,10 @@
 # %% Imports
 import os
-import numpy as np
 import pickle as pk
 
 import matplotlib.pyplot as plt
 import networkx as nx
+import numpy as np
 import pandas as pd
 import seaborn as sns
 import torch
@@ -14,8 +14,8 @@ from mpl_toolkits.axes_grid1 import make_axes_locatable
 from scipy.stats import pearsonr, spearmanr
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.network import build_allosteric_network, calculate_centrality
+from planet_md import config
+from planet_md.network import build_allosteric_network, calculate_centrality
 
 plt.rcParams.update(
     {
@@ -82,7 +82,7 @@ for pos_i, mutants in tqdm(
 
         # compute centrality
         allo_net = build_allosteric_network(
-            m_dict["gcc_lmi"], m_dict["ca_dist"], distance_cutoff=DIST_THRESH_ANGSTROM
+            m_dict["gcc_lmi"].numpy(), m_dict["ca_dist"].numpy(), distance_cutoff=DIST_THRESH_ANGSTROM
         )
         centrality = calculate_centrality(allo_net, do_betweenness=True, do_closeness=False, do_degree=False)['betweenness']
         pos_centrality = centrality[pos_i]
@@ -90,7 +90,7 @@ for pos_i, mutants in tqdm(
 
 # %% Process wild type
 wild_type_net = build_allosteric_network(
-    wild_type_result[3]["gcc_lmi"], wild_type_result[3]["ca_dist"], distance_cutoff=DIST_THRESH_ANGSTROM
+    wild_type_result[3]["gcc_lmi"].numpy(), wild_type_result[3]["ca_dist"].numpy(), distance_cutoff=DIST_THRESH_ANGSTROM
 )
 wild_type_centrality = calculate_centrality(wild_type_net, do_betweenness=True, do_closeness=False, do_degree=False)['betweenness']
 

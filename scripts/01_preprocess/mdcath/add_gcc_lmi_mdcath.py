@@ -5,10 +5,10 @@ import h5py
 from loguru import logger
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.data.mdcath import convert_to_files
-from rocketshp.data.utils import update_h5_dataset
-from rocketshp.trajectory import compute_generalized_correlation_lmi
+from planet_md import config
+from planet_md.data.mdcath import convert_to_files
+from planet_md.data.utils import update_h5_dataset
+from planet_md.trajectory import compute_generalized_correlation_lmi
 
 # %% Define file paths
 logger.info("Defining file paths")

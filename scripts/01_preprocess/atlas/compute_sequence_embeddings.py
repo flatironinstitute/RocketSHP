@@ -4,10 +4,10 @@ import os
 import torch
 from tqdm import tqdm
 
-from rocketshp import config
-from rocketshp.esm3 import get_model, get_tokenizers
-from rocketshp.features import esm3_sequence
-from rocketshp.structure.protein_chain import ProteinChain
+from planet_md import config
+from planet_md.esm3 import get_model, get_tokenizers
+from planet_md.features import esm3_sequence
+from planet_md.structure.protein_chain import ProteinChain
 
 ATLAS_DATA_DIR = config.RAW_DATA_DIR / "atlas"
 ATLAS_PROCESSED_DATA_DIR = config.PROCESSED_DATA_DIR / "atlas"

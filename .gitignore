@@ -185,6 +185,7 @@ slurm_logs/
 .neptune
 checkpoints/
 logs/
+wandb/
 
 # ML Models
 models/*
