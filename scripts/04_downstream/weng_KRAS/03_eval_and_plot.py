@@ -34,7 +34,7 @@ plt.rcParams.update(
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 # import argparse
-# parser = argparse.ArgumentParser(description="Evaluate RocketSHP model on DMS data")
+# parser = argparse.ArgumentParser(description="Evaluate PLANET-MD model on DMS data")
 # parser.add_argument("eval_key", type=str, help="Evaluation key")
 # parser.add_argument("--dist-thresh", type=float, help="Distance threshold for centrality calculation in angstrom [8.0]", default=8.0)
 # args = parser.parse_args()

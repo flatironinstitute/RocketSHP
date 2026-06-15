@@ -31,7 +31,7 @@ plt.rcParams.update(
 DEVICE = "cuda:0" if torch.cuda.is_available() else "cpu"
 
 # %% Parameters
-parser = argparse.ArgumentParser(description="Evaluate RocketSHP model on DMS data")
+parser = argparse.ArgumentParser(description="Evaluate PLANET-MD model on DMS data")
 parser.add_argument("eval_key", type=str, help="Evaluation key")
 parser.add_argument("checkpoint", type=str, help="Path to the checkpoint file")
 parser.add_argument("--use_struct", action="store_true", help="Use structure model")
@@ -46,9 +46,7 @@ use_struct = args.use_struct
 # EVAL_KEY = "full_seq_model"
 # EVAL_KEY = "mini_seq_model"
 
-# checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/big_model/model-epoch=29-val_loss=1.00.pt.ckpt"
-# checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/full_seq_model/model-epoch=13-val_loss=1.18.pt.ckpt"
-# checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/mini_seq_model/model-epoch=39-val_loss=1.22.pt.ckpt"
+
 
 log_file = config.REPORTS_DIR / EVAL_KEY / f"{EVAL_KEY}_dms_evaluation.log"
 logger.add(log_file, level="INFO", format="{message}", encoding="utf-8")
@@ -66,11 +64,11 @@ structure_stage = "encoded"
 logger.info("Loading tokenizers")
 esm_tokenizers = get_tokenizers()
 
-logger.info("Loading RocketSHP model...")
-# checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
+logger.info("Loading PLANET-MD model...")
 
-rshp_model = PlanetMDModel.load_from_checkpoint(checkpoint, strict=False)
-rshp_model = rshp_model.to(DEVICE)
+
+planet_md_model = PlanetMDModel.load_from_checkpoint(checkpoint, strict=False)
+planet_md_model = planet_md_model.to(DEVICE)
 
 
 # %% Run inference function
@@ -168,7 +166,7 @@ logger.info("Running inference on wildtype sequence")
 wt_result = run_inference(
     wt_sequence,
     kras_struct,
-    rshp_model,
+    planet_md_model,
     esm_model,
     esm_structure_model,
     esm_tokenizers,
@@ -186,7 +184,12 @@ for pos, aa, mutant in tqdm(
     iter_mutants(wt_sequence), total=len(wt_sequence) * (len(AMINO_ACIDS) - 1)
 ):
     mutant_result = run_inference(
-        mutant, kras_struct, rshp_model, esm_model, esm_structure_model, esm_tokenizers
+        mutant,
+        kras_struct,
+        planet_md_model,
+        esm_model,
+        esm_structure_model,
+        esm_tokenizers,
     )
     mutant_results.append((pos, aa, mutant, mutant_result))
 end = time.time()

@@ -13,9 +13,10 @@ module load cudnn
 module load nccl
 module load cuda
 # module load openmm
-source ~/venvs/scc-rocketshp/bin/activate
-
-cd $HOME/Projects/rocketshp
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+PLANET_MD_VENV=${PLANET_MD_VENV:-$PLANET_MD_DIR/.venv}
+cd "$PLANET_MD_DIR"
+source "$PLANET_MD_VENV/bin/activate"
 # python scripts/01_preprocess/mdcath/process_mdcath_cpu.py 0 16200
 # python scripts/01_preprocess/mdcath/process_mdcath_cpu.py 16200 32400
 # python scripts/01_preprocess/mdcath/process_mdcath_cpu.py 32400 48600

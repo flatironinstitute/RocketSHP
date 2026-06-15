@@ -187,9 +187,13 @@ checkpoints/
 logs/
 wandb/
 
+# Local cluster environment config (copy from scripts/env.sh.example)
+scripts/env.sh
+
 # ML Models
 models/*
 !models/rocketshp_pretrained*
+!models/planet_md_pretrained*
 
 # Presentation
 img/

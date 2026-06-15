@@ -13,7 +13,9 @@ module load python/3.11.7
 module load cudnn/8.9.7.29-12
 module load nccl/2.20.3-1
 module load gcc
-cd $HOME/Projects/rocketshp
-source .venv/bin/activate
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+PLANET_MD_VENV=${PLANET_MD_VENV:-$PLANET_MD_DIR/.venv}
+cd "$PLANET_MD_DIR"
+source "$PLANET_MD_VENV/bin/activate"
 
-rocketshp_train $SLURM_JOB_NAME --config $RSHP_CONFIG
+planet_md_train $SLURM_JOB_NAME --config $PLANET_MD_CONFIG

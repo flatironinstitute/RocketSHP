@@ -41,31 +41,31 @@ PROTEOME_SIZE = 25_000
 SWISSPROT_SIZE = 500_000
 AFDB_SIZE = 200_000_000
 
-# %% RSHP TIMES
+# %% PLANET-MD TIMES
 
-rshp_runtime_root = config.PROCESSED_DATA_DIR / "runtime_profile" / "20250427_large"
-rshp_times = []
-for p in sorted(rshp_runtime_root.glob("*runtime.txt")):
+planet_md_runtime_root = config.PROCESSED_DATA_DIR / "runtime_profile" / "20250427_large"
+planet_md_times = []
+for p in sorted(planet_md_runtime_root.glob("*runtime.txt")):
     with open(p) as f:
         lines = f.read()
         time_sec = float(reg.search(lines).group(1))
-        rshp_times.append(time_sec)
-RSHP_TIME = np.mean(rshp_times) * seconds
-logger.info(f"RocketSHP time: {RSHP_TIME:.5f} seconds")
+        planet_md_times.append(time_sec)
+PLANET_MD_TIME = np.mean(planet_md_times) * seconds
+logger.info(f"PLANET-MD time: {PLANET_MD_TIME:.5f} seconds")
 
-# RSHP_TIME_PER_EMBED = 0.1758 * seconds
-# RSHP_TIME_PER_INFERENCE = 0.01050 * seconds
-# RSHP_TIME = RSHP_TIME_PER_EMBED + RSHP_TIME_PER_INFERENCE
+# PLANET_MD_TIME_PER_EMBED = 0.1758 * seconds
+# PLANET_MD_TIME_PER_INFERENCE = 0.01050 * seconds
+# PLANET_MD_TIME = RSHP_TIME_PER_EMBED + RSHP_TIME_PER_INFERENCE
 
-rshp_mini_runtime_root = config.PROCESSED_DATA_DIR / "runtime_profile" / "rshp_mini"
-rshp_mini_times = []
-for p in sorted(rshp_mini_runtime_root.glob("*runtime.txt")):
+planet_md_mini_runtime_root = config.PROCESSED_DATA_DIR / "runtime_profile" / "rshp_mini"
+planet_md_mini_times = []
+for p in sorted(planet_md_mini_runtime_root.glob("*runtime.txt")):
     with open(p) as f:
         lines = f.read()
         time_sec = float(reg.search(lines).group(1))
-        rshp_mini_times.append(time_sec)
-RSHP_MINI_TIME = np.mean(rshp_mini_times) * seconds
-logger.info(f"RocketSHP-mini time: {RSHP_MINI_TIME:.5f} seconds")
+        planet_md_mini_times.append(time_sec)
+PLANET_MD_MINI_TIME = np.mean(planet_md_mini_times) * seconds
+logger.info(f"PLANET-MD-mini time: {PLANET_MD_MINI_TIME:.5f} seconds")
 
 # %% DYNA-1 TIME
 
@@ -123,8 +123,8 @@ AF_CLUSTER_TIME = (
 SIM_TIME = 2 * days
 
 COLOR_MAP = {
-    "RocketSHP-mini": "lightsalmon",
-    "RocketSHP": "firebrick",
+    "PLANET-MD-mini": "lightsalmon",
+    "PLANET-MD": "firebrick",
     "Dyna-1": "teal",
     "AF-Cluster": "green",
     "BioEmu (10 samples)": "lightskyblue",
@@ -137,8 +137,8 @@ COLOR_MAP = {
 # build dataframe
 time_df = pd.DataFrame(
     {
-        "RocketSHP": rshp_times[: len(bioemu_times)],
-        "RocketSHP-mini": rshp_mini_times[: len(bioemu_times)],
+        "PLANET-MD": planet_md_times[: len(bioemu_times)],
+        "PLANET-MD-mini": planet_md_mini_times[: len(bioemu_times)],
         "Dyna-1": dyna_times[: len(bioemu_times)],
         "BioEmu (100 samples)": bioemu_times[: len(bioemu_times)],
         "BioEmu (10 samples)": bioemu_10_times[: len(bioemu_times)],
@@ -147,8 +147,8 @@ time_df = pd.DataFrame(
 
 fig, ax = plt.subplots(figsize=(12, 8))
 order = [
-    "RocketSHP-mini",
-    "RocketSHP",
+    "PLANET-MD-mini",
+    "PLANET-MD",
     "Dyna-1",
     "BioEmu (10 samples)",
     "BioEmu (100 samples)",
@@ -180,8 +180,8 @@ plt.savefig(
 # %%
 
 order = [
-    "RocketSHP-mini",
-    "RocketSHP",
+    "PLANET-MD-mini",
+    "PLANET-MD",
     "Dyna-1",
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
@@ -224,8 +224,8 @@ plt.savefig(
 
 # %%
 TIME_PER_DICT = {
-    "RocketSHP": RSHP_TIME,
-    "RocketSHP-mini": RSHP_MINI_TIME,
+    "PLANET-MD": PLANET_MD_TIME,
+    "PLANET-MD-mini": PLANET_MD_MINI_TIME,
     "Dyna-1": DYNA_TIME,
     "AF-Cluster": AF_CLUSTER_TIME,
     "BioEmu (10 samples)": BIOEMU_10_TIME,
@@ -240,7 +240,7 @@ x_range = np.logspace(0, np.log10(50_000 + 1))
 
 sns.set_style("white")
 for name, time in TIME_PER_DICT.items():
-    if name in ["RocketSHP", "RocketSHP-mini", "Dyna-1"]:
+    if name in ["PLANET-MD", "PLANET-MD-mini", "Dyna-1"]:
         plt.plot(x_range, x_range * time / minutes, label=name, c=COLOR_MAP[name])
 
 for name, point in zip(
@@ -299,92 +299,3 @@ plt.savefig(
     dpi=300,)
 plt.show()
 
-#%%
-
-# import matplotlib.pyplot as plt
-# import numpy as np
-# from matplotlib.patches import Circle
-# import matplotlib.colors as mcolors
-
-# # Assuming your model (rshp) is 1 unit of time
-# # Define your relative times (example values)
-# PROTEOME_SIZE = 1  # Set to 1 to use the raw multipliers
-# days = 1  # Set to 1 to use the raw multipliers
-
-# # Calculate the times
-# rshp_proteome = (PROTEOME_SIZE * RSHP_TIME / days)
-# rshp_rel = 1
-# dyna_proteome = (PROTEOME_SIZE * DYNA_TIME / days)
-# bioemu_proteome = (PROTEOME_SIZE * BIOEMU_TIME / days)
-# afcluster_proteome = (PROTEOME_SIZE * AF_CLUSTER_TIME / days)
-# sim_proteome = (PROTEOME_SIZE * SIM_TIME / days)
-
-# # Create a dictionary of methods and their times
-# methods = {
-#     'RocketSHP': rshp_proteome,
-#     'Dyna-1': dyna_proteome,
-#     'BioEmu (100 samples)': bioemu_proteome,
-#     'AF-Cluster': afcluster_proteome,
-#     'All-Atom Simulation': sim_proteome
-# }
-
-# # Sort methods by time (ascending)
-# sorted_methods = dict(sorted(methods.items(), key=lambda item: item[1]))
-
-# # Set up colors for each method with a colorful palette
-# colors = [COLOR_MAP[name] for name in sorted_methods.keys()]
-
-# # Create the figure and axis
-# plt.figure(figsize=(12, 8))
-# ax = plt.subplot(111, aspect='equal')
-
-# # Calculate the maximum radius to scale circles
-# max_time = max(methods.values())
-# max_radius = 5.0
-# min_radius = 0.1
-# scale_factor = (max_radius - min_radius) / max_time
-
-# # Position circles vertically
-# y_positions = np.linspace(1, len(methods), len(methods))
-# x_position = 5
-
-# # Draw circles for each method
-# for i, (method, time) in enumerate(sorted_methods.items()):
-#     radius = min_radius + time * scale_factor
-#     circle = Circle((x_position, y_positions[i]), radius,
-#                    facecolor=colors[i % len(colors)], alpha=0.7,
-#                    edgecolor='black', linewidth=1.5)
-#     ax.add_patch(circle)
-
-#     # Add method name
-#     plt.text(x_position - radius - 2.5, y_positions[i], method,
-#              ha='right', va='center', fontsize=12, fontweight='bold')
-
-#     # Add time value and relative speedup
-#     if method == 'RocketSHP':
-#         time_text = f"baseline"
-#     else:
-#         speedup = time / rshp_rel
-#         time_text = f"{speedup:.1f}x slower"
-
-#     plt.text(x_position + radius + 0.5, y_positions[i], time_text,
-#              ha='left', va='center', fontsize=12)
-
-# # Set plot limits and remove axes
-# ax.set_xlim(0, 10)
-# ax.set_ylim(0, len(methods) + 1)
-# ax.axis('off')
-
-# # Add title and subtitle
-# plt.title('Relative Runtime Comparison', fontsize=18, fontweight='bold', y=0.95)
-# plt.figtext(0.5, 0.9, 'Circle size represents relative computational time (smaller is better)',
-#             ha='center', fontsize=14, style='italic')
-
-# # Add a note about RSHP being the baseline
-# plt.figtext(0.5, 0.05, 'Note: RSHP (our method) is set as the baseline (1 unit of time)',
-#             ha='center', fontsize=12)
-
-# plt.tight_layout()
-# plt.show()
-
-# %%

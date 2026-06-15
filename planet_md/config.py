@@ -67,10 +67,23 @@ class PARAMETER_STRUCT:
 DEFAULT_PARAMETERS = OmegaConf.structured(PARAMETER_STRUCT())
 
 PRETRAINED_MODELS = {
-    "latest": "rocketshp_pretrained_20250505_v1.ckpt",
-    "v0": "rocketshp_pretrained_20250215_v0.ckpt",
-    "v0_seq": "rocketshp_pretrained_20250215_seqonly_v0.ckpt",
-    "v1": "rocketshp_pretrained_20250505_v1.ckpt",
-    "v1_seq": "rocketshp_pretrained_20250507_v1_seq.ckpt",
-    "v1_mini": "rocketshp_pretrained_20250505_v1_mini.ckpt",
+    "latest": "planet_md_pretrained_20250505_v1.ckpt",
+    "v0": "planet_md_pretrained_20250215_v0.ckpt",
+    "v0_seq": "planet_md_pretrained_20250215_seqonly_v0.ckpt",
+    "v1": "planet_md_pretrained_20250505_v1.ckpt",
+    "v1_seq": "planet_md_pretrained_20250507_v1_seq.ckpt",
+    "v1_mini": "planet_md_pretrained_20250505_v1_mini.ckpt",
+}
+
+DEPRECATED_MODEL_ALIASES = {
+    "rocketshp_pretrained_20250215_v0": "v0",
+    "rocketshp_pretrained_20250215_v0.ckpt": "v0",
+    "rocketshp_pretrained_20250215_seqonly_v0": "v0_seq",
+    "rocketshp_pretrained_20250215_seqonly_v0.ckpt": "v0_seq",
+    "rocketshp_pretrained_20250505_v1": "v1",
+    "rocketshp_pretrained_20250505_v1.ckpt": "v1",
+    "rocketshp_pretrained_20250507_v1_seq": "v1_seq",
+    "rocketshp_pretrained_20250507_v1_seq.ckpt": "v1_seq",
+    "rocketshp_pretrained_20250505_v1_mini": "v1_mini",
+    "rocketshp_pretrained_20250505_v1_mini.ckpt": "v1_mini",
 }

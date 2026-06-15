@@ -397,13 +397,24 @@ class PlanetMDModel(nn.Module):
         HF_TOKEN: str | None = None,
     ):
         """Load a model from a checkpoint." """
+        import warnings
+
         from huggingface_hub import hf_hub_download
 
-        from planet_md.config import PRETRAINED_MODELS
+        from planet_md.config import DEPRECATED_MODEL_ALIASES, PRETRAINED_MODELS
+
+        if checkpoint_path in DEPRECATED_MODEL_ALIASES:
+            new_key = DEPRECATED_MODEL_ALIASES[checkpoint_path]
+            warnings.warn(
+                f"Checkpoint name '{checkpoint_path}' is deprecated. Use '{new_key}' instead.",
+                DeprecationWarning,
+                stacklevel=2,
+            )
+            checkpoint_path = new_key
 
         if checkpoint_path in PRETRAINED_MODELS:
             checkpoint_path = hf_hub_download(
-                repo_id="samsl/rocketshp",
+                repo_id="samsl/PLANET-MD",
                 filename=PRETRAINED_MODELS[checkpoint_path],
                 subfolder="checkpoints",
                 token=HF_TOKEN,

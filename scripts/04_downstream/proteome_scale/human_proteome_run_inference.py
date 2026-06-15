@@ -51,11 +51,10 @@ structure_stage = "encoded"
 logger.info("Loading tokenizers")
 esm_tokenizers = get_tokenizers()
 
-logger.info("Loading RocketSHP model...")
-# checkpoint = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
+logger.info("Loading PLANET-MD model...")
 
-rshp_model = PlanetMDModel.load_from_checkpoint("latest", strict=False)
-rshp_model = rshp_model.to(DEVICE)
+planet_md_model = PlanetMDModel.load_from_checkpoint("latest", strict=False)
+planet_md_model = planet_md_model.to(DEVICE)
 
 # %% Load data
 AFDB_ROOT = config.PROCESSED_DATA_DIR / "afdb_human"
@@ -84,7 +83,7 @@ for subdir in subdirectories:
             result = run_inference(
                 seq,
                 pc,
-                rshp_model,
+                planet_md_model,
                 esm_model,
                 esm_structure_model,
                 esm_tokenizers,

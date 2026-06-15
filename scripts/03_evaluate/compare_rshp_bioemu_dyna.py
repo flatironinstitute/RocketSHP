@@ -1,5 +1,6 @@
 # %% Imports
 import argparse
+import os
 import pickle as pk
 from pathlib import Path
 
@@ -48,7 +49,7 @@ plt.rcParams.update(
 # %% Paths
 
 parser = argparse.ArgumentParser(
-    description="Compare RocketSHP, Dyna-1, and BioEMU results"
+    description="Compare PLANET-MD, Dyna-1, and BioEMU results"
 )
 parser.add_argument("eval_key", type=str, help="Evaluation key for the results")
 parser.add_argument(
@@ -61,10 +62,13 @@ parser.add_argument(
 EVAL_KEY = "large_model_20250427"
 split = "test"
 
-reference_traj_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data/raw/atlas")
+reference_traj_root = (
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / "data/raw/atlas"
+)
 dyna_results_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results/")
 bioemu_results_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_results/")
-rshp_results_pickle = (
+planet_md_results_pickle = (
     config.EVALUATION_DATA_DIR
     / "evaluations"
     / EVAL_KEY
@@ -80,25 +84,27 @@ logger.add(log_file, level="INFO", format="{message}", encoding="utf-8")
 assert reference_traj_root.exists(), (
     f"Reference trajectory root not found: {reference_traj_root}"
 )
-assert rshp_results_pickle.exists(), (
-    f"RocketSHP results pickle not found: {rshp_results_pickle}"
+assert planet_md_results_pickle.exists(), (
+    f"PLANET-MD results pickle not found: {planet_md_results_pickle}"
 )
 assert dyna_results_root.exists(), f"Dyna results root not found: {dyna_results_root}"
 assert bioemu_results_root.exists(), (
     f"BioEMU results root not found: {bioemu_results_root}"
 )
 
-# %% Load RocketSHP results
-with open(rshp_results_pickle, "rb") as f:
-    rshp_results = pk.load(f)
-rshp_results = {k.split("/")[0]: v for k, v in rshp_results.items() if k.endswith("R1")}
-rshp_rmsf = {k: v["rmsf"].numpy() for k, v in rshp_results.items()}
-rshp_gcc = {k: v["gcc_lmi"].numpy() for k, v in rshp_results.items()}
-rshp_shp = {k: v["shp"].numpy() for k, v in rshp_results.items()}
+# %% Load PLANET-MD results
+with open(planet_md_results_pickle, "rb") as f:
+    planet_md_results = pk.load(f)
+planet_md_results = {
+    k.split("/")[0]: v for k, v in planet_md_results.items() if k.endswith("R1")
+}
+planet_md_rmsf = {k: v["rmsf"].numpy() for k, v in planet_md_results.items()}
+planet_md_gcc = {k: v["gcc_lmi"].numpy() for k, v in planet_md_results.items()}
+planet_md_shp = {k: v["shp"].numpy() for k, v in planet_md_results.items()}
 
 # %% Load Dyna results
 dyna_results = {}
-for k in tqdm(rshp_results.keys(), desc="Load Dyna Results"):
+for k in tqdm(planet_md_results.keys(), desc="Load Dyna Results"):
     dyna_path = dyna_results_root / k / f"{k}-Dyna1.csv"
     assert dyna_path.exists(), f"Dyna results not found: {dyna_path}"
     dyna_df = pd.read_csv(dyna_path)
@@ -113,7 +119,7 @@ bioemu_100_results = {}
 bioemu_100_gcc = {}
 bioemu_100_shp = {}
 
-for k in tqdm(rshp_results.keys(), desc="Load BioEMU Results"):
+for k in tqdm(planet_md_results.keys(), desc="Load BioEMU Results"):
     bioemu_path = bioemu_results_root / f"{k}_10"
     assert bioemu_path.exists(), f"BioEMU results not found: {bioemu_path}"
     bioemu_traj = md.load(bioemu_path / "samples.xtc", top=bioemu_path / "topology.pdb")
@@ -142,10 +148,15 @@ for k in tqdm(rshp_results.keys(), desc="Load BioEMU Results"):
 
 # %% Load GNM results
 GNM_ROOT = Path(
-    "/mnt/home/ssledzieski/Projects/rocketshp/data/processed/atlas/gaussian_net_models"
+    str(
+        Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+        / "data/processed/atlas/gaussian_net_models"
+    )
 )
 gnm_gcc = {}
-for k in tqdm(rshp_results.keys(), total=len(rshp_results), desc="Load GNM Results"):
+for k in tqdm(
+    planet_md_results.keys(), total=len(planet_md_results), desc="Load GNM Results"
+):
     gnm_path = GNM_ROOT / f"{k[:2]}/{k}_gnm.npz"
     gnm_data = np.load(gnm_path)
     gnm_covar = gnm_data["covar"]
@@ -164,7 +175,9 @@ reference_shp = {}
 system_sizes = {}
 with h5py.File(ATLAS_H5, "r") as h5fi:
     for k in tqdm(
-        rshp_results.keys(), total=len(rshp_results), desc="Load Reference Results"
+        planet_md_results.keys(),
+        total=len(planet_md_results),
+        desc="Load Reference Results",
     ):
         if k not in h5fi:
             logger.error(f"Key {k} not found in reference data")
@@ -179,7 +192,7 @@ with h5py.File(ATLAS_H5, "r") as h5fi:
 # reference_rmsf = {}
 # system_sizes = {}
 
-# for k in tqdm(rshp_results.keys(), desc="Load Reference Trajectories"):
+# for k in tqdm(planet_md_results.keys(), desc="Load Reference Trajectories"):
 #     reference_xtc = reference_traj_root / k[:2] / f"{k}_prod_R1_fit.xtc"
 #     reference_top = reference_traj_root / k[:2] / f"{k}.pdb"
 #     reference_traj = md.load(reference_xtc, top=reference_top)
@@ -190,8 +203,9 @@ with h5py.File(ATLAS_H5, "r") as h5fi:
 all_predicted = []
 all_calibration = []
 for system in ["11080", "BLOT5", "CHEA", "RNASE", "CRABP2", "SPOOF"]:
-    dyna_calibration_sim = (
-        f"/mnt/home/ssledzieski/Projects/rocketshp/data/processed/relaxdb_sims/{system}"
+    dyna_calibration_sim = str(
+        Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+        / f"data/processed/relaxdb_sims/{system}"
     )
     dyna_calibration_pred = pd.read_csv(
         f"/mnt/home/ssledzieski/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/{system}/{system}_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000-Dyna1.csv"
@@ -223,36 +237,37 @@ calibration_scale = model.coef_[0]  # Scaling factor
 calibration_offset = model.intercept_  # Offset
 logger.info(f"Scaling factor: {calibration_scale}, Offset: {calibration_offset}")
 
-#%% Fitting non-linear model
-nonlin_model = MLPRegressor(
-    hidden_layer_sizes=(128, 128),
-    activation="relu"
-)
+# %% Fitting non-linear model
+nonlin_model = MLPRegressor(hidden_layer_sizes=(128, 128), activation="relu")
 nonlin_model.fit(X, y)
 
 # %% Plot calibrated data
 system = "CRABP2"
-dyna_calibration_sim = f"/mnt/home/ssledzieski/Projects/rocketshp/data/processed/relaxdb_sims/{system}"
-dyna_calibration_pred = pd.read_csv(f"/mnt/home/ssledzieski/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/{system}/{system}_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000-Dyna1.csv").p_exchange
+dyna_calibration_sim = str(
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / f"data/processed/relaxdb_sims/{system}"
+)
+dyna_calibration_pred = pd.read_csv(
+    f"/mnt/home/ssledzieski/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/{system}/{system}_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000-Dyna1.csv"
+).p_exchange
 calibration_scaled = calibration_scale * dyna_calibration_pred + calibration_offset
 
-calibration_nonlin = nonlin_model.predict(dyna_calibration_pred.values.reshape(-1,1)).flatten()
+calibration_nonlin = nonlin_model.predict(
+    dyna_calibration_pred.values.reshape(-1, 1)
+).flatten()
 
-dyna_calibration_traj = md.load(f"{dyna_calibration_sim}/{system}_traj.xtc", top=f"{dyna_calibration_sim}/{system}_top.pdb")
+dyna_calibration_traj = md.load(
+    f"{dyna_calibration_sim}/{system}_traj.xtc",
+    top=f"{dyna_calibration_sim}/{system}_top.pdb",
+)
 dyna_calibration_rmsf = compute_rmsf(dyna_calibration_traj)
 
-rxdb = pd.read_json("~/GitHub/Dyna-1/data/RelaxDB_datasets/RelaxDB_with_other_metrics_22jan2025.json")
+rxdb = pd.read_json(
+    "~/GitHub/Dyna-1/data/RelaxDB_datasets/RelaxDB_with_other_metrics_22jan2025.json"
+)
 rxdb_label = rxdb.loc[f"{system}"]["label"]
 
-rxdb_map = {
-    "p": ".",
-    ".": ".",
-    "x": "-",
-    "v": "v",
-    "^": "^",
-    "b": "^",
-    "A": "-"
-}
+rxdb_map = {"p": ".", ".": ".", "x": "-", "v": "v", "^": "^", "b": "^", "A": "-"}
 
 plt.figure(figsize=(10, 6))
 plt.plot(dyna_calibration_pred, label="Dyna Pred")
@@ -260,7 +275,13 @@ plt.plot(calibration_scaled, label="Dyna Pred (scaled)")
 plt.plot(calibration_nonlin, label="Dyna Pred (non-linear scaled)")
 for i, c in enumerate(rxdb_label):
     c = rxdb_map.get(c, c)
-    plt.annotate(c, xy=(i, dyna_calibration_rmsf[i]), xytext=(i, dyna_calibration_rmsf[i]), ha="center", fontsize=10)
+    plt.annotate(
+        c,
+        xy=(i, dyna_calibration_rmsf[i]),
+        xytext=(i, dyna_calibration_rmsf[i]),
+        ha="center",
+        fontsize=10,
+    )
 plt.ylim(0, 1)
 plt.legend()
 plt.show()
@@ -268,7 +289,7 @@ plt.show()
 # %% Calibrate RMSF
 dyna_rmsf = {}
 dyna_nonlin_rmsf = {}
-for k in tqdm(rshp_results.keys(), desc="Calibrate Dyna Probabilities"):
+for k in tqdm(planet_md_results.keys(), desc="Calibrate Dyna Probabilities"):
     dyna_probability = dyna_results[k]
     # min max scale probability based on observed calibration rmsf
     dyna_scaled = (calibration_scale * dyna_probability) + calibration_offset
@@ -278,17 +299,17 @@ for k in tqdm(rshp_results.keys(), desc="Calibrate Dyna Probabilities"):
 
 # %% Compare RMSF for all methods
 methods = {
-    "RocketSHP": rshp_rmsf,
+    "PLANET-MD": planet_md_rmsf,
     "Dyna-1": dyna_results,
     "Dyna-1 (Calibrated)": dyna_rmsf,
     "BioEmu (10)": bioemu_results,
     "BioEmu (100)": bioemu_100_results,
     "Reference": reference_rmsf,
 }
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["PLANET-MD", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 
 rmsf_results = {}
-for k in tqdm(rshp_results.keys(), desc="Collect RMSF Results"):
+for k in tqdm(planet_md_results.keys(), desc="Collect RMSF Results"):
     rmsf_results[k] = {m: methods[m][k] for m in methods.keys()}
 rmsf_df = pd.DataFrame(rmsf_results).T
 rmsf_df = rmsf_df.rename_axis("System").reset_index()
@@ -351,7 +372,7 @@ spearman_df = spearman_df.melt(id_vars=["System"], var_name="Method", value_name
 # %% Plot RMSE
 fig, ax = plt.subplots(figsize=(12, 8))
 
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["PLANET-MD", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 for i in order:
     logger.info(
         f"Mean {i} RMSE: {mean_sq_error_df[mean_sq_error_df['Method'] == i]['RMSE'].mean()}"
@@ -371,7 +392,7 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_rmsf_rmse_comparison.svg")
 # %% Plot Spearman correlation
 fig, ax = plt.subplots(figsize=(12, 8))
 
-order = ["RocketSHP", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
+order = ["PLANET-MD", "Dyna-1 (Calibrated)", "Dyna-1", "BioEmu (100)", "BioEmu (10)"]
 for i in order:
     logger.info(
         f"Mean {i} Spearman: {spearman_df[spearman_df['Method'] == i]['RMSE'].mean()}"
@@ -444,8 +465,8 @@ size_group_df = mean_sq_error_by_size_df[
 
 # %% Check overall performance difference and in largest size group
 
-mean_rshp_rmse = mean_sq_error_by_size_df[
-    mean_sq_error_by_size_df["Method"] == "RocketSHP"
+mean_planet_md_rmse = mean_sq_error_by_size_df[
+    mean_sq_error_by_size_df["Method"] == "PLANET-MD"
 ]["RMSE"].mean()
 mean_bioemu_100_rmse = mean_sq_error_by_size_df[
     mean_sq_error_by_size_df["Method"] == "BioEmu (100)"
@@ -453,20 +474,20 @@ mean_bioemu_100_rmse = mean_sq_error_by_size_df[
 mean_dyna_1_rmse = mean_sq_error_by_size_df[
     mean_sq_error_by_size_df["Method"] == "Dyna-1 (Calibrated)"
 ]["RMSE"].mean()
-logger.info(f"Mean RocketSHP RMSE: {mean_rshp_rmse}")
+logger.info(f"Mean PLANET-MD RMSE: {mean_planet_md_rmse}")
 logger.info(f"Mean BioEmu (100) RMSE: {mean_bioemu_100_rmse}")
 logger.info(f"Mean Dyna-1 (Calibrated) RMSE: {mean_dyna_1_rmse}")
 # log % difference over other methods
 logger.info(
-    f"RocketSHP RMSE % difference to BioEmu (100): {(mean_rshp_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%"
+    f"PLANET-MD RMSE % difference to BioEmu (100): {(mean_planet_md_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%"
 )
 logger.info(
-    f"RocketSHP RMSE % difference to Dyna-1 (Calibrated): {(mean_rshp_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%"
+    f"PLANET-MD RMSE % difference to Dyna-1 (Calibrated): {(mean_planet_md_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%"
 )
 
 # only in largest size group
-mean_rshp_rmse = mean_sq_error_by_size_df[
-    (mean_sq_error_by_size_df["Method"] == "RocketSHP")
+mean_planet_md_rmse = mean_sq_error_by_size_df[
+    (mean_sq_error_by_size_df["Method"] == "PLANET-MD")
     & (mean_sq_error_by_size_df["Size"] >= 500)
 ]["RMSE"].mean()
 mean_bioemu_100_rmse = mean_sq_error_by_size_df[
@@ -477,21 +498,21 @@ mean_dyna_1_rmse = mean_sq_error_by_size_df[
     (mean_sq_error_by_size_df["Method"] == "Dyna-1 (Calibrated)")
     & (mean_sq_error_by_size_df["Size"] >= 500)
 ]["RMSE"].mean()
-logger.info(f"Mean RocketSHP RMSE (Extra Large): {mean_rshp_rmse}")
+logger.info(f"Mean PLANET-MD RMSE (Extra Large): {mean_planet_md_rmse}")
 logger.info(f"Mean BioEmu (100) RMSE (Extra Large): {mean_bioemu_100_rmse}")
 logger.info(f"Mean Dyna-1 (Calibrated) RMSE (Extra Large): {mean_dyna_1_rmse}")
 # log % difference over other methods
 logger.info(
-    f"RocketSHP RMSE % difference to BioEmu (100) (Extra Large): {(mean_rshp_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%"
+    f"PLANET-MD RMSE % difference to BioEmu (100) (Extra Large): {(mean_planet_md_rmse - mean_bioemu_100_rmse) / mean_bioemu_100_rmse * 100:.2f}%"
 )
 logger.info(
-    f"RocketSHP RMSE % difference to Dyna-1 (Calibrated) (Extra Large): {(mean_rshp_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%"
+    f"PLANET-MD RMSE % difference to Dyna-1 (Calibrated) (Extra Large): {(mean_planet_md_rmse - mean_dyna_1_rmse) / mean_dyna_1_rmse * 100:.2f}%"
 )
 
 # %% Boxplot
 
 fig, ax = plt.subplots(figsize=(12, 8))
-pairs = [("RocketSHP", "Dyna-1 (Calibrated)"), ("RocketSHP", "BioEmu (100)")]
+pairs = [("PLANET-MD", "Dyna-1 (Calibrated)"), ("PLANET-MD", "BioEmu (100)")]
 
 ax = sns.boxplot(
     x="Method",
@@ -542,7 +563,7 @@ for pair, stats in zip(pairs, test_results):
 
 # %% Plot Spearman
 fig, ax = plt.subplots(figsize=(12, 8))
-pairs = [("RocketSHP", "Dyna-1 (Calibrated)"), ("RocketSHP", "BioEmu (100)")]
+pairs = [("PLANET-MD", "Dyna-1 (Calibrated)"), ("PLANET-MD", "BioEmu (100)")]
 
 ax = sns.boxplot(
     x="Method",
@@ -595,10 +616,10 @@ for pair, stats in zip(pairs, test_results):
 # %% Compute GCC metrics
 
 gcc_results = []
-for k, v in tqdm(rshp_gcc.items()):
+for k, v in tqdm(planet_md_gcc.items()):
     network_size = v.shape[0]
-    rshp_gdd = graph_diffusion_distance(v, reference_gcc[k], beta=1 / network_size)
-    rshp_imsd = ipsen_mikhailov_distance(v, reference_gcc[k])
+    planet_md_gdd = graph_diffusion_distance(v, reference_gcc[k], beta=1 / network_size)
+    planet_md_imsd = ipsen_mikhailov_distance(v, reference_gcc[k])
     bioemu_gdd = graph_diffusion_distance(
         bioemu_gcc[k], reference_gcc[k], beta=1 / network_size
     )
@@ -614,8 +635,8 @@ for k, v in tqdm(rshp_gcc.items()):
     gcc_results.append(
         [
             k,
-            rshp_gdd,
-            rshp_imsd,
+            planet_md_gdd,
+            planet_md_imsd,
             bioemu_gdd,
             bioemu_imsd,
             bioemu_100_gdd,
@@ -627,8 +648,8 @@ for k, v in tqdm(rshp_gcc.items()):
 gcc_results_df = pd.DataFrame(gcc_results)
 gcc_results_df.columns = [
     "System",
-    "RocketSHP GDD",
-    "RocketSHP IMSD",
+    "PLANET-MD GDD",
+    "PLANET-MD IMSD",
     "BioEmu GDD",
     "BioEmu IMSD",
     "BioEmu 100 GDD",
@@ -642,22 +663,22 @@ gcc_results_df = pd.merge(
 # %% Separate by metric
 
 gdd_results_df = gcc_results_df[
-    ["System", "Size Group", "RocketSHP GDD", "BioEmu GDD", "BioEmu 100 GDD"]
+    ["System", "Size Group", "PLANET-MD GDD", "BioEmu GDD", "BioEmu 100 GDD"]
 ].melt(id_vars=["System", "Size Group"], var_name="Method", value_name="GDD")
 gdd_results_df["Method"] = gdd_results_df["Method"].replace(
     {
-        "RocketSHP GDD": "RocketSHP",
+        "PLANET-MD GDD": "PLANET-MD",
         "BioEmu GDD": "BioEmu (10)",
         "BioEmu 100 GDD": "BioEmu (100)",
     }
 )
 
 imsd_results_df = gcc_results_df[
-    ["System", "Size Group", "RocketSHP IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
+    ["System", "Size Group", "PLANET-MD IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
 ].melt(id_vars=["System", "Size Group"], var_name="Method", value_name="IMSD")
 imsd_results_df["Method"] = imsd_results_df["Method"].replace(
     {
-        "RocketSHP IMSD": "RocketSHP",
+        "PLANET-MD IMSD": "PLANET-MD",
         "BioEmu IMSD": "BioEmu (10)",
         "BioEmu 100 IMSD": "BioEmu (100)",
     }
@@ -666,8 +687,8 @@ imsd_results_df["Method"] = imsd_results_df["Method"].replace(
 # %% Boxplot GDD
 
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (100)"), ("RocketSHP", "BioEmu (10)")]
+order = ["PLANET-MD", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("PLANET-MD", "BioEmu (100)"), ("PLANET-MD", "BioEmu (10)")]
 
 for i in order:
     logger.info(
@@ -722,8 +743,8 @@ for pair, stats in zip(pairs, test_results):
 
 # %% Boxplot IMSD
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
+order = ["PLANET-MD", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("PLANET-MD", "BioEmu (10)"), ("PLANET-MD", "BioEmu (100)")]
 
 for i in order:
     logger.info(
@@ -778,13 +799,13 @@ for pair, stats in zip(pairs, test_results):
 
 # %% GDD Scatter Plot
 gdd_scatter_data = gcc_results_df[
-    ["System", "Size Group", "RocketSHP GDD", "BioEmu GDD", "BioEmu 100 GDD"]
+    ["System", "Size Group", "PLANET-MD GDD", "BioEmu GDD", "BioEmu 100 GDD"]
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
 sns.scatterplot(
     data=gdd_scatter_data,
     x="BioEmu 100 GDD",
-    y="RocketSHP GDD",
+    y="PLANET-MD GDD",
     ax=ax,
     hue="Size Group",
     alpha=0.95,
@@ -799,13 +820,13 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_gdd_scatter.svg")
 
 # %% IMSD Scatter Plot
 imsd_scatter_data = gcc_results_df[
-    ["System", "Size Group", "RocketSHP IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
+    ["System", "Size Group", "PLANET-MD IMSD", "BioEmu IMSD", "BioEmu 100 IMSD"]
 ]
 fig, ax = plt.subplots(figsize=(12, 8))
 sns.scatterplot(
     data=imsd_scatter_data,
     x="BioEmu 100 IMSD",
-    y="RocketSHP IMSD",
+    y="PLANET-MD IMSD",
     ax=ax,
     hue="Size Group",
     alpha=0.95,
@@ -817,17 +838,17 @@ plt.savefig(FIGURES_DIRECTORY / f"{split}_imsd_scatter.svg")
 
 # %% Compute SHP metrics
 shp_results = []
-for k, v in tqdm(rshp_shp.items()):
-    rshp_kl = kl_divergence_2d(
+for k, v in tqdm(planet_md_shp.items()):
+    planet_md_kl = kl_divergence_2d(
         softmax(torch.from_numpy(v)), torch.from_numpy(reference_shp[k])
     )
     bioemu_kl = kl_divergence_2d(bioemu_shp[k], torch.from_numpy(reference_shp[k]))
     bioemu_100_kl = kl_divergence_2d(
         bioemu_100_shp[k], torch.from_numpy(reference_shp[k])
     )
-    shp_results.append([k, rshp_kl, bioemu_kl, bioemu_100_kl])
+    shp_results.append([k, planet_md_kl, bioemu_kl, bioemu_100_kl])
 shp_results_df = pd.DataFrame(shp_results)
-shp_results_df.columns = ["System", "RocketSHP", "BioEmu (10)", "BioEmu (100)"]
+shp_results_df.columns = ["System", "PLANET-MD", "BioEmu (10)", "BioEmu (100)"]
 shp_results_df = pd.merge(
     size_group_df, shp_results_df, left_on="System", right_on="System", how="inner"
 )
@@ -838,8 +859,8 @@ kldiv_results_df = shp_results_df.melt(
 )
 
 fig, ax = plt.subplots(figsize=(12, 8))
-order = ["RocketSHP", "BioEmu (100)", "BioEmu (10)"]
-pairs = [("RocketSHP", "BioEmu (10)"), ("RocketSHP", "BioEmu (100)")]
+order = ["PLANET-MD", "BioEmu (100)", "BioEmu (10)"]
+pairs = [("PLANET-MD", "BioEmu (10)"), ("PLANET-MD", "BioEmu (100)")]
 
 for i in order:
     logger.info(f"Mean {i} KL-Div: {shp_results_df[i].mean()}")

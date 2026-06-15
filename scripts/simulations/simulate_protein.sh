@@ -10,7 +10,8 @@
 export MPLCONFIGDIR=/tmp/matplotlib-cache
 module load cuda
 source $HOME/venvs/openmm-env/bin/activate
-cd $HOME/rocketshp
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+cd "$PLANET_MD_DIR"
 
 python scripts/04_downstream/simulate_protein.py \
     --pdb-path $1 \

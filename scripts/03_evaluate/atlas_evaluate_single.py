@@ -2,6 +2,9 @@
 
 # %%
 
+import os
+from pathlib import Path
+
 import matplotlib.pyplot as plt
 import mdtraj as md
 import numpy as np
@@ -48,7 +51,10 @@ key = "1tzw_A/R1"
 savefig = False
 
 # %%
-config_file = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
+config_file = str(
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / "configs/20250427_large.yml"
+)
 
 PARAMS = config.DEFAULT_PARAMETERS
 PARAMS.update(OmegaConf.load(config_file))
@@ -128,7 +134,7 @@ bioemu_rmsf = compute_rmsf(bioemu_traj)
 
 plt.figure(figsize=(10, 6))
 plt.plot(labels["rmsf"], label="True RMSF")
-plt.plot(both_result["rmsf"].detach().cpu().numpy().squeeze(), label="RocketSHP RMSF")
+plt.plot(both_result["rmsf"].detach().cpu().numpy().squeeze(), label="PLANET-MD RMSF")
 plt.plot(dyna1_result, label="Dyna-1 RMSF")
 plt.plot(bioemu_rmsf, label="BioEMu RMSF")
 plt.ylabel("RMSF")
@@ -279,8 +285,9 @@ plt.legend()
 # %%
 
 
-GNM_ROOT = (
-    "/mnt/home/ssledzieski/Projects/rocketshp/data/processed/atlas/gaussian_net_models"
+GNM_ROOT = str(
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / "data/processed/atlas/gaussian_net_models"
 )
 gnm_covar = f"{GNM_ROOT}/{pdb_code[:2]}/{pdb_code}_gnm.npz"
 gnm_data = np.load(gnm_covar)

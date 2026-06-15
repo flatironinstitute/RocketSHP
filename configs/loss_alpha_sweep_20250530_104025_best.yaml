@@ -1,7 +1,7 @@
 batch_size: 16
 ca_dist_alpha: 1.0
 d_model: 768
-description: Basic hyperparameter optimization for RocketSHP
+description: Basic hyperparameter optimization for PLANET-MD
 gcc_lmi_alpha: 1.0
 lr: 0.0001778279410038923
 metric:
@@ -9,7 +9,7 @@ metric:
   name: final/val_loss
 n_heads: 6
 n_layers: 12
-name: rocketshp_basic_sweep
+name: planet_md_basic_sweep
 parameters:
   batch_size:
     type: categorical
@@ -52,7 +52,7 @@ parameters:
     - 8
     - 10
     - 12
-project: samsl-flatiron/RocketSHP
+project: samsl-flatiron/PLANET-MD
 rmsf_alpha: 1.0
 shp_alpha: 0.01
 strategy:

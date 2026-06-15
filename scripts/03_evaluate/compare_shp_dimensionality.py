@@ -1,5 +1,6 @@
 # %% Load packages
 import os
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import torch
@@ -27,10 +28,14 @@ plt.rcParams.update(
 # %% Script inputs
 EVAL_KEY = "gcc_lmi_5a_20250423"
 
-CONFIG_FILE = (
-    "/mnt/home/ssledzieski/Projects/rocketshp/configs/rocketshp_gcc_20250421.yml"
+CONFIG_FILE = str(
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / "configs/rocketshp_gcc_20250421.yml"
 )
-CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/GCC_LMI_5alpha/model-epoch=48-val_loss=2.57.pt.ckpt"
+CHECKPOINT_FILE = str(
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / "models/GCC_LMI_5alpha/model-epoch=48-val_loss=2.57.pt.ckpt"
+)
 OUTPUT_DIRECTORY = f"{config.EVALUATION_DATA_DIR}/evaluations/{EVAL_KEY}"
 os.makedirs(OUTPUT_DIRECTORY, exist_ok=True)
 PARAMS = config.DEFAULT_PARAMETERS

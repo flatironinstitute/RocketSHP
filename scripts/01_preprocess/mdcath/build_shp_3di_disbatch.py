@@ -25,7 +25,7 @@ mdcath_reps = [
     for temp in TEMPS
 ]
 
-disbatch_prefix = "#DISBATCH PREFIX ( cd /mnt/home/ssledzieski/Projects/rocketshp ; module load cudnn; module load nccl; module load cuda; module load foldseek; source ~/venvs/scc-rocketshp/bin/activate; python scripts/01_preprocess/mdcath/foldseek_shp_disbatch_single.py "
+disbatch_prefix = "#DISBATCH PREFIX ( cd ${PLANET_MD_DIR:-$HOME/PLANET-MD} ; module load cudnn; module load nccl; module load cuda; module load foldseek; source ${PLANET_MD_VENV:-$HOME/PLANET-MD/.venv}/bin/activate; python scripts/01_preprocess/mdcath/foldseek_shp_disbatch_single.py "
 disbatch_suffix = "#DISBATCH SUFFIX )"
 
 with open(disbatch_tasks_file, "w+") as f:
@@ -75,14 +75,3 @@ for f in tqdm(shp_files):
 shp_results = invert_dict(results)
 ds = Dataset.from_dict(shp_results)
 ds.save_to_disk(f"{config.PROCESSED_DATA_DIR}/mdcath/fs_shp/dataset")
-# %%
-# Add to H5 file
-# from rocketshp.data.utils import update_h5_dataset
-
-# atlas_processed_h5 = f"{config.PROCESSED_DATA_DIR}/atlas/atlas_processed.h5"
-# with open(atlas_processed_h5, "wb") as f:
-#     for replicate in tqdm(ds):
-#         pdb_id = replicate["pdb_code"]
-#         rep = replicate["rep"]
-#         update_h5_dataset(f, f"{pdb_id}/R{rep}/shp", replicate)
-# %%

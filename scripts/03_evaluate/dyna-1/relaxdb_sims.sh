@@ -1,6 +1,6 @@
 module load gcc
 source /mnt/home/ssledzieski/venvs/openmm-env/bin/activate
-cd /mnt/home/ssledzieski/Projects/rocketshp
+cd "${PLANET_MD_DIR:-$HOME/PLANET-MD}"
 sbatch scripts/04_downstream/simulate_protein.sh ~/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/11080/11080_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000.pdb data/processed/relaxdb_sims/11080 100
 sbatch scripts/04_downstream/simulate_protein.sh ~/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/BLOT5/BLOT5_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000.pdb data/processed/relaxdb_sims/BLOT5 100
 sbatch scripts/04_downstream/simulate_protein.sh ~/GitHub/Dyna-1/data/RelaxDB_datasets/output_structures/CRABP2/CRABP2_unrelaxed_rank_001_alphafold2_ptm_model_1_seed_000.pdb data/processed/relaxdb_sims/CRABP2 100

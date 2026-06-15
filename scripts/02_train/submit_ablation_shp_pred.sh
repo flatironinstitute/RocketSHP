@@ -14,9 +14,9 @@ module load python/3.11.7
 module load cudnn/8.9.7.29-12
 module load nccl/2.20.3-1
 module load gcc
-# source ~/venvs/scc-rocketshp/bin/activate
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+PLANET_MD_VENV=${PLANET_MD_VENV:-$PLANET_MD_DIR/.venv}
+cd "$PLANET_MD_DIR"
+source "$PLANET_MD_VENV/bin/activate"
 
-cd $HOME/Projects/rocketshp
-source .venv/bin/activate
-
-rocketshp_train $SLURM_JOB_NAME --config configs/20260311_ablate_shp.yml
+planet_md_train $SLURM_JOB_NAME --config configs/20260311_ablate_shp.yml

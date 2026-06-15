@@ -1,11 +1,12 @@
 # %%
 import re
+import os
 from pathlib import Path
 
 from tqdm import tqdm
 
 num_samples = 10
-data_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data")
+data_root = Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "data"
 output_root = Path("/mnt/home/ssledzieski/GitHub/Dyna-1/rshp_results")
 atlas_data = data_root / "raw/atlas"
 
