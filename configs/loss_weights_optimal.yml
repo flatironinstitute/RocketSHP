@@ -1,7 +1,7 @@
 batch_size: 8
 ca_dist_alpha: 0.48785054702257036
 d_model: 768
-description: Loss weight optimization for RocketSHP
+description: Loss weight optimization for PLANET-MD
 gcc_lmi_alpha: 1.0177422790959092
 lr: 0.0001778279410038923
 metric:
@@ -9,7 +9,7 @@ metric:
   name: final/val_loss
 n_heads: 12
 n_layers: 12
-name: rocketshp_loss_weights_sweep
+name: planet_md_loss_weights_sweep
 parameters:
   ca_dist_alpha:
     max: 2.0
@@ -27,7 +27,7 @@ parameters:
     max: 0.1
     min: 0.001
     type: double
-project: samsl-flatiron/RocketSHP
+project: samsl-flatiron/PLANET-MD
 rmsf_alpha: 1.998398546694881
 shp_alpha: 0.009630088841667751
 strategy:

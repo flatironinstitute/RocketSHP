@@ -15,8 +15,9 @@ module load cudnn
 module load nccl
 module load cuda
 module load openmm
-source ~/venvs/scc-rocketshp/bin/activate
-
-cd $HOME/Projects/rocketshp
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+PLANET_MD_VENV=${PLANET_MD_VENV:-$PLANET_MD_DIR/.venv}
+cd "$PLANET_MD_DIR"
+source "$PLANET_MD_VENV/bin/activate"
 REPLICATE=1
 python scripts/simulate_3g5k.py $REPLICATE

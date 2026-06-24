@@ -13,8 +13,9 @@ module load cudnn
 module load nccl
 module load cuda
 module load openmm
-source ~/venvs/scc-rocketshp/bin/activate
-
-cd $HOME/Projects/rocketshp
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+PLANET_MD_VENV=${PLANET_MD_VENV:-$PLANET_MD_DIR/.venv}
+cd "$PLANET_MD_DIR"
+source "$PLANET_MD_VENV/bin/activate"
 python scripts/01_preprocess/atlas/process_atlas_cpu.py 3000 4000
 # python scripts/01_preprocess/atlas/process_atlas_shp.py 2000 5000

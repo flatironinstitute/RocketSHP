@@ -1,3 +1,6 @@
+import os
+from pathlib import Path
+
 import torch
 from loguru import logger
 
@@ -18,7 +21,7 @@ device = torch.device("cuda:0")
 # SERCA (ordered)
 SEQUENCE = "MEDGHSKTVEQSLNFFGTDPERGLTLDQIKANQKKYGPNELPTEEGKSIWQLVLEQFDDLLVKILLLAAIISFVLALFEEHEETFTAFVEPLVILLILIANAVVGVWQERNAESAIEALKEYEPEMGKVVRQDKSGIQKVRAKEIVPGDLVEVSVGDKIPADIRITHIYSTTLRIDQSILTGESVSVIKHTDAIPDPRAVNQDKKNILFSGTNVAAGKARGVVIGTGLSTAIGKIRTEMSETEEIKTPLQQKLDEFGEQLSKVISVICVAVWAINIGHFNDPAHGGSWIKGAIYYFKIAVALAVAAIPEGLPAVITTCLALGTRRMAKKNAIVRSLPSVETLGCTSVICSDKTGTLTTNQMSVSRMFIFDKVEGNDSSFLEFEMTGSTYEPIGEVFLNGQRIKAADYDTLQELSTICIMCNDSAIDYNEFKQAFEKVGEATETALIVLAEKLNSFSVNKSGLDRRSAAIACRGEIETKWKKEFTLEFSRDRKSMSSYCTPLKASRLGTGPKLFVKGAPEGVLERCTHARVGTTKVPLTSALKAKILALTGQYGTGRDTLRCLALAVADSPMKPDEMDLGDSTKFYQYEVNLTFVGVVGMLDPPRKEVFDSIVRCRAAGIRVIVITGDNKATAEAICRRIGVFAEDEDTTGKSYSGREFDDLSPTEQKAAVARSRLFSRVEPQHKSKIVEFLQSMNEISAMTGDGVNDAPALKKAEIGIAMGSGTAVAKSAAEMVLADDNFSSIVSAVEEGRAIYNNMKQFIRYLISSNIGEVVSIFLTAALGLPEALIPVQLLWVNLVTDGLPATALGFNPPDLDIMEKPPRKADEGLISGWLFFRYMAIGFYVGAATVGAAAWWFVFSDEGPKLSYWQLTHHLSCLGGGDEFKGVDCKIFSDPHAMTMALSVLVTIEMLNAMNSLSENQSLITMPPWCNLWLIGSMALSFTLHFVILYVDVLSTVFQVTPLSAEEWITVMKFSIPVVLLDETLKFVARKIADGESPIYKMHGIVLMWAVFFGLLYAMML"
 
-CHECKPOINT = "/mnt/home/ssledzieski/Projects/rocketshp/models/grad_norm_alpha0.12_lr1e-5/model-epoch=19-train_loss=0.55.pt.ckpt"
+CHECKPOINT = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "models/grad_norm_alpha0.12_lr1e-5/model-epoch=19-train_loss=0.55.pt.ckpt")
 
 logger.info("Loading structure model")
 struct_encoder, _ = _get_structure_vae()
@@ -32,9 +35,9 @@ logger.info("Loading tokenizers")
 tokenizers = _get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
-logger.info("Loading RSHP Model")
-rshp_model = PlanetMDModel.load_from_checkpoint(CHECKPOINT, strict=True)
-rshp_model.eval().to(device)
+logger.info("Loading PLANET-MD Model")
+planet_md_model = PlanetMDModel.load_from_checkpoint(CHECKPOINT, strict=True)
+planet_md_model.eval().to(device)
 
 logger.info("Generating intial features")
 with torch.inference_mode():
@@ -52,7 +55,7 @@ with torch.inference_mode():
 
 logger.info("Performing inference")
 with torch.inference_mode():
-    y_hat = rshp_model(
+    y_hat = planet_md_model(
         {
             "seq_feats": embeddings.unsqueeze(0),
             "struct_feats": struct_like.unsqueeze(0),

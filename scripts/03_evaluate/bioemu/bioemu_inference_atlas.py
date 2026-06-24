@@ -1,4 +1,5 @@
 # %%
+import os
 import re
 import time
 from pathlib import Path
@@ -10,7 +11,7 @@ from loguru import logger
 from tqdm import tqdm
 
 num_samples = 5000
-data_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data")
+data_root = Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "data"
 output_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_atlas_results_5000")
 atlas_data = data_root / "raw/atlas"
 
@@ -29,7 +30,7 @@ sequences = []
 
 if (output_root / "sequences.fasta").exists():
     # Read sequences from the file
-    with open(output_root / "sequences.fasta", "r") as f:
+    with open(output_root / "sequences.fasta") as f:
         for line in f:
             if line.startswith(">"):
                 pdb_key = line[1:].strip()
@@ -57,7 +58,7 @@ else:
             f.write(f">{pdb_f.stem}\n{seq}\n")
 
 # %% Run bioemu for each sequence
-cache_dir = Path(f"/tmp/rocketshp/bioemu_atlas_{num_samples}_cache2")
+cache_dir = Path(f"/tmp/planet_md/bioemu_atlas_{num_samples}_cache2")
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 logger.info("Running bioemu for each sequence...")

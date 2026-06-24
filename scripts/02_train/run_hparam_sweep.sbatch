@@ -1,6 +1,5 @@
 #!/usr/bin/bash
-# filepath: /mnt/home/ssledzieski/Projects/rocketshp/scripts/02_train/run_hparam_sweep.sbatch
-#SBATCH --job-name=rocketshp_sweep
+#SBATCH --job-name=planet_md_sweep
 #SBATCH -p gpu
 #SBATCH --constraint=a100-40gb
 #SBATCH --gpus-per-task=1
@@ -16,12 +15,13 @@ module load python/3.11.7
 module load cudnn/8.9.7.29-12
 module load nccl/2.20.3-1
 module load gcc
-source ~/venvs/rocketshp/bin/activate
-
-cd $HOME/Projects/rocketshp
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+PLANET_MD_VENV=${PLANET_MD_VENV:-$PLANET_MD_DIR/.venv}
+cd "$PLANET_MD_DIR"
+source "$PLANET_MD_VENV/bin/activate"
 
 # Each array job runs one configuration
-python -m rocketshp.interface.train_sweep run-sweep-from-file \
+python -m planet_md.interface.train_sweep run-sweep-from-file \
     $SWEEP_FILE \
     --job-index $SLURM_ARRAY_TASK_ID \
     --dataset atlas \

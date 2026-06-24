@@ -23,9 +23,9 @@ plt.rcParams.update(
 root_dir = f"{config.PROCESSED_DATA_DIR}/rshp_loss_curves"
 
 id_map = {
-    "RSHP-181": "RocketSHP",
-    "RSHP-184": "RocketSHP-mini",
-    "RSHP-185": "RocketSHP-seq",
+    "RSHP-181": "PLANET-MD",
+    "RSHP-184": "PLANET-MD-mini",
+    "RSHP-185": "PLANET-MD-seq",
 }
 
 train_data = []
@@ -53,9 +53,9 @@ sns.lineplot(
     y="Training Loss",
     hue="Model",
     hue_order=[
-        "RocketSHP-mini",
-        "RocketSHP-seq",
-        "RocketSHP",
+        "PLANET-MD-mini",
+        "PLANET-MD-seq",
+        "PLANET-MD",
     ],
     linewidth=3,
 )
@@ -77,9 +77,9 @@ sns.lineplot(
     y="Validation Loss",
     hue="Model",
     hue_order=[
-        "RocketSHP-mini",
-        "RocketSHP-seq",
-        "RocketSHP",
+        "PLANET-MD-mini",
+        "PLANET-MD-seq",
+        "PLANET-MD",
     ],
     linewidth=3,
 )

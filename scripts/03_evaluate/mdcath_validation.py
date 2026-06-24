@@ -2,6 +2,7 @@
 import argparse
 import os
 import pickle as pk
+from pathlib import Path
 
 import matplotlib.pyplot as plt
 import numpy as np
@@ -41,7 +42,7 @@ plt.rcParams.update(
 
 # %% Script inputs
 
-parser = argparse.ArgumentParser(description="Evaluate RocketSHP model")
+parser = argparse.ArgumentParser(description="Evaluate PLANET-MD model")
 parser.add_argument("eval_key", type=str, help="Key for the evaluation")
 parser.add_argument("model", type=str, help="Path to the model checkpoint")
 parser.add_argument("config_file", type=str, help="Path to the config file")
@@ -57,20 +58,26 @@ parser.add_argument(
 # CONFIG_FILE = args.config_file
 # CHECKPOINT_FILE = args.model
 # device = args.device
+# split = args.split
 
 EVAL_KEY = "mdcath_large_ep10"
-CONFIG_FILE = (
-    "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250519_mdcath_large.yml"
+CONFIG_FILE = str(
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / "configs/20250519_mdcath_large.yml"
 )
-CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/full_model_mdcath_5/model-epoch=10-val_loss=0.80151.pt.ckpt"
+CHECKPOINT_FILE = str(
+    Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD")))
+    / "models/full_model_mdcath_5/model-epoch=10-val_loss=0.80151.pt.ckpt"
+)
 device = "cuda:0"
+split = "valid"
 
 # EVAL_KEY = "large_model_20250427"
-# CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
-# CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
-# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
-# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt"
-# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/big_model/model-epoch=50-val_loss=1.00.pt.ckpt"
+# CONFIG_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "configs/20250426_cadist_fixed.yml")
+# CONFIG_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "configs/20250427_large.yml")
+# CHECKPOINT_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt")
+# CHECKPOINT_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt")
+# CHECKPOINT_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "models/big_model/model-epoch=50-val_loss=1.00.pt.ckpt")
 
 OUTPUT_DIRECTORY = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY
 FIGURES_DIRECTORY = config.REPORTS_DIR / EVAL_KEY / "figures"
@@ -356,10 +363,10 @@ with open(valid_met_path, "rb") as f:
 with open(test_met_path, "rb") as f:
     test_metrics = pk.load(f)
 
-# %% Plot just RocketSHP results
+# %% Plot just PLANET-MD results
 logger.info("Plotting metrics...")
 fig, ax = plt.subplots(figsize=(8, 8))
-if args.split == "valid":
+if split == "valid":
     plot_metrics = valid_metrics
 else:
     plot_metrics = test_metrics
@@ -392,7 +399,7 @@ ax.set_xticklabels(ax.get_xticklabels(), rotation=45, ha="right")
 ax.set_yscale("log")
 
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_mse.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_rmsf_mse.svg")
 
 # %%
 fig, ax = plt.subplots(figsize=(8, 8))
@@ -410,7 +417,7 @@ ax.set_xlabel("Spearman Correlation of RMSF")
 ax.set_ylabel("-log10(p)")
 
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_rmsf_spearman.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_rmsf_spearman.svg")
 
 # %%
 fig, ax = plt.subplots(figsize=(8, 8))
@@ -442,7 +449,7 @@ ax.set_xlabel("")
 ax.set_ylabel("Ipsen-Mikhailov Distance of GCC")
 
 plt.tight_layout()
-plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_gcc_im_dist.svg")
+plt.savefig(FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_gcc_im_dist.svg")
 
 # %%
 fig, ax = plt.subplots(figsize=(8, 8))
@@ -475,7 +482,7 @@ ax.set_ylabel("KL Divergence of SHP")
 
 plt.tight_layout()
 plt.savefig(
-    FIGURES_DIRECTORY / f"{EVAL_KEY}_rocketshp_shp_kl_div.svg",
+    FIGURES_DIRECTORY / f"{EVAL_KEY}_planet_md_shp_kl_div.svg",
     dpi=300,
     bbox_inches="tight",
 )

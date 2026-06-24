@@ -1,6 +1,6 @@
-project: "samsl-flatiron/RocketSHP"
-name: "rocketshp_basic_sweep"
-description: "Basic hyperparameter optimization for RocketSHP"
+project: "samsl-flatiron/PLANET-MD"
+name: "planet_md_basic_sweep"
+description: "Basic hyperparameter optimization for PLANET-MD"
 
 parameters:
   lr:

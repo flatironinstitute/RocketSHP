@@ -58,11 +58,11 @@ CONFIG_FILE = args.config_file
 CHECKPOINT_FILE = args.model
 
 # EVAL_KEY = "large_model_20250427"
-# CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250426_cadist_fixed.yml"
-# CONFIG_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
-# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt"
-# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt"
-# CHECKPOINT_FILE = "/mnt/home/ssledzieski/Projects/rocketshp/models/big_model/model-epoch=50-val_loss=1.00.pt.ckpt"
+# CONFIG_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "configs/20250426_cadist_fixed.yml")
+# CONFIG_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "configs/20250427_large.yml")
+# CHECKPOINT_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "models/cadist_sqloss/model-epoch=43-val_loss=0.70.pt.ckpt")
+# CHECKPOINT_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "models/cadist_fixed/model-epoch=42-val_loss=1.07.pt.ckpt")
+# CHECKPOINT_FILE = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "models/big_model/model-epoch=50-val_loss=1.00.pt.ckpt")
 
 OUTPUT_DIRECTORY = config.EVALUATION_DATA_DIR / "evaluations" / EVAL_KEY
 FIGURES_DIRECTORY = config.REPORTS_DIR / EVAL_KEY / "figures"

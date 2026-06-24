@@ -1,6 +1,6 @@
-project: "samsl-flatiron/RocketSHP"
-name: "rocketshp_loss_weights_sweep"
-description: "Loss weight optimization for RocketSHP"
+project: "samsl-flatiron/PLANET-MD"
+name: "planet_md_loss_weights_sweep"
+description: "Loss weight optimization for PLANET-MD"
 
 parameters:
   rmsf_alpha:

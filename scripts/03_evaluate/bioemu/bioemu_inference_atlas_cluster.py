@@ -1,4 +1,5 @@
 # %%
+import os
 import re
 import time
 from pathlib import Path
@@ -58,7 +59,7 @@ else:
             f.write(f">{pdb_f.stem}\n{seq}\n")
 
 # %% Run bioemu for each sequence
-cache_dir = Path(f"/tmp/rocketshp/bioemu_atlas_{num_samples}_cache2")
+cache_dir = Path(f"/tmp/planet_md/bioemu_atlas_{num_samples}_cache2")
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 logger.info("Running bioemu for each sequence...")

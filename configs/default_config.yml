@@ -1,7 +1,7 @@
 random_seed: 0
 
 # Logging
-wandb_project: "RocketSHP"
+wandb_project: "PLANET-MD"
 wandb_entity: "samsl" # Set this to your W&B username/team
 
 # Data definitions

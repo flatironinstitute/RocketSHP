@@ -17,7 +17,8 @@ module load nccl
 module load gcc
 
 # Activate virtual environment
-cd $HOME/Projects/rocketshp
+PLANET_MD_DIR=${PLANET_MD_DIR:-$HOME/PLANET-MD}
+cd "$PLANET_MD_DIR"
 export UV_CACHE_DIR=/tmp/${SLURM_JOB_ID}/uv-cache
 export UV_PROJECT_ENVIRONMENT=/tmp/${SLURM_JOB_ID}/venv
 uv sync

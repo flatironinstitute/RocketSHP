@@ -1,10 +1,14 @@
 version = 1
-revision = 2
-requires-python = ">=3.11.0, <3.12"
+revision = 3
+requires-python = "==3.11.*"
 resolution-markers = [
     "sys_platform == 'win32'",
     "sys_platform == 'emscripten'",
-    "sys_platform != 'emscripten' and sys_platform != 'win32'",
+    "(platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+    "platform_machine == 'arm64' and sys_platform == 'darwin'",
+]
+required-markers = [
+    "platform_machine == 'arm64' and sys_platform == 'darwin'",
 ]
 
 [[package]]
@@ -202,8 +206,8 @@ name = "astunparse"
 version = "1.6.3"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six" },
-    { name = "wheel" },
+    { name = "six", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "wheel", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f3/af/4182184d3c338792894f34a62672919db7ca008c89abee9b564dd34d8029/astunparse-1.6.3.tar.gz", hash = "sha256:5ad93a8456f0d084c3456d059fd9a92cce667963232cbf763eac3bc5b7940872", size = 18290, upload-time = "2019-12-22T18:12:13.129Z" }
 wheels = [
@@ -270,30 +274,58 @@ wheels = [
 
 [[package]]
 name = "bioemu"
+version = "1.2.0"
+source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "platform_machine == 'arm64' and sys_platform == 'darwin'",
+]
+dependencies = [
+    { name = "bio", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "dm-tree", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "fire", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "huggingface-hub", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "hydra-core", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "mdtraj", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "modelcif", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "stackprinter", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "torch", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "torch-geometric", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "typer", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "uv", marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+]
+sdist = { url = "https://files.pythonhosted.org/packages/b0/59/08bd143435bfcd14ae550cb9ae11e145008aa38714edd27a508d8bb190c1/bioemu-1.2.0.tar.gz", hash = "sha256:be262f913ab700d43da743f2e8ea171e70b293fcceefbaac5e2b4d5e904fa6cf", size = 105156, upload-time = "2025-11-24T11:16:38.476Z" }
+
+[[package]]
+name = "bioemu"
 version = "1.3.1"
 source = { registry = "https://pypi.org/simple" }
+resolution-markers = [
+    "sys_platform == 'win32'",
+    "sys_platform == 'emscripten'",
+    "(platform_machine != 'arm64' and sys_platform == 'darwin') or (sys_platform != 'darwin' and sys_platform != 'emscripten' and sys_platform != 'win32')",
+]
 dependencies = [
-    { name = "absl-py" },
-    { name = "bio" },
-    { name = "dm-haiku" },
-    { name = "dm-tree" },
-    { name = "einops" },
-    { name = "fire" },
-    { name = "huggingface-hub" },
-    { name = "hydra-core" },
-    { name = "jax" },
-    { name = "matplotlib" },
-    { name = "mdtraj" },
-    { name = "ml-collections" },
-    { name = "modelcif" },
-    { name = "requests" },
-    { name = "stackprinter" },
-    { name = "tensorflow-cpu" },
-    { name = "torch" },
-    { name = "torch-geometric" },
-    { name = "tqdm" },
-    { name = "typer" },
-    { name = "uv" },
+    { name = "absl-py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "bio", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "dm-haiku", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "dm-tree", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "einops", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "fire", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "huggingface-hub", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "hydra-core", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "jax", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "matplotlib", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "mdtraj", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "ml-collections", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "modelcif", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "requests", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "stackprinter", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "tensorflow-cpu", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "torch", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "torch-geometric", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "tqdm", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "typer", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "uv", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/05/2b/e8c9d0c3e234178e676938944ed3790233fb76af6858d32daaec3432284f/bioemu-1.3.1.tar.gz", hash = "sha256:3ae65d09aaf381fcf6a4232af7f0f45b50886352bcfdcc044f2a477351c63644", size = 186539, upload-time = "2026-04-15T13:44:43.482Z" }
 wheels = [
@@ -791,10 +823,10 @@ name = "dm-haiku"
 version = "0.0.16"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "jmp" },
-    { name = "numpy" },
-    { name = "tabulate" },
+    { name = "absl-py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "jmp", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "tabulate", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/2a/fc/daf4689198f4c0af8b71611f39fcd5d68ce0ae59fa919b9e58192a7d70f5/dm_haiku-0.0.16.tar.gz", hash = "sha256:1830b0ce63c5cef2fb3a63a13033c9d8f612ee7f896f2b0b25a6ba484f5fad28", size = 263092, upload-time = "2025-12-17T15:55:35.145Z" }
 wheels = [
@@ -1061,7 +1093,7 @@ name = "google-pasta"
 version = "0.2.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "six" },
+    { name = "six", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/35/4a/0bd53b36ff0323d10d5f24ebd67af2de10a1117f5cf4d7add90df92756f1/google-pasta-0.2.0.tar.gz", hash = "sha256:c9f2c8dfc8f96d0d5808299920721be30c9eec37f2389f28904f454565c8a16e", size = 40430, upload-time = "2020-03-13T18:57:50.34Z" }
 wheels = [
@@ -1099,7 +1131,7 @@ name = "grpcio"
 version = "1.81.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/15/f3/23f47b24f8d8c2028eba501db3acfbb2f592cbb5995eaa6e363a627b74d7/grpcio-1.81.0.tar.gz", hash = "sha256:a5acd7efd3b1fe9b4eb0bcaaa1507eed68a0ad0678b654c3f7b464df9ba9dca5", size = 13032272, upload-time = "2026-06-01T05:56:22.827Z" }
 wheels = [
@@ -1392,11 +1424,11 @@ name = "jax"
 version = "0.4.35"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "jaxlib" },
-    { name = "ml-dtypes" },
-    { name = "numpy" },
-    { name = "opt-einsum" },
-    { name = "scipy" },
+    { name = "jaxlib", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "ml-dtypes", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "opt-einsum", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "scipy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/e3/34/21da583b9596e72bb8e95b6197dee0a44b96b9ea2c147fccabd43ca5515b/jax-0.4.35.tar.gz", hash = "sha256:c0c986993026b10bf6f607fecb7417377460254640766ce40f1fef3fd139c12e", size = 1861189, upload-time = "2024-10-22T20:56:36.379Z" }
 wheels = [
@@ -1408,9 +1440,9 @@ name = "jaxlib"
 version = "0.4.35"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "ml-dtypes" },
-    { name = "numpy" },
-    { name = "scipy" },
+    { name = "ml-dtypes", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "scipy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ee/01/4be899cf8d05920877b46b8acf51083dedaba206e951d88ddf7b098bed80/jaxlib-0.4.35-cp311-cp311-macosx_10_14_x86_64.whl", hash = "sha256:7f8bfc90f68857b223b7e38a9bdf466a4f1cb405c9a4aa11698dc9ab7b35c29b", size = 87895891, upload-time = "2024-10-22T20:57:18.444Z" },
@@ -1484,7 +1516,7 @@ name = "jmp"
 version = "0.0.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/ab/b0/e90fbbffef4b345329c878a69f0336d3edc5a1f9fcba193931aca2132d62/jmp-0.0.4.tar.gz", hash = "sha256:5dfeb0fd7c7a9f72a70fff0aab9d0cbfae32a809c02f4037ff3485ceb33e1730", size = 18582, upload-time = "2023-01-30T12:47:13.634Z" }
 wheels = [
@@ -1635,7 +1667,7 @@ dependencies = [
     { name = "overrides" },
     { name = "packaging" },
     { name = "prometheus-client" },
-    { name = "pywinpty", marker = "os_name == 'nt'" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and platform_machine != 'arm64') or (os_name == 'nt' and sys_platform != 'darwin')" },
     { name = "pyzmq" },
     { name = "send2trash" },
     { name = "terminado" },
@@ -1653,7 +1685,7 @@ name = "jupyter-server-terminals"
 version = "0.5.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "pywinpty", marker = "os_name == 'nt'" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and platform_machine != 'arm64') or (os_name == 'nt' and sys_platform != 'darwin')" },
     { name = "terminado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/f4/a7/bcd0a9b0cbba88986fe944aaaf91bfda603e5a50bda8ed15123f381a3b2f/jupyter_server_terminals-0.5.4.tar.gz", hash = "sha256:bbda128ed41d0be9020349f9f1f2a4ab9952a73ed5f5ac9f1419794761fb87f5", size = 31770, upload-time = "2026-01-14T16:53:20.213Z" }
@@ -1726,14 +1758,14 @@ name = "keras"
 version = "3.14.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "h5py" },
-    { name = "ml-dtypes" },
-    { name = "namex" },
-    { name = "numpy" },
-    { name = "optree" },
-    { name = "packaging" },
-    { name = "rich" },
+    { name = "absl-py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "h5py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "ml-dtypes", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "namex", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "optree", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "packaging", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "rich", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/35/e7/97a7664581b73e4f9ff1d3a767a493b6ac5d3e0ed1926bd2b6b2c8bbccd7/keras-3.14.1.tar.gz", hash = "sha256:ef479173102ad29db89b53c232efdc3fb5ad57c28bc27ead59f3e78a1eecd05b", size = 1263647, upload-time = "2026-05-07T21:43:35.112Z" }
 wheels = [
@@ -2130,8 +2162,8 @@ name = "ml-collections"
 version = "1.1.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "pyyaml" },
+    { name = "absl-py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "pyyaml", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/b8/f8/1a9ae6696dbb6bc9c44ddf5c5e84710d77fe9a35a57e8a06722e1836a4a6/ml_collections-1.1.0.tar.gz", hash = "sha256:0ac1ac6511b9f1566863e0bb0afad0c64e906ea278ad3f4d2144a55322671f6f", size = 61356, upload-time = "2025-04-17T08:25:02.247Z" }
 wheels = [
@@ -2143,7 +2175,7 @@ name = "ml-dtypes"
 version = "0.5.4"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "numpy" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/0e/4a/c27b42ed9b1c7d13d9ba8b6905dece787d6259152f2309338aed29b2447b/ml_dtypes-0.5.4.tar.gz", hash = "sha256:8ab06a50fb9bf9666dd0fe5dfb4676fa2b0ac0f31ecff72a6c3af8e22c063453", size = 692314, upload-time = "2025-11-17T22:32:31.031Z" }
 wheels = [
@@ -2668,7 +2700,7 @@ name = "optree"
 version = "0.19.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "typing-extensions" },
+    { name = "typing-extensions", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/44/63/92328a17ab7836562fe0129e605f685a88db35ce98427c34ff48ee4ec157/optree-0.19.1.tar.gz", hash = "sha256:4497d1c9197b8c6842e511368163d318ce536521ebdcff8bebb7551dcdfac532", size = 177531, upload-time = "2026-05-06T02:32:39.704Z" }
 wheels = [
@@ -2802,7 +2834,8 @@ name = "planet-md"
 version = "1.0.0"
 source = { editable = "." }
 dependencies = [
-    { name = "bioemu" },
+    { name = "bioemu", version = "1.2.0", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine == 'arm64' and sys_platform == 'darwin'" },
+    { name = "bioemu", version = "1.3.1", source = { registry = "https://pypi.org/simple" }, marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
     { name = "biopython" },
     { name = "biotite" },
     { name = "cyvcf2" },
@@ -3899,16 +3932,16 @@ name = "tensorboard"
 version = "2.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "grpcio" },
-    { name = "markdown" },
-    { name = "numpy" },
-    { name = "packaging" },
-    { name = "pillow" },
-    { name = "protobuf" },
-    { name = "setuptools" },
-    { name = "tensorboard-data-server" },
-    { name = "werkzeug" },
+    { name = "absl-py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "grpcio", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "markdown", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "packaging", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "pillow", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "protobuf", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "setuptools", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "tensorboard-data-server", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "werkzeug", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/9c/d9/a5db55f88f258ac669a92858b70a714bbbd5acd993820b41ec4a96a4d77f/tensorboard-2.20.0-py3-none-any.whl", hash = "sha256:9dc9f978cb84c0723acf9a345d96c184f0293d18f166bb8d59ee098e6cfaaba6", size = 5525680, upload-time = "2025-07-17T19:20:49.638Z" },
@@ -3929,27 +3962,27 @@ name = "tensorflow-cpu"
 version = "2.20.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "absl-py" },
-    { name = "astunparse" },
-    { name = "flatbuffers" },
-    { name = "gast" },
-    { name = "google-pasta" },
-    { name = "grpcio" },
-    { name = "h5py" },
-    { name = "keras" },
-    { name = "libclang" },
-    { name = "ml-dtypes" },
-    { name = "numpy" },
-    { name = "opt-einsum" },
-    { name = "packaging" },
-    { name = "protobuf" },
-    { name = "requests" },
-    { name = "setuptools" },
-    { name = "six" },
-    { name = "tensorboard" },
-    { name = "termcolor" },
-    { name = "typing-extensions" },
-    { name = "wrapt" },
+    { name = "absl-py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "astunparse", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "flatbuffers", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "gast", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "google-pasta", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "grpcio", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "h5py", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "keras", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "libclang", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "ml-dtypes", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "numpy", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "opt-einsum", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "packaging", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "protobuf", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "requests", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "setuptools", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "six", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "tensorboard", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "termcolor", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "typing-extensions", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
+    { name = "wrapt", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 wheels = [
     { url = "https://files.pythonhosted.org/packages/57/c2/a3e8b732aac7ac1167e05d23c8d1853d310f11a97ef3315413aa755fd6ae/tensorflow_cpu-2.20.0-cp311-cp311-manylinux_2_17_x86_64.manylinux2014_x86_64.whl", hash = "sha256:cf756bbe2d256e942ab5d0ad2c858fb40017581494febdb4387c149b1afde780", size = 258876263, upload-time = "2025-08-13T16:55:25.915Z" },
@@ -3971,7 +4004,7 @@ version = "0.18.1"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
     { name = "ptyprocess", marker = "os_name != 'nt'" },
-    { name = "pywinpty", marker = "os_name == 'nt'" },
+    { name = "pywinpty", marker = "(os_name == 'nt' and platform_machine != 'arm64') or (os_name == 'nt' and sys_platform != 'darwin')" },
     { name = "tornado" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/8a/11/965c6fd8e5cc254f1fe142d547387da17a8ebfd75a3455f637c663fb38a0/terminado-0.18.1.tar.gz", hash = "sha256:de09f2c4b85de4765f7714688fff57d3e75bad1f909b589fde880460c753fd2e", size = 32701, upload-time = "2024-03-12T14:34:39.026Z" }
@@ -4413,7 +4446,7 @@ name = "werkzeug"
 version = "3.1.8"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "markupsafe" },
+    { name = "markupsafe", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/dd/b2/381be8cfdee792dd117872481b6e378f85c957dd7c5bca38897b08f765fd/werkzeug-3.1.8.tar.gz", hash = "sha256:9bad61a4268dac112f1c5cd4630a56ede601b6ed420300677a869083d70a4c44", size = 875852, upload-time = "2026-04-02T18:49:14.268Z" }
 wheels = [
@@ -4425,7 +4458,7 @@ name = "wheel"
 version = "0.47.0"
 source = { registry = "https://pypi.org/simple" }
 dependencies = [
-    { name = "packaging" },
+    { name = "packaging", marker = "platform_machine != 'arm64' or sys_platform != 'darwin'" },
 ]
 sdist = { url = "https://files.pythonhosted.org/packages/39/62/75f18a0f03b4219c456652c7780e4d749b929eb605c098ce3a5b6b6bc081/wheel-0.47.0.tar.gz", hash = "sha256:cc72bd1009ba0cf63922e28f94d9d83b920aa2bb28f798a31d0691b02fa3c9b3", size = 63854, upload-time = "2026-04-22T15:51:27.727Z" }
 wheels = [

@@ -1,9 +1,15 @@
-# 🚀 PLANET-MD: Ultra-fast Prediction of Protein Dynamics
+<div align="center">
+
+# 🚀 PLANET-MD
 
 [![License](https://img.shields.io/badge/License-MIT-blue.svg)](https://opensource.org/licenses/MIT)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
 [![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-red.svg)](https://pytorch.org/)
 [![Ruff](https://img.shields.io/endpoint?url=https://raw.githubusercontent.com/astral-sh/ruff/main/assets/badge/v2.json)](https://github.com/astral-sh/ruff)
+
+<img src="logo.png" width="300">
+
+</div>
 
 PLANET-MD enables ultra-fast prediction of protein dynamics and flexibility from amino acid sequences and/or protein structures. Trained on thousands of molecular dynamics trajectories, it predicts multiple dynamics-related features simultaneously:
 
@@ -12,6 +18,7 @@ PLANET-MD enables ultra-fast prediction of protein dynamics and flexibility from
 - Structural Heterogeneity Profiles (SHP)
 
 This approach bridges the gap between static structural biology and dynamic functional understanding, providing a computational tool that complements experimental approaches at unprecedented speed and scale.
+
 
 ## 🛠️ Installation
 

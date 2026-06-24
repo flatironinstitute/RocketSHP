@@ -1,4 +1,6 @@
+import os
 import time
+from pathlib import Path
 
 import numpy as np
 import torch
@@ -31,12 +33,12 @@ esm_model = esm_model.eval().to(device)
 tokenizers = get_tokenizers("esm3-open")
 struct_tokenizer = tokenizers.structure
 
-EVAL_KEY = "rshp_mini"
+EVAL_KEY = "planet_md_mini"
 model = PlanetMDModel.load_from_checkpoint("v1_mini", strict=False)
 model = model.to(device)
 
 PARAMS = config.DEFAULT_PARAMETERS
-config_file = "/mnt/home/ssledzieski/Projects/rocketshp/configs/20250427_large.yml"
+config_file = str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "configs/20250427_large.yml")
 PARAMS.update(OmegaConf.load(config_file))
 
 logger.info("Loading data...")
@@ -83,7 +85,7 @@ def run_inference(
     return result
 
 
-rshp_times = []
+planet_md_times = []
 for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
     pdb_file_path = config.RAW_DATA_DIR / f"atlas/{pdb_id[:2]}/{pdb_id}.pdb"
     esm_chain = ProteinChain.from_pdb(pdb_file_path)
@@ -106,52 +108,17 @@ for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
 
         result = model({k: v.unsqueeze(0) for k, v in tmp_feats.items()})
         end_time = time.time()
-        rshp_times.append(end_time - start_time)
+        planet_md_times.append(end_time - start_time)
 
 logger.info(f"Num samples: {len(all_pdb_chains)}")
-# logger.info(f"RocketSHP only: {end_time - start_time:.5f} s")
-logger.info(f"Time per sample: {np.mean(rshp_times):.5f} s")
+# logger.info(f"PLANET-MD only: {end_time - start_time:.5f} s")
+logger.info(f"Time per sample: {np.mean(planet_md_times):.5f} s")
 
 results_dir = config.PROCESSED_DATA_DIR / "runtime_profile" / EVAL_KEY
 results_dir.mkdir(parents=True, exist_ok=True)
 
-for pdb_id, t in zip(all_pdb_chains, rshp_times):
+for pdb_id, t in zip(all_pdb_chains, planet_md_times):
     with open(results_dir / f"{pdb_id}.runtime.txt", "w") as f:
         f.write(f"Model inference time: {t:.5f}\n")
 
-# start = time.time()
-# for pdb_id in tqdm(all_pdb_chains, desc="Generating embeddings..."):
-#     pdb_file_path = config.RAW_DATA_DIR / f"atlas/{pdb_id[:2]}/{pdb_id}.pdb"
-#     esm_chain = ProteinChain.from_pdb(pdb_file_path)
-
-#     # Tokenize structure
-#     with torch.inference_mode():
-#         struct_feats = esm3_vqvae(esm_chain, struct_encoder, stage="encoded")
-#         embeddings = esm3_sequence(esm_chain.sequence, esm_model, tokenizers).squeeze()[1:-1]
-#         temp = torch.ones(embeddings.shape[0]) * 300
-
-#         # logger.info(f"struct_shape: {struct_feats.shape} seq_shape: {embeddings.shape}")
-#         tmp_feats = {
-#             "struct_feats": struct_feats.to("cpu").squeeze(),
-#             "seq_feats": embeddings.to("cpu").squeeze(),
-#             "temp": temp,
-#         }
-#         precomputed_feats[pdb_id] = tmp_feats
-# end = time.time()
-# logger.info(f"Num samples: {len(all_pdb_chains)}")
-# logger.info(f"Embedding and tokenizing: {end - start:.3f} seconds")
-# logger.info(f"Per sample: {(end - start) / len(all_pdb_chains):.4f} seconds")
-
-# start_time = time.time()
-# for pdb_id in tqdm(all_pdb_chains, desc="Running inference..."):
-#     with torch.inference_mode():
-#         both_result = model(
-#             {k: v.to(device).unsqueeze(0) for k, v in precomputed_feats[pdb_id].items()}
-#         )
-#         results[pdb_id] = both_result
-
-# end_time = time.time()
-
-# logger.info(f"Num samples: {len(all_pdb_chains)}")
-# logger.info(f"RocketSHP only: {end_time - start_time:.5f} s")
-# logger.info(f"Time per sample: {(end_time - start_time) / len(all_pdb_chains):.5f} s")
+d

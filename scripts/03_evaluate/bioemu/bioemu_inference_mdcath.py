@@ -1,4 +1,5 @@
 # %%
+import os
 import time
 from pathlib import Path
 
@@ -9,7 +10,7 @@ from loguru import logger
 from tqdm import tqdm
 
 num_samples = 100
-data_root = Path("/mnt/home/ssledzieski/Projects/rocketshp/data")
+data_root = Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "data"
 output_root = Path("/mnt/home/ssledzieski/GitHub/bioemu/rshp_mdcath_results_100")
 output_root.mkdir(parents=True, exist_ok=True)
 mdcath_root = data_root / "processed/mdcath"
@@ -22,7 +23,7 @@ mdcath_pdbs = [x / x.with_suffix(".pdb").name for x in mdcath_dirs]
 logger.info(f"Found {len(mdcath_pdbs)} mdcath pdbs.")
 
 # %% prioritize test set data first
-with open("/mnt/home/ssledzieski/Projects/rocketshp/data/processed/mdcath_test_set.txt", "r") as f:
+with open(str(Path(os.environ.get("PLANET_MD_DIR", str(Path.home() / "PLANET-MD"))) / "data/processed/mdcath_test_set.txt")) as f:
     mdcath_test_list = [l.strip() for l in f.readlines()]
 
 mdcath_pdbs_test_first = sorted(mdcath_pdbs, key=lambda x: x.stem in mdcath_test_list, reverse=True)
@@ -34,7 +35,7 @@ for i in range(622):
 sequences = {}
 
 if (output_root / "sequences.fasta").exists():
-    with open(output_root / "sequences.fasta", "r") as f:
+    with open(output_root / "sequences.fasta") as f:
         for line in f:
             if line.startswith(">"):
                 pdb_key = line[1:].strip()
@@ -63,7 +64,7 @@ else:
                 f.write(f">{pdb_k}\n{seq}\n")
 
 # %% Run bioemu for each sequence
-cache_dir = Path(f"/tmp/rocketshp/bioemu_mdcath_{num_samples}_cache")
+cache_dir = Path(f"/tmp/planet_md/bioemu_mdcath_{num_samples}_cache")
 cache_dir.mkdir(parents=True, exist_ok=True)
 
 logger.info("Running bioemu for each sequence...")
