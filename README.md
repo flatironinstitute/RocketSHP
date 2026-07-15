@@ -166,13 +166,14 @@ For more technical details, please refer to our paper.
 If you use PLANET-MD in your research, please cite:
 
 ```bibtex
-@article{sledzieski2025rocketshp,
-  title={RocketSHP: Ultra-fast Proteome-scale Prediction of Protein Dynamics},
-  author={Sledzieski, Samuel and Hanson, Sonya M},
-  journal={bioRxiv},
-  pages={2025--06},
-  year={2025},
-  publisher={Cold Spring Harbor Laboratory}
+@article {sledzieski2026planetmd,
+	author = {Sledzieski, Samuel and Hanson, Sonya M.},
+	title = {PLANET-MD: Ultra-fast Proteome-scale Prediction of Allosteric Networks in Proteins},
+	elocation-id = {2025.06.12.659353},
+	year = {2026},
+	doi = {10.1101/2025.06.12.659353},
+	publisher = {Cold Spring Harbor Laboratory},
+	journal = {bioRxiv}
 }
 ```
 
